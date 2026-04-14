@@ -1,0 +1,1171 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SBM Integration Map | データフローガイド</title>
+    <link rel="stylesheet" href="premium_style.css">
+    <link rel="stylesheet" href="premium_style_append.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        /* Integration Map specific styles */
+        .flow-main {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+            margin: 2rem 0;
+        }
+
+        .flow-node {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 1.5rem;
+            position: relative;
+        }
+
+        .flow-node .node-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 0.8rem;
+        }
+
+        .flow-node .node-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.4rem;
+            flex-shrink: 0;
+        }
+
+        .flow-node .node-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .flow-node .node-subtitle {
+            font-size: 0.82rem;
+            color: var(--text-secondary);
+        }
+
+        .flow-connector {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.4rem 0;
+            position: relative;
+        }
+
+        .flow-connector .connector-line {
+            width: 2px;
+            height: 30px;
+            background: linear-gradient(to bottom, rgba(59, 130, 246, 0.6), rgba(6, 182, 212, 0.6));
+        }
+
+        .flow-connector .connector-file {
+            position: absolute;
+            left: 55%;
+            background: rgba(16, 185, 129, 0.15);
+            border: 1px solid rgba(16, 185, 129, 0.4);
+            border-radius: 20px;
+            padding: 3px 14px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: #34d399;
+            white-space: nowrap;
+        }
+
+        .data-sample {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 8px;
+            padding: 1rem 1.2rem;
+            font-family: 'Fira Code', 'Consolas', monospace;
+            font-size: 0.78rem;
+            line-height: 1.7;
+            color: #e2e8f0;
+            overflow-x: auto;
+            margin: 1rem 0;
+            position: relative;
+        }
+
+        .data-sample .label {
+            position: absolute;
+            top: 0;
+            right: 0;
+            background: rgba(139, 92, 246, 0.2);
+            color: #a78bfa;
+            font-size: 0.7rem;
+            font-weight: 600;
+            padding: 3px 10px;
+            border-radius: 0 8px 0 8px;
+        }
+
+        .data-sample .comment {
+            color: #6b7280;
+        }
+
+        .data-sample .highlight {
+            color: #fbbf24;
+        }
+
+        .data-sample .string {
+            color: #34d399;
+        }
+
+        .data-sample .key {
+            color: #93c5fd;
+        }
+
+        .format-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+            font-size: 0.88rem;
+        }
+
+        .format-table th {
+            background: rgba(139, 92, 246, 0.12);
+            color: var(--accent-purple);
+            padding: 0.6rem 0.8rem;
+            text-align: left;
+            border-bottom: 2px solid rgba(139, 92, 246, 0.3);
+            font-weight: 600;
+        }
+
+        .format-table td {
+            padding: 0.5rem 0.8rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            vertical-align: top;
+        }
+
+        .format-table tr:hover td {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .format-table code {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 1px 5px;
+            border-radius: 3px;
+            font-size: 0.85em;
+            color: #93c5fd;
+        }
+
+        .ext-badge {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            font-family: 'Fira Code', 'Consolas', monospace;
+        }
+
+        .ext-mp4 {
+            background: rgba(239, 68, 68, 0.15);
+            color: #f87171;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .ext-hpe {
+            background: rgba(59, 130, 246, 0.15);
+            color: #60a5fa;
+            border: 1px solid rgba(59, 130, 246, 0.3);
+        }
+
+        .ext-csv {
+            background: rgba(16, 185, 129, 0.15);
+            color: #34d399;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .ext-rd {
+            background: rgba(251, 191, 36, 0.15);
+            color: #fbbf24;
+            border: 1px solid rgba(251, 191, 36, 0.3);
+        }
+
+        .ext-3d {
+            background: rgba(139, 92, 246, 0.15);
+            color: #a78bfa;
+            border: 1px solid rgba(139, 92, 246, 0.3);
+        }
+
+        .ext-c3d {
+            background: rgba(236, 72, 153, 0.15);
+            color: #f472b6;
+            border: 1px solid rgba(236, 72, 153, 0.3);
+        }
+
+        .kp-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 0.3rem;
+            margin: 1rem 0;
+            font-size: 0.82rem;
+        }
+
+        .kp-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.3rem 0.6rem;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 6px;
+        }
+
+        .kp-item .kp-id {
+            color: var(--accent-cyan);
+            font-weight: 700;
+            font-family: 'Fira Code', 'Consolas', monospace;
+            min-width: 1.5rem;
+            text-align: right;
+        }
+
+        .kp-item .kp-name {
+            color: var(--text-secondary);
+        }
+
+        .tip-box {
+            background: rgba(16, 185, 129, 0.08);
+            border-left: 3px solid #10b981;
+            padding: 1rem 1.2rem;
+            border-radius: 0 8px 8px 0;
+            margin: 1rem 0;
+            font-size: 0.92rem;
+        }
+
+        .tip-box strong {
+            color: #34d399;
+        }
+
+        .warn-box {
+            background: rgba(251, 191, 36, 0.08);
+            border-left: 3px solid #fbbf24;
+            padding: 1rem 1.2rem;
+            border-radius: 0 8px 8px 0;
+            margin: 1rem 0;
+            font-size: 0.92rem;
+        }
+
+        .warn-box strong {
+            color: #fbbf24;
+        }
+
+        .check-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.5rem;
+            margin: 0.5rem 0;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .check-item::before {
+            content: "✓";
+            color: #10b981;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+
+        .two-col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+
+        @media (max-width: 768px) {
+            .two-col {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .sub-section {
+            margin-top: 2.5rem;
+        }
+
+        .sub-section:first-of-type {
+            margin-top: 1.5rem;
+        }
+
+        .decision-box {
+            background: rgba(59, 130, 246, 0.06);
+            border: 1px solid rgba(59, 130, 246, 0.2);
+            border-radius: 10px;
+            padding: 1.2rem;
+            margin: 1rem 0;
+        }
+
+        .decision-box h4 {
+            margin-top: 0;
+            color: var(--accent-blue);
+        }
+    </style>
+</head>
+
+<body>
+
+    <header>
+        <div class="brand">
+            <i class="fa-solid fa-dna"></i> SBM System <span style="font-size:0.8em; opacity:0.7;">Analytics
+                Suite</span>
+        </div>
+        <nav class="nav-links">
+            <a href="SBM_User_Manual.html">User Manual</a>
+            <a href="SBM_Integration_Map.html" class="active">Integration Map</a>
+            <a href="SBM_Technical_Bible.html">Technical Bible</a>
+        </nav>
+    </header>
+
+    <section class="hero">
+        <div class="hero-badges">
+            <span class="badge">Data Flow Guide</span>
+            <span class="badge">File Format Reference</span>
+            <span class="badge">Step-by-Step Pipeline</span>
+        </div>
+        <h1>Data Journey <br><span class="text-gradient">Integration Map</span></h1>
+        <p>
+            動画ファイルが23点の身体座標に変換され、実長換算を経て運動学データになるまで。<br>
+            各ステップで「何が入力され、何が出力されるか」を具体的に示す。
+        </p>
+    </section>
+
+    <div class="container">
+
+        <!-- ===== PIPELINE OVERVIEW ===== -->
+        <div class="card">
+            <h2><i class="fa-solid fa-route"></i> Pipeline Overview</h2>
+            <p>SBM Systemの全データフローを一覧で示す。各アプリは独立しており、ファイルを介してデータを受け渡す。</p>
+
+            <div class="flow-main">
+                <!-- Node 1: VideoSyncLab -->
+                <div class="flow-node">
+                    <div class="node-header">
+                        <div class="node-icon" style="background: rgba(239, 68, 68, 0.15);">
+                            <img src="picture/icons/vsl_icon.png" alt="VSL"
+                                style="width: 100%; height: 100%; object-fit: contain;">
+                        </div>
+                        <div>
+                            <div class="node-title">Phase 1: VideoSyncLab</div>
+                            <div class="node-subtitle">動画の同期・トリミング・分析区間の切り出し</div>
+                        </div>
+                        <div style="margin-left: auto;">
+                            <span class="ext-badge ext-mp4">.mp4 入力</span>
+                        </div>
+                    </div>
+                    <p style="margin:0; font-size: 0.88rem; color: var(--text-secondary);">
+                        撮影した動画ファイルを読み込み、分析に必要な区間だけを切り出す。マルチカメラの場合は同期ポイントを設定して時間軸を一致させる。
+                    </p>
+                </div>
+
+                <!-- Connector -->
+                <div class="flow-connector">
+                    <div class="connector-line"></div>
+                    <div class="connector-file">*_cut.mp4</div>
+                </div>
+
+                <!-- Node 2: HPE -->
+                <div class="flow-node">
+                    <div class="node-header">
+                        <div class="node-icon" style="background: rgba(59, 130, 246, 0.15);">
+                            <img src="picture/icons/hpe_icon.png" alt="HPE"
+                                style="width: 100%; height: 100%; object-fit: contain;">
+                        </div>
+                        <div>
+                            <div class="node-title">Phase 2: HPE (AI骨格推定)</div>
+                            <div class="node-subtitle">YOLO + ViTPose による23点の身体座標値推定</div>
+                        </div>
+                        <div style="margin-left: auto;">
+                            <span class="ext-badge ext-mp4">.mp4 入力</span>
+                        </div>
+                    </div>
+                    <p style="margin:0; font-size: 0.88rem; color: var(--text-secondary);">
+                        AI が全フレームの人物を検出し、23箇所のキーポイントをピクセル座標で出力する。フィルタリングとノイズ除去もここで行う。
+                    </p>
+                </div>
+
+                <!-- Connector -->
+                <div class="flow-connector">
+                    <div class="connector-line"></div>
+                    <div class="connector-file">.hpe / .csv</div>
+                </div>
+
+                <!-- Node 3: MotionDigitizer -->
+                <div class="flow-node">
+                    <div class="node-header">
+                        <div class="node-icon" style="background: rgba(251, 191, 36, 0.15);">
+                            <img src="picture/icons/md_icon.png" alt="MD"
+                                style="width: 100%; height: 100%; object-fit: contain;">
+                        </div>
+                        <div>
+                            <div class="node-title">Phase 3: MotionDigitizer (実長換算)</div>
+                            <div class="node-subtitle">ピクセル座標 → 実世界座標（メートル）への変換</div>
+                        </div>
+                        <div style="margin-left: auto;">
+                            <span class="ext-badge ext-hpe">.hpe 入力</span>
+                        </div>
+                    </div>
+                    <p style="margin:0; font-size: 0.88rem; color: var(--text-secondary);">
+                        キャリブレーション（DLT/CC法）で座標変換パラメータを算出し、ピクセル座標を実長（メートル）に変換する。
+                    </p>
+                </div>
+
+                <!-- Connector -->
+                <div class="flow-connector">
+                    <div class="connector-line"></div>
+                    <div class="connector-file">.rd / .3d / .c3d</div>
+                </div>
+
+                <!-- Node 4: MotionViewer -->
+                <div class="flow-node">
+                    <div class="node-header">
+                        <div class="node-icon" style="background: rgba(139, 92, 246, 0.15);">
+                            <img src="picture/icons/mv_icon.png" alt="MV"
+                                style="width: 100%; height: 100%; object-fit: contain;">
+                        </div>
+                        <div>
+                            <div class="node-title">Phase 4: MotionViewer (データ確認・分析)</div>
+                            <div class="node-subtitle">3D可視化・速度・角度・重心の算出</div>
+                        </div>
+                        <div style="margin-left: auto;">
+                            <span class="ext-badge ext-rd">.rd / .3d 入力</span>
+                        </div>
+                    </div>
+                    <p style="margin:0; font-size: 0.88rem; color: var(--text-secondary);">
+                        スティックピクチャーの3D表示、時系列グラフ、関節角度、身体重心（COM）など運動学パラメータを算出・可視化する。
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- PHASE 1: VIDEO PREPARATION                 -->
+        <!-- ========================================== -->
+        <div class="card">
+            <h2><img src="picture/icons/vsl_icon.png" alt="VSL"
+                    style="height: 1.2em; vertical-align: bottom; margin-right: 0.3rem;"> Phase 1: 動画ファイルの準備</h2>
+            <p>
+                分析の品質は入力動画の品質で決まる。
+                VideoSyncLabで分析区間を正確に切り出し、HPEに渡すための最適な <span class="ext-badge ext-mp4">.mp4</span> を生成する。
+            </p>
+
+            <div class="img-container">
+                <img src="picture/VideoSyncLab/スクリーンショット 2026-02-05 163155.png" alt="VideoSyncLab UI">
+            </div>
+
+            <div class="sub-section">
+                <h3><i class="fa-solid fa-video"></i> 入力: 撮影動画</h3>
+                <table class="format-table">
+                    <tr>
+                        <th>項目</th>
+                        <th>推奨</th>
+                        <th>備考</th>
+                    </tr>
+                    <tr>
+                        <td>形式</td>
+                        <td><code>.mp4</code> (H.264)</td>
+                        <td>ほぼ全てのカメラで標準</td>
+                    </tr>
+                    <tr>
+                        <td>解像度</td>
+                        <td>1080p 以上</td>
+                        <td>高いほどキーポイント精度向上</td>
+                    </tr>
+                    <tr>
+                        <td>フレームレート</td>
+                        <td>30fps〜240fps</td>
+                        <td>高速動作の場合はハイスピード推奨</td>
+                    </tr>
+                    <tr>
+                        <td>カメラ台数</td>
+                        <td>2D分析: 1台 / 3D分析: 2台以上</td>
+                        <td>角度差は60°〜120°が理想</td>
+                    </tr>
+                </table>
+            </div>
+
+            <div class="sub-section">
+                <h3><i class="fa-solid fa-scissors"></i> 出力: トリミング済み動画</h3>
+                <p>Smart Cut または再エンコードで分析区間のみを切り出す。出力ファイル名は元のファイル名に <code>_cut</code> が付加される。</p>
+
+                <div class="data-sample">
+                    <span class="label">出力ファイル例</span>
+                    <span class="comment"># 例: pitch_cam1.mp4 をフレーム 120〜350 でトリム</span>
+                    pitch_cam1<span class="highlight">_cut</span>.mp4 <span class="comment">← HPE に渡すファイル</span>
+                    pitch_cam2<span class="highlight">_cut</span>.mp4 <span class="comment">← 2台目（3D分析の場合）</span>
+                </div>
+
+                <div class="tip-box">
+                    <strong>Tip:</strong> マルチカメラの場合、VideoSyncLab で同期ポイントを設定してからトリミングすると、
+                    両カメラの切り出し開始フレームが自動的に一致する。
+                    これにより Phase 3 のMotionDigitizerでのフレーム対応づけが正確になる。
+                </div>
+            </div>
+
+            <div class="sub-section">
+                <h3><i class="fa-solid fa-arrows-left-right"></i> 2D分析 vs 3D分析の選択</h3>
+                <div class="two-col">
+                    <div class="decision-box">
+                        <h4>2D分析（カメラ1台）</h4>
+                        <div class="check-item">動作が概ねカメラに平行な平面内で行われる</div>
+                        <div class="check-item">例: サジタル面での歩行、走行、跳躍</div>
+                        <div class="check-item">必要なカメラ: 1台</div>
+                        <div class="check-item">出力: <span class="ext-badge ext-rd">.rd</span>（2D実長座標）</div>
+                    </div>
+                    <div class="decision-box">
+                        <h4>3D分析（カメラ2台以上）</h4>
+                        <div class="check-item">動作に奥行き方向の成分がある</div>
+                        <div class="check-item">例: 投球、旋回動作、ダンス</div>
+                        <div class="check-item">必要なカメラ: 2台以上</div>
+                        <div class="check-item">出力: <span class="ext-badge ext-3d">.3d</span>（3D実長座標）</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- PHASE 2: HPE                               -->
+        <!-- ========================================== -->
+        <div class="card">
+            <h2><img src="picture/icons/hpe_icon.png" alt="HPE"
+                    style="height: 1.2em; vertical-align: bottom; margin-right: 0.3rem;"> Phase 2: AI骨格推定（HPE）</h2>
+            <p>
+                トリミング済みの <span class="ext-badge ext-mp4">.mp4</span> をHPEに渡し、
+                全フレームの身体23点のピクセル座標を自動推定する。
+            </p>
+
+            <div class="img-container">
+                <img src="picture/HPE/スクリーンショット 2026-02-05 224315.png" alt="HPE UI">
+            </div>
+
+            <div class="sub-section">
+                <h3><i class="fa-solid fa-bone"></i> 23キーポイントの定義</h3>
+                <p>ViTPoseの133点出力から、バイオメカニクス分析に必要な23点を選択・マッピングしている。</p>
+
+                <div class="kp-grid">
+                    <div class="kp-item"><span class="kp-id">1</span><span class="kp-name">右手指先</span></div>
+                    <div class="kp-item"><span class="kp-id">2</span><span class="kp-name">右手首</span></div>
+                    <div class="kp-item"><span class="kp-id">3</span><span class="kp-name">右肘</span></div>
+                    <div class="kp-item"><span class="kp-id">4</span><span class="kp-name">右肩</span></div>
+                    <div class="kp-item"><span class="kp-id">5</span><span class="kp-name">左手指先</span></div>
+                    <div class="kp-item"><span class="kp-id">6</span><span class="kp-name">左手首</span></div>
+                    <div class="kp-item"><span class="kp-id">7</span><span class="kp-name">左肘</span></div>
+                    <div class="kp-item"><span class="kp-id">8</span><span class="kp-name">左肩</span></div>
+                    <div class="kp-item"><span class="kp-id">9</span><span class="kp-name">右つま先</span></div>
+                    <div class="kp-item"><span class="kp-id">10</span><span class="kp-name">右小指側</span></div>
+                    <div class="kp-item"><span class="kp-id">11</span><span class="kp-name">右かかと</span></div>
+                    <div class="kp-item"><span class="kp-id">12</span><span class="kp-name">右足首</span></div>
+                    <div class="kp-item"><span class="kp-id">13</span><span class="kp-name">右膝</span></div>
+                    <div class="kp-item"><span class="kp-id">14</span><span class="kp-name">右股関節</span></div>
+                    <div class="kp-item"><span class="kp-id">15</span><span class="kp-name">左つま先</span></div>
+                    <div class="kp-item"><span class="kp-id">16</span><span class="kp-name">左小指側</span></div>
+                    <div class="kp-item"><span class="kp-id">17</span><span class="kp-name">左かかと</span></div>
+                    <div class="kp-item"><span class="kp-id">18</span><span class="kp-name">左足首</span></div>
+                    <div class="kp-item"><span class="kp-id">19</span><span class="kp-name">左膝</span></div>
+                    <div class="kp-item"><span class="kp-id">20</span><span class="kp-name">左股関節</span></div>
+                    <div class="kp-item"><span class="kp-id">21</span><span class="kp-name">頭頂</span></div>
+                    <div class="kp-item"><span class="kp-id">22</span><span class="kp-name">耳珠点</span></div>
+                    <div class="kp-item"><span class="kp-id">23</span><span class="kp-name">胸骨上縁</span></div>
+                </div>
+            </div>
+
+            <div class="sub-section">
+                <h3><i class="fa-solid fa-file-export"></i> 出力形式 1: <span class="ext-badge ext-hpe">.hpe</span>
+                    プロジェクトファイル</h3>
+                <p>HPEのプロジェクト全体を保存するJSON形式。フィルタリング設定や編集履歴を含む。<strong>MotionDigitizerへの引き渡しにはこの形式が推奨。</strong></p>
+
+                <div class="data-sample">
+                    <span class="label">.hpe ファイル構造</span>
+                    {
+                    <span class="key">"version"</span>: <span class="string">"1.2"</span>,
+                    <span class="key">"fileType"</span>: <span class="string">"video"</span>,
+                    <span class="key">"fileName"</span>: <span class="string">"pitch_cam1_cut.mp4"</span>,
+                    <span class="key">"originalData"</span>: {
+                    <span class="key">"fps"</span>: <span class="highlight">30</span>,
+                    <span class="key">"width"</span>: <span class="highlight">1920</span>, <span
+                        class="key">"height"</span>: <span class="highlight">1080</span>,
+                    <span class="key">"total_frames"</span>: <span class="highlight">300</span>,
+                    <span class="key">"keypoint_names"</span>: [<span class="string">"right_hand_tip"</span>, <span
+                        class="string">"right_wrist"</span>, ...],
+                    <span class="key">"frames"</span>: [
+                    { <span class="key">"frame"</span>: <span class="highlight">1</span>,
+                    <span class="key">"keypoints"</span>: {
+                    <span class="key">"0"</span>: [ <span class="comment">← 人物ID "0" の23点</span>
+                    [<span class="highlight">320.45</span>, <span class="highlight">180.23</span>, <span
+                        class="highlight">0.95</span>], <span class="comment">← [x(px), y(px), 信頼度]</span>
+                    [<span class="highlight">310.12</span>, <span class="highlight">200.45</span>, <span
+                        class="highlight">0.87</span>],
+                    ... <span class="comment">← 23点分</span>
+                    ]
+                    }
+                    },
+                    ...
+                    ]
+                    },
+                    <span class="key">"filteredData"</span>: { ... }, <span class="comment">← フィルタ適用後のデータ（優先使用）</span>
+                    <span class="key">"filterSettings"</span>: {
+                    <span class="key">"enableButterworth"</span>: true,
+                    <span class="key">"butterworthCutoff"</span>: <span class="highlight">6.0</span>,
+                    ...
+                    }
+                    }
+                </div>
+
+                <div class="warn-box">
+                    <strong>重要:</strong> <code>filteredData</code> が存在する場合、MotionDigitizerは <code>originalData</code>
+                    ではなく <code>filteredData</code> を優先的に読み込む。
+                    HPEでフィルタリングを完了してから保存すること。
+                </div>
+            </div>
+
+            <div class="sub-section">
+                <h3><i class="fa-solid fa-file-csv"></i> 出力形式 2: <span class="ext-badge ext-csv">.csv</span> テキストデータ
+                </h3>
+                <p>人物ごとに個別出力されるカンマ区切りテキスト。Excel等で直接開ける。</p>
+
+                <div class="data-sample">
+                    <span class="label">.csv ヘッダーと先頭行</span>
+                    frame,right_hand_tip_x,right_hand_tip_y,right_wrist_x,right_wrist_y,...,right_hand_tip_conf,right_wrist_conf,...
+                    <span class="highlight">1</span>,<span class="highlight">320.45</span>,<span
+                        class="highlight">180.23</span>,<span class="highlight">310.12</span>,<span
+                        class="highlight">200.45</span>,...,<span class="highlight">0.95</span>,<span
+                        class="highlight">0.87</span>,...
+                    <span class="highlight">2</span>,<span class="highlight">321.02</span>,<span
+                        class="highlight">179.98</span>,<span class="highlight">310.87</span>,<span
+                        class="highlight">201.12</span>,...,<span class="highlight">0.94</span>,<span
+                        class="highlight">0.88</span>,...
+                </div>
+
+                <table class="format-table">
+                    <tr>
+                        <th>列</th>
+                        <th>内容</th>
+                        <th>単位</th>
+                    </tr>
+                    <tr>
+                        <td><code>frame</code></td>
+                        <td>フレーム番号（1始まり）</td>
+                        <td>—</td>
+                    </tr>
+                    <tr>
+                        <td><code>{name}_x</code></td>
+                        <td>キーポイントのX座標</td>
+                        <td>ピクセル</td>
+                    </tr>
+                    <tr>
+                        <td><code>{name}_y</code></td>
+                        <td>キーポイントのY座標</td>
+                        <td>ピクセル</td>
+                    </tr>
+                    <tr>
+                        <td><code>{name}_conf</code></td>
+                        <td>信頼度スコア (0.0〜1.0)</td>
+                        <td>—</td>
+                    </tr>
+                </table>
+
+                <div class="tip-box">
+                    <strong>Tip:</strong> CSVの座標値はピクセル単位。この段階ではまだ実世界の長さ（メートル）には変換されていない。
+                    実長への変換は次のPhase 3で行う。
+                </div>
+            </div>
+
+            <div class="sub-section">
+                <h3><i class="fa-solid fa-filter"></i> データ品質チェックポイント</h3>
+                <p>HPE → MotionDigitizer に渡す前に確認すべき事項:</p>
+                <div class="check-item">全フレームでターゲット人物が検出されているか（欠損フレームがないか）</div>
+                <div class="check-item">オクルージョン（隠れ）区間でキーポイントが大きく飛んでいないか</div>
+                <div class="check-item">左右の入替が発生していないか（グラフで急激な交差がないか）</div>
+                <div class="check-item">フィルタリング（外れ値除去 → 補間 → Butterworth）を適用済みか</div>
+                <div class="check-item">複数人物がいる場合、正しい人物IDを選択しているか</div>
+            </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- PHASE 3: MOTIONDIGITIZER                   -->
+        <!-- ========================================== -->
+        <div class="card">
+            <h2><img src="picture/icons/md_icon.png" alt="MD"
+                    style="height: 1.2em; vertical-align: bottom; margin-right: 0.3rem;"> Phase 3: 実長換算（MotionDigitizer）
+            </h2>
+            <p>
+                HPEの出力 <span class="ext-badge ext-hpe">.hpe</span> を読み込み、
+                キャリブレーションで座標変換パラメータを算出した後、全フレームのピクセル座標を実長（メートル）に一括変換する。
+            </p>
+
+            <div class="img-container">
+                <img src="picture/MotionDigitizer/スクリーンショット 2026-02-05 224639.png" alt="MotionDigitizer UI">
+            </div>
+
+            <div class="sub-section">
+                <h3><i class="fa-solid fa-file-import"></i> HPEデータの取り込み</h3>
+                <p>MotionDigitizerは <code>.hpe</code> ファイルを読み込み、23キーポイントを内部のポイントID（1〜23）にマッピングする。</p>
+
+                <table class="format-table">
+                    <tr>
+                        <th>HPEキーポイント名</th>
+                        <th>→</th>
+                        <th>MotionDigitizer ポイントID</th>
+                    </tr>
+                    <tr>
+                        <td><code>right_hand_tip</code></td>
+                        <td>→</td>
+                        <td>Point 1</td>
+                    </tr>
+                    <tr>
+                        <td><code>right_wrist</code></td>
+                        <td>→</td>
+                        <td>Point 2</td>
+                    </tr>
+                    <tr>
+                        <td><code>right_elbow</code></td>
+                        <td>→</td>
+                        <td>Point 3</td>
+                    </tr>
+                    <tr>
+                        <td><code>right_shoulder</code></td>
+                        <td>→</td>
+                        <td>Point 4</td>
+                    </tr>
+                    <tr>
+                        <td colspan="3" style="text-align: center; color: var(--text-secondary);">... （同様に23点がマッピングされる）
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><code>head_top</code></td>
+                        <td>→</td>
+                        <td>Point 21</td>
+                    </tr>
+                    <tr>
+                        <td><code>tragus_point</code></td>
+                        <td>→</td>
+                        <td>Point 22</td>
+                    </tr>
+                    <tr>
+                        <td><code>suprasternal_notch</code></td>
+                        <td>→</td>
+                        <td>Point 23</td>
+                    </tr>
+                </table>
+
+                <div class="warn-box">
+                    <strong>注意:</strong> 信頼度が 0.1 未満のキーポイントは自動的に欠損値として扱われる。
+                    HPEの段階で十分なフィルタリングを行っておくことが重要。
+                </div>
+            </div>
+
+            <div class="sub-section">
+                <h3><i class="fa-solid fa-ruler-combined"></i> キャリブレーション方法の選択</h3>
+
+                <div class="two-col">
+                    <div class="decision-box">
+                        <h4><i class="fa-solid fa-ruler"></i> 実長換算（4点法）</h4>
+                        <p style="color: var(--text-secondary); font-size: 0.88rem;">
+                            映像内の既知距離（身長、マーカー間距離など）を基準にスケールを設定。
+                        </p>
+                        <div class="check-item">2D分析のみ</div>
+                        <div class="check-item">制御点の設置が不要</div>
+                        <div class="check-item">手軽だが精度は限定的</div>
+                    </div>
+                    <div class="decision-box">
+                        <h4><i class="fa-solid fa-cube"></i> DLT法</h4>
+                        <p style="color: var(--text-secondary); font-size: 0.88rem;">
+                            既知の3D座標を持つ制御点（6点以上）を使って座標変換定数を算出。
+                        </p>
+                        <div class="check-item">2D (8定数) / 3D (11定数) 対応</div>
+                        <div class="check-item">制御点が多いほど精度向上</div>
+                        <div class="check-item">標準的な手法</div>
+                    </div>
+                </div>
+                <div class="two-col">
+                    <div class="decision-box">
+                        <h4><i class="fa-solid fa-bullseye"></i> CC法</h4>
+                        <p style="color: var(--text-secondary); font-size: 0.88rem;">
+                            非線形カメラモデル（レンズ歪み補正含む）のパラメータを最適化で推定。
+                        </p>
+                        <div class="check-item">最高精度</div>
+                        <div class="check-item">レンズ歪みを自動補正</div>
+                        <div class="check-item">計算に時間がかかる</div>
+                    </div>
+                    <div class="decision-box">
+                        <h4><i class="fa-solid fa-chess-board"></i> ChArUcoキャリブレーション</h4>
+                        <p style="color: var(--text-secondary); font-size: 0.88rem;">
+                            ChArUcoボードの画像からカメラ内部パラメータを自動取得。CC法と組み合わせて使用。
+                        </p>
+                        <div class="check-item">焦点距離・歪み係数を自動算出</div>
+                        <div class="check-item">CC法の初期値として有効</div>
+                        <div class="check-item">OpenCV nativeモジュール使用</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sub-section">
+                <h3><i class="fa-solid fa-file-export"></i> 出力形式: <span class="ext-badge ext-rd">.rd</span> / <span
+                        class="ext-badge ext-3d">.3d</span></h3>
+                <p>座標変換後のデータは、MotionViewerが読み込めるテキスト形式で出力される。</p>
+
+                <h4>ファイル構造（共通）</h4>
+                <div class="data-sample">
+                    <span class="label">.rd / .3d 共通フォーマット</span>
+                    <span class="comment">ヘッダー行（1行目）:</span>
+                    <span class="highlight">300</span>,<span class="highlight">23</span>,<span
+                        class="highlight">0.004000</span> <span class="comment">← フレーム数, ポイント数, 1フレーム時間(秒)</span>
+
+                    <span class="comment">データ行（2行目以降）: 各フレームの全ポイント座標をカンマ区切り</span>
+                </div>
+
+                <h4>2Dファイル: <span class="ext-badge ext-rd">.rd</span></h4>
+                <div class="data-sample">
+                    <span class="label">.rd データ例（2D: 1フレーム = 23点 × 2座標 = 46値）</span>
+                    300,23,0.004000
+                    <span class="highlight">0.123456</span>,<span class="highlight">1.234567</span>,<span
+                        class="highlight">0.234567</span>,<span class="highlight">1.345678</span>,... <span
+                        class="comment">← pt1_x, pt1_y, pt2_x, pt2_y, ...</span>
+                    0.124567,1.235678,0.235678,1.346789,... <span class="comment">← フレーム2</span>
+                    ... <span class="comment">← フレーム300まで</span>
+                </div>
+
+                <h4>3Dファイル: <span class="ext-badge ext-3d">.3d</span></h4>
+                <div class="data-sample">
+                    <span class="label">.3d データ例（3D: 1フレーム = 23点 × 3座標 = 69値）</span>
+                    300,23,0.004000
+                    <span class="highlight">0.123</span>,<span class="highlight">1.234</span>,<span
+                        class="highlight">0.567</span>,<span class="highlight">0.234</span>,<span
+                        class="highlight">1.345</span>,<span class="highlight">0.678</span>,... <span class="comment">←
+                        pt1_x, pt1_y, pt1_z, pt2_x, pt2_y, pt2_z, ...</span>
+                    0.124,1.235,0.568,0.235,1.346,0.679,... <span class="comment">← フレーム2</span>
+                    ...
+                </div>
+
+                <table class="format-table">
+                    <tr>
+                        <th>項目</th>
+                        <th>詳細</th>
+                    </tr>
+                    <tr>
+                        <td>ヘッダー列1</td>
+                        <td>フレーム数（例: 300）</td>
+                    </tr>
+                    <tr>
+                        <td>ヘッダー列2</td>
+                        <td>ポイント数（例: 23）</td>
+                    </tr>
+                    <tr>
+                        <td>ヘッダー列3</td>
+                        <td>フレーム間隔（秒） = <code>1 / fps</code>（例: 0.004000 = 250fps）</td>
+                    </tr>
+                    <tr>
+                        <td>座標単位</td>
+                        <td><strong>メートル</strong>（キャリブレーション後の実長座標）</td>
+                    </tr>
+                    <tr>
+                        <td>精度</td>
+                        <td>小数点以下6桁（<code>toFixed(6)</code>）</td>
+                    </tr>
+                    <tr>
+                        <td>欠損値</td>
+                        <td><code>0.000000,0.000000</code>（2D）または <code>0.000000,0.000000,0.000000</code>（3D）</td>
+                    </tr>
+                </table>
+            </div>
+
+            <div class="sub-section">
+                <h3><i class="fa-solid fa-file-export"></i> 出力形式（補助）: <span class="ext-badge ext-c3d">.c3d</span></h3>
+                <p>
+                    バイオメカニクスの国際標準バイナリ交換フォーマット。Visual3D、MATLAB、Cortex等の外部ソフトウェアとデータを共有する際に使用。
+                    3Dデータのエクスポートに対応。
+                </p>
+            </div>
+
+            <div class="sub-section">
+                <h3><i class="fa-solid fa-circle-check"></i> Phase 3 → Phase 4 への引き渡しチェック</h3>
+                <div class="check-item">キャリブレーションの再投影誤差が十分小さいか（DLT: 1px以下 / CC: 0.5px以下が目安）</div>
+                <div class="check-item">出力ファイルのフレーム数が入力動画のフレーム数と一致しているか</div>
+                <div class="check-item">欠損フレーム（0,0,0）が許容範囲内か</div>
+                <div class="check-item">座標値のオーダーが妥当か（人体サイズ: 通常 0〜2m 程度）</div>
+            </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- PHASE 4: MOTIONVIEWER                      -->
+        <!-- ========================================== -->
+        <div class="card">
+            <h2><img src="picture/icons/mv_icon.png" alt="MV"
+                    style="height: 1.2em; vertical-align: bottom; margin-right: 0.3rem;"> Phase 4:
+                データ確認・分析（MotionViewer）</h2>
+            <p>
+                実長換算済みの <span class="ext-badge ext-rd">.rd</span> / <span class="ext-badge ext-3d">.3d</span>
+                を読み込み、スティックピクチャーの可視化と運動学パラメータの算出を行う。
+            </p>
+
+            <div class="img-container">
+                <img src="picture/MotionViewer/スクリーンショット 2026-02-05 224948.png" alt="MotionViewer UI">
+            </div>
+
+            <div class="sub-section">
+                <h3><i class="fa-solid fa-file-import"></i> 入力と次元自動判定</h3>
+                <p>MotionViewerはヘッダーの情報とデータ列数から、自動的に2D/3Dを判定する。</p>
+                <table class="format-table">
+                    <tr>
+                        <th>判定ロジック</th>
+                        <th>条件</th>
+                        <th>結果</th>
+                    </tr>
+                    <tr>
+                        <td>列数 / ポイント数</td>
+                        <td>= 2</td>
+                        <td>2Dデータとして処理</td>
+                    </tr>
+                    <tr>
+                        <td>列数 / ポイント数</td>
+                        <td>= 3</td>
+                        <td>3Dデータとして処理（3Dビュー有効化）</td>
+                    </tr>
+                </table>
+
+                <table class="format-table">
+                    <tr>
+                        <th>対応拡張子</th>
+                        <th>用途</th>
+                    </tr>
+                    <tr>
+                        <td><code>.rd</code></td>
+                        <td>実長換算済み2D座標（MotionDigitizer出力）</td>
+                    </tr>
+                    <tr>
+                        <td><code>.3d</code></td>
+                        <td>3D復元座標（MotionDigitizer出力）</td>
+                    </tr>
+                    <tr>
+                        <td><code>.sd</code></td>
+                        <td>2Dデータ（旧形式互換）</td>
+                    </tr>
+                    <tr>
+                        <td><code>.2d</code></td>
+                        <td>2Dデータ（別名）</td>
+                    </tr>
+                </table>
+            </div>
+
+            <div class="sub-section">
+                <h3><i class="fa-solid fa-wave-square"></i> Butterworthフィルタ（再フィルタリング）</h3>
+                <p>
+                    実長換算後のデータに対して、改めてButterworthローパスフィルタを適用できる。
+                    HPEの段階でフィルタ済みでも、座標変換後にノイズが増幅されている場合に有効。
+                </p>
+                <table class="format-table">
+                    <tr>
+                        <th>設定</th>
+                        <th>説明</th>
+                    </tr>
+                    <tr>
+                        <td>カットオフ周波数</td>
+                        <td>手動設定（Hz）または Wells &amp; Winter 法で自動決定</td>
+                    </tr>
+                    <tr>
+                        <td>フィルタ次数</td>
+                        <td>4次（ゼロ位相filtfiltで実効8次相当）</td>
+                    </tr>
+                </table>
+            </div>
+
+            <div class="sub-section">
+                <h3><i class="fa-solid fa-diagram-project"></i> 分析機能の出力</h3>
+                <p>MotionViewerで算出・可視化できる運動学パラメータ:</p>
+
+                <table class="format-table">
+                    <tr>
+                        <th>パラメータ</th>
+                        <th>内容</th>
+                        <th>出力</th>
+                    </tr>
+                    <tr>
+                        <td><strong>Stick Picture</strong></td>
+                        <td>各フレームの骨格をスティック図で描画。3Dの場合はOrbitControlsで自由回転可能。</td>
+                        <td>画面表示 / MP4動画エクスポート</td>
+                    </tr>
+                    <tr>
+                        <td><strong>速度・加速度</strong></td>
+                        <td>各キーポイントの合成速度。中央差分法で算出。</td>
+                        <td>時系列グラフ / CSVエクスポート</td>
+                    </tr>
+                    <tr>
+                        <td><strong>関節角度</strong></td>
+                        <td>14箇所の関節角度（肘、肩、股関節、膝、足首、手首、体幹、骨盤）。</td>
+                        <td>時系列グラフ / CSVエクスポート</td>
+                    </tr>
+                    <tr>
+                        <td><strong>セグメント角度</strong></td>
+                        <td>各セグメントの座標軸に対する絶対角度（atan2投影）。</td>
+                        <td>時系列グラフ / CSVエクスポート</td>
+                    </tr>
+                    <tr>
+                        <td><strong>身体重心 (COM)</strong></td>
+                        <td>BSPモデル（Abe成人 / Yokoi小児 / Okada高齢者）に基づく全身重心の軌跡。</td>
+                        <td>3D軌跡 / 時系列グラフ</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- PRACTICAL EXAMPLE                          -->
+        <!-- ========================================== -->
+        <div class="card">
+            <h2><i class="fa-solid fa-baseball-bat-ball"></i> 実践例: 投球動作の2D分析</h2>
+            <p>野球の投球動作を1台のカメラで撮影し、2D分析する場合の具体的なデータフロー。</p>
+
+            <div class="sub-section">
+                <h3>Step 1: 撮影 &amp; VideoSyncLab</h3>
+                <div class="data-sample">
+                    <span class="comment"># 撮影</span>
+                    カメラ: iPhone 15 Pro / 240fps / 1080p
+                    位置: 三塁側ベンチ（投球方向に対して直角）
+                    ファイル: pitch_240fps.mp4 (<span class="highlight">8秒 = 1920フレーム</span>)
+
+                    <span class="comment"># VideoSyncLab でトリミング</span>
+                    IN点: フレーム 480 (ワインドアップ開始)
+                    OUT点: フレーム 720 (フォロースルー完了)
+                    出力: pitch_240fps<span class="highlight">_cut</span>.mp4 (<span class="highlight">240フレーム</span> =
+                    1秒間)
+                </div>
+            </div>
+
+            <div class="sub-section">
+                <h3>Step 2: HPE でAI骨格推定</h3>
+                <div class="data-sample">
+                    <span class="comment"># HPE 設定</span>
+                    検出モデル: YOLO11x
+                    推定モデル: ViTPose-H (WholeBody)
+                    カメラ種別: ハイスピード (240fps)
+
+                    <span class="comment"># フィルタリング</span>
+                    外れ値除去: ON (速度ベース)
+                    補間: PCHIP
+                    Butterworth: ON (カットオフ 10Hz)
+
+                    <span class="comment"># 出力</span>
+                    pitch_240fps_cut.hpe <span class="comment">← MotionDigitizerに渡す</span>
+                    pitch_240fps_cut_person0.csv <span class="comment">← 参考用</span>
+                </div>
+            </div>
+
+            <div class="sub-section">
+                <h3>Step 3: MotionDigitizer で実長換算</h3>
+                <div class="data-sample">
+                    <span class="comment"># HPEインポート</span>
+                    読み込み: pitch_240fps_cut.hpe
+                    人物選択: Person 0 (投手)
+                    カメラ: cam1
+
+                    <span class="comment"># キャリブレーション（2D-DLT法）</span>
+                    制御点: 6点（マウンドプレート四隅 + ホームベース2点）
+                    再投影誤差: 0.8 px → OK
+
+                    <span class="comment"># 出力</span>
+                    pitch_240fps_cut.rd <span class="comment">← MotionViewerに渡す</span>
+
+                    <span class="comment"># .rd の中身（ヘッダー）</span>
+                    240,23,0.004167 <span class="comment">← 240フレーム, 23点, 1/240秒</span>
+                    0.123456,1.789012,0.234567,1.678901,... <span class="comment">← 単位はメートル</span>
+                </div>
+            </div>
+
+            <div class="sub-section">
+                <h3>Step 4: MotionViewer で分析</h3>
+                <div class="data-sample">
+                    <span class="comment"># 読み込み</span>
+                    pitch_240fps_cut.rd → 自動判定: 2Dデータ (46列 / 23点 = 2)
+
+                    <span class="comment"># Butterworthフィルタ</span>
+                    カットオフ: 自動 (Wells &amp; Winter) → 12.5 Hz
+
+                    <span class="comment"># 分析結果</span>
+                    右手指先(Point 1) 最大速度: <span class="highlight">32.4 m/s</span> (フレーム 185)
+                    右肘(Point 3) 最大角速度: <span class="highlight">2,450 °/s</span> (フレーム 178)
+                    体幹前傾 最大角度: <span class="highlight">42.3°</span> (フレーム 190)
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- FILE FORMAT SUMMARY                        -->
+        <!-- ========================================== -->
+        <div class="card">
+            <h2><i class="fa-solid fa-file-code"></i> ファイル形式クイックリファレンス</h2>
+
+            <table class="format-table">
+                <tr>
+                    <th>拡張子</th>
+                    <th>アプリ</th>
+                    <th>形式</th>
+                    <th>座標単位</th>
+                    <th>用途</th>
+                </tr>
+                <tr>
+                    <td><span class="ext-badge ext-mp4">.mp4</span></td>
+                    <td>VideoSyncLab</td>
+                    <td>動画</td>
+                    <td>—</td>
+                    <td>分析対象の動画ファイル</td>
+                </tr>
+                <tr>
+                    <td><span class="ext-badge ext-hpe">.hpe</span></td>
+                    <td>HPE → MD</td>
+                    <td>JSON</td>
+                    <td>ピクセル</td>
+                    <td>AI推定座標 + メタデータ（推奨引き渡し形式）</td>
+                </tr>
+                <tr>
+                    <td><span class="ext-badge ext-csv">.csv</span></td>
+                    <td>HPE</td>
+                    <td>CSV</td>
+                    <td>ピクセル</td>
+                    <td>人物ごとの座標データ（Excel等で閲覧可）</td>
+                </tr>
+                <tr>
+                    <td><span class="ext-badge ext-rd">.rd</span></td>
+                    <td>MD → MV</td>
+                    <td>CSV</td>
+                    <td><strong>メートル</strong></td>
+                    <td>実長換算済み2D座標</td>
+                </tr>
+                <tr>
+                    <td><span class="ext-badge ext-3d">.3d</span></td>
+                    <td>MD → MV</td>
+                    <td>CSV</td>
+                    <td><strong>メートル</strong></td>
+                    <td>3D復元座標</td>
+                </tr>
+                <tr>
+                    <td><span class="ext-badge ext-c3d">.c3d</span></td>
+                    <td>MD → 外部</td>
+                    <td>Binary</td>
+                    <td><strong>メートル</strong></td>
+                    <td>国際標準交換フォーマット（Visual3D等）</td>
+                </tr>
+            </table>
+
+            <div class="highlight-box" style="margin-top: 1.5rem;">
+                <strong>座標単位の変化に注目:</strong><br>
+                HPEの出力は<strong>ピクセル座標</strong>（画像上の位置）。
+                MotionDigitizerのキャリブレーションを経て初めて<strong>メートル座標</strong>（実世界の位置）に変換される。
+                MotionViewerが扱うのは常にメートル座標。
+            </div>
+        </div>
+
+    </div>
+
+    <footer>
+        <p>&copy; 2026 Electoron Biomechanics Suite | Data Flow &amp; Integration Documentation</p>
+    </footer>
+
+</body>
+
+</html>

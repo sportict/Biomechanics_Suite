@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Biomechanics Suite - macOS インストールマニュアル</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 2rem;
+      line-height: 1.7;
+      color: #24292e;
+      background: #fff;
+    }
+    h1 { border-bottom: 2px solid #2ea44f; padding-bottom: .4em; color: #1a1a1a; }
+    h2 { border-bottom: 1px solid #e1e4e8; padding-bottom: .3em; margin-top: 2em; }
+    h3 { margin-top: 1.5em; }
+    code { background: #f6f8fa; padding: 0.2em 0.4em; border-radius: 3px; font-size: 0.9em; }
+    pre { background: #f6f8fa; padding: 1em; border-radius: 6px; overflow-x: auto; }
+    pre code { background: none; padding: 0; }
+    table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+    th, td { border: 1px solid #d0d7de; padding: 8px 12px; text-align: left; }
+    th { background: #f6f8fa; font-weight: 600; }
+    tr:nth-child(even) { background: #f9fafb; }
+    blockquote { border-left: 4px solid #2ea44f; margin: 1em 0; padding: 0.5em 1em; background: #f0fff4; }
+    a { color: #0366d6; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    img { max-width: 100%; }
+    .footer { margin-top: 3em; padding-top: 1em; border-top: 1px solid #e1e4e8; color: #6a737d; font-size: 0.85em; text-align: center; }
+  </style>
+</head>
+<body>
+<h1 id="biomechanics-suite---macos-インストールマニュアル">Biomechanics
+Suite - macOS インストールマニュアル</h1>
+<p>対象: Apple Silicon (M1/M2/M3/M4) Mac</p>
+<hr />
+<h2 id="共通の前提条件">共通の前提条件</h2>
+<h3 id="xcode-command-line-tools">1. Xcode Command Line Tools</h3>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">xcode-select</span> <span class="at">--install</span></span></code></pre></div>
+<h3 id="homebrew">2. Homebrew</h3>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="ex">/bin/bash</span> <span class="at">-c</span> <span class="st">&quot;</span><span class="va">$(</span><span class="ex">curl</span> <span class="at">-fsSL</span> https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh<span class="va">)</span><span class="st">&quot;</span></span></code></pre></div>
+<h3 id="node.js-v20-lts-推奨">3. Node.js (v20 LTS 推奨)</h3>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="ex">brew</span> install node@20</span></code></pre></div>
+<p>確認:</p>
+<div class="sourceCode" id="cb4"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="ex">node</span> <span class="at">-v</span>   <span class="co"># v20.x.x</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="ex">npm</span> <span class="at">-v</span>    <span class="co"># 10.x.x</span></span></code></pre></div>
+<h3 id="python-3.11-hpe-で使用">4. Python 3.11+ (HPE で使用)</h3>
+<div class="sourceCode" id="cb5"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="ex">brew</span> install python@3.11</span></code></pre></div>
+<p>確認:</p>
+<div class="sourceCode" id="cb6"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> <span class="at">--version</span>   <span class="co"># 3.11.x 以上</span></span></code></pre></div>
+<hr />
+<h2 id="注意事項">注意事項</h2>
+<ul>
+<li>VS Code のターミナルから Electron アプリを起動する場合、環境変数
+<code>ELECTRON_RUN_AS_NODE=1</code> が自動設定されます。Electron
+を起動する際は必ず先頭に
+<code>unset ELECTRON_RUN_AS_NODE &amp;&amp;</code>
+を付けてください。</li>
+<li>コード署名なしでビルドされるため、初回起動時は「右クリック &gt;
+開く」で実行してください。</li>
+</ul>
+<hr />
+<h2 id="motionviewer">MotionViewer</h2>
+<p>軽量モーションデータ 3D
+可視化アプリ。追加の外部ツールは不要です。</p>
+<h3 id="セットアップ">セットアップ</h3>
+<div class="sourceCode" id="cb7"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> MotionViewer</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="ex">npm</span> install</span></code></pre></div>
+<h3 id="開発モードで実行">開発モードで実行</h3>
+<div class="sourceCode" id="cb8"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="bu">unset</span> <span class="va">ELECTRON_RUN_AS_NODE</span> <span class="kw">&amp;&amp;</span> <span class="ex">npm</span> run dev</span></code></pre></div>
+<h3 id="ビルド">ビルド</h3>
+<div class="sourceCode" id="cb9"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="bu">unset</span> <span class="va">ELECTRON_RUN_AS_NODE</span> <span class="kw">&amp;&amp;</span> <span class="ex">npm</span> run build:mac</span></code></pre></div>
+<p>出力: <code>dist/MotionViewer-*-arm64.dmg</code></p>
+<hr />
+<h2 id="videosynclab">VideoSyncLab</h2>
+<p>二画面動画同期編集アプリ。ネイティブモジュール (canvas, sharp)
+を含みます。</p>
+<h3 id="セットアップ-1">セットアップ</h3>
+<div class="sourceCode" id="cb10"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> VideoSyncLab</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="ex">npm</span> install</span></code></pre></div>
+<p><code>postinstall</code> で
+<code>electron-builder install-app-deps</code>
+が自動実行され、ネイティブモジュールが Electron
+向けにリビルドされます。</p>
+<h3 id="開発モードで実行-1">開発モードで実行</h3>
+<div class="sourceCode" id="cb11"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="bu">unset</span> <span class="va">ELECTRON_RUN_AS_NODE</span> <span class="kw">&amp;&amp;</span> <span class="ex">npm</span> run dev</span></code></pre></div>
+<h3 id="ビルド-1">ビルド</h3>
+<div class="sourceCode" id="cb12"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="bu">unset</span> <span class="va">ELECTRON_RUN_AS_NODE</span> <span class="kw">&amp;&amp;</span> <span class="ex">npm</span> run build:mac</span></code></pre></div>
+<p>出力: <code>dist/VideoSyncLab-*-arm64.dmg</code></p>
+<hr />
+<h2 id="motiondigitizer">MotionDigitizer</h2>
+<p>3D モーションキャプチャ解析アプリ。C++ ネイティブモジュール (OpenCV)
+を使用します。</p>
+<h3 id="追加の前提条件">追加の前提条件</h3>
+<div class="sourceCode" id="cb13"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="ex">brew</span> install opencv pkg-config</span></code></pre></div>
+<p>確認:</p>
+<div class="sourceCode" id="cb14"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="ex">pkg-config</span> <span class="at">--modversion</span> opencv4   <span class="co"># 4.x.x</span></span></code></pre></div>
+<h3 id="セットアップ-2">セットアップ</h3>
+<div class="sourceCode" id="cb15"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> MotionDigitizer</span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a><span class="ex">npm</span> install</span></code></pre></div>
+<h3 id="ネイティブモジュールのビルド">ネイティブモジュールのビルド</h3>
+<div class="sourceCode" id="cb16"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="ex">npx</span> node-gyp configure build <span class="at">--directory</span><span class="op">=</span>native</span></code></pre></div>
+<p>正常終了すると <code>native/build/Release/opencv_module.node</code>
+が生成されます。</p>
+<h3 id="開発モードで実行-2">開発モードで実行</h3>
+<div class="sourceCode" id="cb17"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="bu">unset</span> <span class="va">ELECTRON_RUN_AS_NODE</span> <span class="kw">&amp;&amp;</span> <span class="ex">npm</span> run dev</span></code></pre></div>
+<h3 id="ビルド-2">ビルド</h3>
+<div class="sourceCode" id="cb18"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="bu">unset</span> <span class="va">ELECTRON_RUN_AS_NODE</span> <span class="kw">&amp;&amp;</span> <span class="ex">npm</span> run build:mac</span></code></pre></div>
+<p>出力: <code>dist/MotionDigitizer-*-arm64.dmg</code></p>
+<hr />
+<h2 id="hpe-human-pose-estimation">HPE (Human Pose Estimation)</h2>
+<p>姿勢推定アプリ。Python バックエンドと ONNX モデルを使用します。</p>
+<h3 id="python-仮想環境のセットアップ">Python
+仮想環境のセットアップ</h3>
+<div class="sourceCode" id="cb19"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> HPE</span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> <span class="at">-m</span> venv .venv</span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a><span class="bu">source</span> .venv/bin/activate</span></code></pre></div>
+<h3 id="python-依存パッケージのインストール">Python
+依存パッケージのインストール</h3>
+<div class="sourceCode" id="cb20"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="ex">pip</span> install <span class="at">--upgrade</span> pip</span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a><span class="co"># rtmlib (ローカルパッケージ)</span></span>
+<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a><span class="ex">pip</span> install ./rtmlib <span class="at">--no-deps</span></span>
+<span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-6"><a href="#cb20-6" aria-hidden="true" tabindex="-1"></a><span class="co"># その他の依存パッケージ</span></span>
+<span id="cb20-7"><a href="#cb20-7" aria-hidden="true" tabindex="-1"></a><span class="ex">pip</span> install <span class="dt">\</span></span>
+<span id="cb20-8"><a href="#cb20-8" aria-hidden="true" tabindex="-1"></a>  fastapi uvicorn python-multipart <span class="dt">\</span></span>
+<span id="cb20-9"><a href="#cb20-9" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;numpy&gt;=1.24.0,&lt;2.0.0&quot;</span> <span class="dt">\</span></span>
+<span id="cb20-10"><a href="#cb20-10" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;opencv-python&gt;=4.8.0&quot;</span> <span class="dt">\</span></span>
+<span id="cb20-11"><a href="#cb20-11" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;Pillow&gt;=10.0.0&quot;</span> <span class="dt">\</span></span>
+<span id="cb20-12"><a href="#cb20-12" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;tqdm&gt;=4.66.0&quot;</span> <span class="dt">\</span></span>
+<span id="cb20-13"><a href="#cb20-13" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;scipy&gt;=1.11.0&quot;</span> <span class="dt">\</span></span>
+<span id="cb20-14"><a href="#cb20-14" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;filterpy&gt;=1.4.0&quot;</span> <span class="dt">\</span></span>
+<span id="cb20-15"><a href="#cb20-15" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;ffmpeg-python&gt;=0.2.0&quot;</span> <span class="dt">\</span></span>
+<span id="cb20-16"><a href="#cb20-16" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;norfair&gt;=2.2.0&quot;</span></span></code></pre></div>
+<h3 id="onnx-runtime-のインストール-apple-silicon">ONNX Runtime
+のインストール (Apple Silicon)</h3>
+<div class="sourceCode" id="cb21"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="ex">pip</span> install onnxruntime-silicon</span></code></pre></div>
+<blockquote>
+<p><code>onnxruntime-silicon</code> が失敗する場合は
+<code>pip install onnxruntime</code>
+にフォールバックしてください。CoreML
+アクセラレーションが利用できます。</p>
+</blockquote>
+<h3 id="node.js-依存パッケージのインストール">Node.js
+依存パッケージのインストール</h3>
+<div class="sourceCode" id="cb22"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="ex">deactivate</span>   <span class="co"># venv を抜ける</span></span>
+<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a><span class="ex">npm</span> install</span></code></pre></div>
+<h3 id="開発モードで実行-3">開発モードで実行</h3>
+<div class="sourceCode" id="cb23"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a><span class="bu">unset</span> <span class="va">ELECTRON_RUN_AS_NODE</span> <span class="kw">&amp;&amp;</span> <span class="ex">npm</span> run dev</span></code></pre></div>
+<h3 id="ビルド-一括スクリプト">ビルド (一括スクリプト)</h3>
+<div class="sourceCode" id="cb24"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a><span class="fu">bash</span> build.sh</span></code></pre></div>
+<p>または手動:</p>
+<div class="sourceCode" id="cb25"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a><span class="bu">unset</span> <span class="va">ELECTRON_RUN_AS_NODE</span> <span class="kw">&amp;&amp;</span> <span class="ex">npm</span> run build:mac</span></code></pre></div>
+<p>出力: <code>dist/HPE-*-arm64.dmg</code>,
+<code>dist/HPE-*-arm64-mac.zip</code></p>
+<h3 id="モデルファイル">モデルファイル</h3>
+<p><code>Models/</code> ディレクトリに以下のモデルが必要です:</p>
+<table>
+<thead>
+<tr>
+<th>ファイル</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>yolo11x.onnx</code></td>
+<td>人物検出 (高精度)</td>
+</tr>
+<tr>
+<td><code>yolo11s.onnx</code></td>
+<td>人物検出 (高速)</td>
+</tr>
+<tr>
+<td><code>rtmpose-m.onnx</code></td>
+<td>姿勢推定 (標準)</td>
+</tr>
+<tr>
+<td><code>rtmpose-x.onnx</code></td>
+<td>姿勢推定 (高精度)</td>
+</tr>
+<tr>
+<td><code>synthpose-vitpose-huge-hf.onnx</code></td>
+<td>SynthPose (高精度)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="gpucpu-の動作">GPU/CPU の動作</h3>
+<ul>
+<li><strong>Apple Silicon</strong>: CoreML (Neural Engine/GPU)
+を自動検出して使用します</li>
+<li>CoreML が利用できない場合は CPU にフォールバックします</li>
+<li>アプリ内のデバイスセレクタで CoreML / CPU を手動切替できます</li>
+</ul>
+<hr />
+<h2 id="トラブルシューティング">トラブルシューティング</h2>
+<h3 id="electron_run_as_node-エラー"><code>ELECTRON_RUN_AS_NODE</code>
+エラー</h3>
+<p>VS Code ターミナルで
+<code>app.requestSingleInstanceLock is not a function</code>
+等のエラーが出る場合:</p>
+<div class="sourceCode" id="cb26"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a><span class="bu">unset</span> <span class="va">ELECTRON_RUN_AS_NODE</span></span></code></pre></div>
+<h3 id="node_modules-のパーミッションエラー">node_modules
+のパーミッションエラー</h3>
+<p>Windows からコピーしたファイルで発生する場合があります:</p>
+<div class="sourceCode" id="cb27"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a><span class="fu">chmod</span> <span class="at">-R</span> u+w .</span>
+<span id="cb27-2"><a href="#cb27-2" aria-hidden="true" tabindex="-1"></a><span class="fu">rm</span> <span class="at">-rf</span> node_modules package-lock.json</span>
+<span id="cb27-3"><a href="#cb27-3" aria-hidden="true" tabindex="-1"></a><span class="ex">npm</span> install</span></code></pre></div>
+<h3
+id="motiondigitizer-のネイティブモジュールビルドエラー">MotionDigitizer
+のネイティブモジュールビルドエラー</h3>
+<p>OpenCV が見つからない場合:</p>
+<div class="sourceCode" id="cb28"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a><span class="ex">brew</span> install opencv</span>
+<span id="cb28-2"><a href="#cb28-2" aria-hidden="true" tabindex="-1"></a><span class="bu">export</span> <span class="va">PKG_CONFIG_PATH</span><span class="op">=</span><span class="st">&quot;/opt/homebrew/opt/opencv/lib/pkgconfig:</span><span class="va">$PKG_CONFIG_PATH</span><span class="st">&quot;</span></span>
+<span id="cb28-3"><a href="#cb28-3" aria-hidden="true" tabindex="-1"></a><span class="ex">npx</span> node-gyp configure build <span class="at">--directory</span><span class="op">=</span>native</span></code></pre></div>
+<div class="footer">Biomechanics Suite Documentation</div>
+</body>
+</html>

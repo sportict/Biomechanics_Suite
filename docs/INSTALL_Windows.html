@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Biomechanics Suite - Windows インストールマニュアル</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 2rem;
+      line-height: 1.7;
+      color: #24292e;
+      background: #fff;
+    }
+    h1 { border-bottom: 2px solid #2ea44f; padding-bottom: .4em; color: #1a1a1a; }
+    h2 { border-bottom: 1px solid #e1e4e8; padding-bottom: .3em; margin-top: 2em; }
+    h3 { margin-top: 1.5em; }
+    code { background: #f6f8fa; padding: 0.2em 0.4em; border-radius: 3px; font-size: 0.9em; }
+    pre { background: #f6f8fa; padding: 1em; border-radius: 6px; overflow-x: auto; }
+    pre code { background: none; padding: 0; }
+    table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+    th, td { border: 1px solid #d0d7de; padding: 8px 12px; text-align: left; }
+    th { background: #f6f8fa; font-weight: 600; }
+    tr:nth-child(even) { background: #f9fafb; }
+    blockquote { border-left: 4px solid #2ea44f; margin: 1em 0; padding: 0.5em 1em; background: #f0fff4; }
+    a { color: #0366d6; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    img { max-width: 100%; }
+    .footer { margin-top: 3em; padding-top: 1em; border-top: 1px solid #e1e4e8; color: #6a737d; font-size: 0.85em; text-align: center; }
+  </style>
+</head>
+<body>
+<h1
+id="biomechanics-suite---windows-インストールマニュアル">Biomechanics
+Suite - Windows インストールマニュアル</h1>
+<p>対象: Windows 10/11 (x64)</p>
+<hr />
+<h2 id="共通の前提条件">共通の前提条件</h2>
+<h3 id="node.js-v20-lts-推奨">1. Node.js (v20 LTS 推奨)</h3>
+<p>公式サイトからインストーラをダウンロード: https://nodejs.org/</p>
+<p>インストール時に「Automatically install the necessary
+tools」にチェックを入れると、 Chocolatey 経由で Python と Visual Studio
+Build Tools も一緒にインストールされます。</p>
+<p>確認 (PowerShell):</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>node <span class="op">-</span>v   <span class="co"># v20.x.x</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>npm <span class="op">-</span>v    <span class="co"># 10.x.x</span></span></code></pre></div>
+<h3 id="visual-studio-build-tools">2. Visual Studio Build Tools</h3>
+<p>Node.js のネイティブモジュール (node-gyp) のビルドに必要です。</p>
+<p>Node.js インストーラで自動インストールされなかった場合:
+https://visualstudio.microsoft.com/ja/visual-cpp-build-tools/</p>
+<p>インストール時に「C++
+によるデスクトップ開発」ワークロードを選択してください。</p>
+<h3 id="python-3.11-hpe-で使用">3. Python 3.11+ (HPE で使用)</h3>
+<p>公式サイトからインストーラをダウンロード:
+https://www.python.org/downloads/</p>
+<p>インストール時に「Add python.exe to
+PATH」にチェックを入れてください。</p>
+<p>確認:</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>python <span class="op">--</span>version   <span class="co"># 3.11.x 以上</span></span></code></pre></div>
+<hr />
+<h2 id="motionviewer">MotionViewer</h2>
+<p>軽量モーションデータ 3D
+可視化アプリ。追加の外部ツールは不要です。</p>
+<h3 id="セットアップ">セットアップ</h3>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cd</span> MotionViewer</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>npm install</span></code></pre></div>
+<h3 id="開発モードで実行">開発モードで実行</h3>
+<div class="sourceCode" id="cb4"><pre
+class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>npm run dev</span></code></pre></div>
+<h3 id="ビルド">ビルド</h3>
+<div class="sourceCode" id="cb5"><pre
+class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>npm run build</span></code></pre></div>
+<p>出力: <code>dist\MotionViewer-Setup-*.exe</code></p>
+<hr />
+<h2 id="videosynclab">VideoSyncLab</h2>
+<p>二画面動画同期編集アプリ。ネイティブモジュール (canvas, sharp)
+を含みます。</p>
+<h3 id="セットアップ-1">セットアップ</h3>
+<div class="sourceCode" id="cb6"><pre
+class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cd</span> VideoSyncLab</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>npm install</span></code></pre></div>
+<p><code>postinstall</code> で
+<code>electron-builder install-app-deps</code>
+が自動実行され、ネイティブモジュールが Electron
+向けにリビルドされます。</p>
+<h3 id="開発モードで実行-1">開発モードで実行</h3>
+<div class="sourceCode" id="cb7"><pre
+class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>npm run dev</span></code></pre></div>
+<h3 id="ビルド-1">ビルド</h3>
+<div class="sourceCode" id="cb8"><pre
+class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>npm run build</span></code></pre></div>
+<p>出力: <code>dist\VideoSyncLab-Setup-*.exe</code></p>
+<hr />
+<h2 id="motiondigitizer">MotionDigitizer</h2>
+<p>3D モーションキャプチャ解析アプリ。C++ ネイティブモジュール (OpenCV)
+を使用します。</p>
+<h3 id="追加の前提条件-opencv-vcpkg">追加の前提条件: OpenCV (vcpkg)</h3>
+<div class="sourceCode" id="cb9"><pre
+class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="co"># vcpkg のインストール (初回のみ)</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>git clone https<span class="op">://</span>github<span class="op">.</span><span class="fu">com</span><span class="op">/</span>microsoft<span class="op">/</span>vcpkg<span class="op">.</span><span class="fu">git</span> C<span class="op">:</span>\vcpkg</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>C<span class="op">:</span>\vcpkg\bootstrap-vcpkg<span class="op">.</span><span class="fu">bat</span></span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a><span class="co"># OpenCV のインストール</span></span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>C<span class="op">:</span>\vcpkg\vcpkg install opencv4<span class="op">[</span>aruco<span class="op">,</span>contrib<span class="op">]:</span>x64-windows</span></code></pre></div>
+<blockquote>
+<p>binding.gyp は <code>C:\vcpkg\installed\x64-windows\</code>
+を参照します。 別の場所にインストールした場合は
+<code>native/binding.gyp</code> のパスを修正してください。</p>
+</blockquote>
+<h3 id="セットアップ-2">セットアップ</h3>
+<div class="sourceCode" id="cb10"><pre
+class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cd</span> MotionDigitizer</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>npm install</span></code></pre></div>
+<h3 id="ネイティブモジュールのビルド">ネイティブモジュールのビルド</h3>
+<p>Visual Studio の「開発者コマンド プロンプト」または PowerShell
+から:</p>
+<div class="sourceCode" id="cb11"><pre
+class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>npx node-gyp configure build <span class="op">--</span>directory<span class="op">=</span>native</span></code></pre></div>
+<p>正常終了すると <code>native\build\Release\opencv_module.node</code>
+が生成されます。</p>
+<h3 id="opencv-dll-の配置">OpenCV DLL の配置</h3>
+<p>開発時は <code>vendor\opencv\bin\</code> に OpenCV の DLL
+を配置してください。 vcpkg からコピーする場合:</p>
+<div class="sourceCode" id="cb12"><pre
+class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>xcopy C<span class="op">:</span>\vcpkg\installed\x64-windows\bin\opencv_<span class="op">*.</span><span class="fu">dll</span> vendor\opencv\bin\ <span class="op">/</span>Y</span></code></pre></div>
+<p>ビルド時は <code>extraResources</code>
+として自動的にバンドルされます。</p>
+<h3 id="開発モードで実行-2">開発モードで実行</h3>
+<div class="sourceCode" id="cb13"><pre
+class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>npm run dev</span></code></pre></div>
+<h3 id="ビルド-2">ビルド</h3>
+<div class="sourceCode" id="cb14"><pre
+class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>npm run build</span></code></pre></div>
+<p>出力: <code>dist\MotionDigitizer-Setup-*.exe</code></p>
+<hr />
+<h2 id="hpe-human-pose-estimation">HPE (Human Pose Estimation)</h2>
+<p>姿勢推定アプリ。Python バックエンドと ONNX モデルを使用します。</p>
+<h3 id="python-仮想環境のセットアップ">Python
+仮想環境のセットアップ</h3>
+<div class="sourceCode" id="cb15"><pre
+class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cd</span> HPE</span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>python <span class="op">-</span>m venv <span class="op">.</span><span class="fu">venv</span></span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a><span class="op">.</span><span class="fu">venv</span>\Scripts\activate</span></code></pre></div>
+<h3 id="python-依存パッケージのインストール">Python
+依存パッケージのインストール</h3>
+<div class="sourceCode" id="cb16"><pre
+class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>pip install <span class="op">--</span>upgrade pip</span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a><span class="co"># rtmlib (ローカルパッケージ)</span></span>
+<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a>pip install <span class="op">./</span>rtmlib <span class="op">--</span>no-deps</span>
+<span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-6"><a href="#cb16-6" aria-hidden="true" tabindex="-1"></a><span class="co"># その他の依存パッケージ</span></span>
+<span id="cb16-7"><a href="#cb16-7" aria-hidden="true" tabindex="-1"></a>pip install fastapi uvicorn python-multipart <span class="st">&quot;numpy&gt;=1.24.0,&lt;2.0.0&quot;</span> <span class="st">&quot;opencv-python&gt;=4.8.0&quot;</span> <span class="st">&quot;Pillow&gt;=10.0.0&quot;</span> <span class="st">&quot;tqdm&gt;=4.66.0&quot;</span> <span class="st">&quot;scipy&gt;=1.11.0&quot;</span> <span class="st">&quot;filterpy&gt;=1.4.0&quot;</span> <span class="st">&quot;ffmpeg-python&gt;=0.2.0&quot;</span> <span class="st">&quot;norfair&gt;=2.2.0&quot;</span></span></code></pre></div>
+<h3 id="onnx-runtime-のインストール">ONNX Runtime のインストール</h3>
+<p>NVIDIA GPU 搭載の場合 (CUDA 対応):</p>
+<div class="sourceCode" id="cb17"><pre
+class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>pip install onnxruntime-gpu<span class="op">&gt;=</span><span class="dv">1.18</span><span class="op">.</span><span class="dv">0</span></span></code></pre></div>
+<p>GPU なしの場合:</p>
+<div class="sourceCode" id="cb18"><pre
+class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>pip install onnxruntime<span class="op">&gt;=</span><span class="dv">1.18</span><span class="op">.</span><span class="dv">0</span></span></code></pre></div>
+<h3 id="nvidia-gpu-を使用する場合の追加要件">NVIDIA GPU
+を使用する場合の追加要件</h3>
+<ul>
+<li>NVIDIA ドライバ (最新版): https://www.nvidia.com/ja-jp/drivers/</li>
+<li>CUDA Toolkit 12.x: https://developer.nvidia.com/cuda-downloads</li>
+<li>cuDNN 9.x: https://developer.nvidia.com/cudnn</li>
+</ul>
+<blockquote>
+<p>cuDNN は <code>C:\Program Files\NVIDIA\CUDNN\v9.x\bin</code>
+にインストールされていれば アプリが自動的にパスを検出します。</p>
+</blockquote>
+<h3 id="node.js-依存パッケージのインストール">Node.js
+依存パッケージのインストール</h3>
+<div class="sourceCode" id="cb19"><pre
+class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a>deactivate   <span class="co"># venv を抜ける</span></span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a>npm install</span></code></pre></div>
+<h3 id="開発モードで実行-3">開発モードで実行</h3>
+<div class="sourceCode" id="cb20"><pre
+class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>npm run dev</span></code></pre></div>
+<h3 id="ビルド-一括スクリプト">ビルド (一括スクリプト)</h3>
+<div class="sourceCode" id="cb21"><pre
+class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a>build<span class="op">.</span><span class="fu">bat</span></span></code></pre></div>
+<p>または手動:</p>
+<div class="sourceCode" id="cb22"><pre
+class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a>npm run build</span></code></pre></div>
+<p>出力: <code>dist\HPE-Setup-*.exe</code></p>
+<h3 id="モデルファイル">モデルファイル</h3>
+<p><code>Models\</code> ディレクトリに以下のモデルが必要です:</p>
+<table>
+<thead>
+<tr>
+<th>ファイル</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>yolo11x.onnx</code></td>
+<td>人物検出 (高精度)</td>
+</tr>
+<tr>
+<td><code>yolo11s.onnx</code></td>
+<td>人物検出 (高速)</td>
+</tr>
+<tr>
+<td><code>rtmpose-m.onnx</code></td>
+<td>姿勢推定 (標準)</td>
+</tr>
+<tr>
+<td><code>rtmpose-x.onnx</code></td>
+<td>姿勢推定 (高精度)</td>
+</tr>
+<tr>
+<td><code>synthpose-vitpose-huge-hf.onnx</code></td>
+<td>SynthPose (高精度)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="gpucpu-の動作">GPU/CPU の動作</h3>
+<ul>
+<li><strong>NVIDIA GPU 搭載</strong>: CUDA を自動検出して GPU
+で推論を実行します</li>
+<li>GPU が検出されない場合は CPU にフォールバックします</li>
+<li>アプリ内のデバイスセレクタで GPU (CUDA) / CPU
+を手動切替できます</li>
+</ul>
+<hr />
+<h2 id="トラブルシューティング">トラブルシューティング</h2>
+<h3 id="node-gyp-のビルドエラー">node-gyp のビルドエラー</h3>
+<p>「MSBuild.exe が見つかりません」等のエラーの場合:</p>
+<div class="sourceCode" id="cb23"><pre
+class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Visual Studio Build Tools の確認</span></span>
+<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a>npm config <span class="fu">set</span> msvs_version <span class="dv">2022</span></span>
+<span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a><span class="dt">npx</span> node-gyp configure build <span class="op">--</span>directory<span class="op">=</span>native</span></code></pre></div>
+<h3 id="python-が見つからない">Python が見つからない</h3>
+<p>PATH に Python が含まれていることを確認:</p>
+<div class="sourceCode" id="cb24"><pre
+class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a>python <span class="op">--</span>version</span></code></pre></div>
+<p>表示されない場合は Python インストーラを再実行し「Add to
+PATH」を有効にしてください。</p>
+<h3 id="cudacudnn-が認識されない">CUDA/cuDNN が認識されない</h3>
+<ol type="1">
+<li>NVIDIA ドライバが最新か確認: <code>nvidia-smi</code></li>
+<li>cuDNN の DLL パスが正しいか確認:</li>
+</ol>
+<div class="sourceCode" id="cb25"><pre
+class="sourceCode powershell"><code class="sourceCode powershell"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a><span class="fu">dir</span> <span class="st">&quot;C:\Program Files\NVIDIA\CUDNN\v9.*\bin\cudnn*.dll&quot;</span></span></code></pre></div>
+<ol start="3" type="1">
+<li>環境変数 PATH に cuDNN の bin ディレクトリが含まれているか確認</li>
+</ol>
+<h3
+id="ウイルス対策ソフトによるブロック">ウイルス対策ソフトによるブロック</h3>
+<p>Windows Defender SmartScreen が未署名の exe をブロックする場合:
+「詳細情報」&gt;「実行」をクリックして許可してください。</p>
+<div class="footer">Biomechanics Suite Documentation</div>
+</body>
+</html>

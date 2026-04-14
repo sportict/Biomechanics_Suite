@@ -1,0 +1,9 @@
+{
+    "name": "opencv_module",
+    "version": "1.0.0",
+    "description": "Native OpenCV module",
+    "gypfile": true,
+    "dependencies": {
+        "node-addon-api": "^8.5.0"
+    }
+}

@@ -1,0 +1,62 @@
+﻿node.exe : gyp info it worke
+d if it ends with ok
+発生場所 C:\Users\vault\AppData\
+Roaming\npm\node-gyp.ps1:24 
+文字:5
++     & "node$exe"  "$basedi
+r/node_modules/node-gyp/bin/
+node-gyp.js" $a ...
++     ~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~
+    + CategoryInfo          
+    : NotSpecified: (gyp i  
+  nfo it worked if it end   
+ s with ok:String) [], R    
+emoteException
+    + FullyQualifiedErrorId 
+    : NativeCommandError
+ 
+gyp verb cli [
+gyp verb cli 'C:\\Users\\vau
+lt\\AppData\\Local\\Volta\\t
+ools\\image\\node\\18.19.0\\
+node.exe',
+gyp verb cli 'C:\\Users\\vau
+lt\\AppData\\Roaming\\npm\\n
+ode_modules\\node-gyp\\bin\\
+node-gyp.js',
+gyp verb cli 'rebuild',
+gyp verb cli '--verbose'
+gyp verb cli ]
+gyp info using node-gyp@11.3
+.0
+gyp info using node@18.19.0 
+| win32 | x64
+gyp verb clean removing "bui
+ld" directory
+gyp ERR! clean error 
+gyp ERR! stack Error: EPERM:
+ operation not permitted, rm
+dir 'C:\Users\vault\繝槭う繝峨Λ繧､
+繝暴pro\Electoron\Biomechanics
+_Suite\MotionDigitizer\nativ
+e\build\Release\obj\opencv_m
+odule\opencv_module.tlog'
+gyp ERR! System Windows_NT 1
+0.0.26100
+gyp ERR! command "C:\\Users\
+\vault\\AppData\\Local\\Volt
+a\\tools\\image\\node\\18.19
+.0\\node.exe" "C:\\Users\\va
+ult\\AppData\\Roaming\\npm\\
+node_modules\\node-gyp\\bin\
+\node-gyp.js" "rebuild" "--v
+erbose"
+gyp ERR! cwd C:\Users\vault\
+繝槭う繝峨Λ繧､繝暴pro\Electoron\Biom
+echanics_Suite\MotionDigitiz
+er\native
+gyp ERR! node -v v18.19.0
+gyp ERR! node-gyp -v v11.3.0
+gyp ERR! not ok 

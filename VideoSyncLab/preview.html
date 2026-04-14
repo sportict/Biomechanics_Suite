@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>プレビュー</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: #1e1e1e;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        canvas {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+    </style>
+</head>
+
+<body>
+    <canvas id="preview-canvas"></canvas>
+    <script>
+        const { ipcRenderer } = require('electron');
+
+        const canvas = document.getElementById('preview-canvas');
+        const ctx = canvas.getContext('2d');
+
+        let img = null;
+        let scale = 1.0;
+        let pPanning = false;
+        let panX = 0;
+        let panY = 0;
+        let startX = 0;
+        let startY = 0;
+
+        function draw() {
+            if (!img) return;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // キャンバスの中心を基準にスケーリングと移動を適用
+            ctx.save();
+            ctx.translate(canvas.width / 2 + panX, canvas.height / 2 + panY);
+            ctx.scale(scale, scale);
+            ctx.drawImage(img, -img.width / 2, -img.height / 2);
+            ctx.restore();
+        }
+
+        // メインプロセスから画像データを受信
+        ipcRenderer.on('update-preview', (event, imageBase64) => {
+            img = new Image();
+            img.onload = () => {
+                // ウィンドウサイズに合わせてキャンバスサイズを設定
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+
+                // 初期表示は全体が収まるようにフィットさせる
+                const scaleX = canvas.width / img.width;
+                const scaleY = canvas.height / img.height;
+                scale = Math.min(scaleX, scaleY) * 0.9; // 90%フィット
+                panX = 0;
+                panY = 0;
+
+                draw();
+            };
+            img.src = imageBase64;
+        });
+
+        // リサイズ対応
+        window.addEventListener('resize', () => {
+            if (img) {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+                draw();
+            }
+        });
+
+        // マウスホイールでズーム
+        canvas.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const zoomSensitivity = 0.1;
+            const delta = e.deltaY > 0 ? -zoomSensitivity : zoomSensitivity;
+            const newScale = scale + delta;
+
+            // 最小・最大ズーム制限
+            if (newScale > 0.1 && newScale < 10.0) {
+                scale = newScale;
+                draw();
+            }
+        });
+
+        // ドラッグでパンニング
+        canvas.addEventListener('mousedown', (e) => {
+            pPanning = true;
+            startX = e.clientX - panX;
+            startY = e.clientY - panY;
+            canvas.style.cursor = 'grabbing';
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            if (!pPanning) return;
+            e.preventDefault();
+            panX = e.clientX - startX;
+            panY = e.clientY - startY;
+            draw();
+        });
+
+        window.addEventListener('mouseup', () => {
+            pPanning = false;
+            canvas.style.cursor = 'default';
+        });
+    </script>
+</body>
+
+</html>

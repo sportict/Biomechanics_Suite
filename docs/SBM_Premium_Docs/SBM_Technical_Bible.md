@@ -1,0 +1,1484 @@
+  SBM Technical Bible | アルゴリズム詳細仕様書    .toc { background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 12px; padding: 2rem; margin: 2rem 0; } .toc h3 { margin-top: 0; color: var(--accent-cyan); } .toc ol { margin: 0; padding-left: 1.5rem; } .toc li { margin: 0.4rem 0; } .toc a { color: var(--text-secondary); text-decoration: none; transition: color 0.2s; } .toc a:hover { color: var(--accent-cyan); } .toc ol ol { margin-top: 0.3rem; } .toc ol ol li { font-size: 0.92em; margin: 0.2rem 0; } .algo-pipeline { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; margin: 1.5rem 0; } .algo-stage { background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 8px; padding: 0.8rem 1.2rem; text-align: center; flex: 1; min-width: 120px; } .algo-stage .stage-name { font-weight: 700; color: var(--accent-cyan); font-size: 0.95rem; } .algo-stage .stage-detail { font-size: 0.82rem; color: var(--text-secondary); margin-top: 0.3rem; } .algo-arrow { color: var(--accent-blue); font-size: 1.5rem; flex-shrink: 0; } .param-table { width: 100%; border-collapse: collapse; margin: 1.5rem 0; font-size: 0.9rem; } .param-table th { background: rgba(139, 92, 246, 0.12); color: var(--accent-purple); padding: 0.7rem 0.8rem; text-align: left; border-bottom: 2px solid rgba(139, 92, 246, 0.3); font-weight: 600; } .param-table td { padding: 0.6rem 0.8rem; border-bottom: 1px solid rgba(255, 255, 255, 0.06); vertical-align: top; } .param-table tr:hover td { background: rgba(255, 255, 255, 0.02); } .param-table code { background: rgba(0,0,0,0.3); padding: 1px 5px; border-radius: 3px; font-size: 0.88em; color: #93c5fd; } .bsp-table { width: 100%; border-collapse: collapse; margin: 1.5rem 0; font-size: 0.82rem; } .bsp-table th { background: rgba(6, 182, 212, 0.12); color: var(--accent-cyan); padding: 0.5rem; text-align: center; border-bottom: 2px solid rgba(6, 182, 212, 0.3); font-weight: 600; } .bsp-table td { padding: 0.4rem 0.5rem; border-bottom: 1px solid rgba(255,255,255,0.06); text-align: center; } .bsp-table tr:hover td { background: rgba(255,255,255,0.02); } pre { background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; padding: 1.2rem; overflow-x: auto; font-family: 'Fira Code', 'Consolas', monospace; font-size: 0.85rem; line-height: 1.6; color: #e2e8f0; } pre .comment { color: #6b7280; } pre .keyword { color: #c084fc; } pre .string { color: #34d399; } pre .number { color: #fbbf24; } pre .func { color: #60a5fa; } .file-ref { display: inline-block; font-size: 0.82rem; color: var(--text-secondary); background: rgba(0, 0, 0, 0.2); padding: 2px 10px; border-radius: 20px; margin-bottom: 0.5rem; } .file-ref i { margin-right: 4px; } .math-block { background: rgba(0, 0, 0, 0.25); border-left: 3px solid var(--accent-purple); padding: 1.2rem 1.5rem; margin: 1.5rem 0; border-radius: 0 8px 8px 0; overflow-x: auto; } .sub-section { margin-top: 2.5rem; } .sub-section:first-of-type { margin-top: 1.5rem; } .note-box { background: rgba(251, 191, 36, 0.08); border-left: 3px solid #fbbf24; padding: 1rem 1.2rem; border-radius: 0 8px 8px 0; margin: 1rem 0; font-size: 0.92rem; } .note-box strong { color: #fbbf24; } .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin: 1rem 0; } @media (max-width: 768px) { .two-col { grid-template-columns: 1fr; } }
+
+SBM System Technical Bible
+
+[User Manual](SBM_User_Manual.html) [Integration Map](SBM_Integration_Map.html) [Technical Bible](SBM_Technical_Bible.html)
+
+Algorithm Deep Dive Mathematical Proof Source Code Reference
+
+# Algorithm &  
+Mathematics
+
+コードの深層にある数理モデルとアルゴリズムの正体。  
+ブラックボックスを排除し、信頼できる科学的根拠（エビデンス）をここに提示する。
+
+### Table of Contents
+
+1.  [設計思想 & Tech Stack Comparison](#philosophy)
+2.  [VideoSyncLab — 映像処理アルゴリズム](#vsl)
+    1.  [FFmpeg Smart Cut（3セグメントハイブリッド）](#vsl-smartcut)
+    2.  [フレーム同期アルゴリズム](#vsl-sync)
+    3.  [ストロボモーション合成](#vsl-strobe)
+    4.  [ONNX人物セグメンテーション](#vsl-onnx)
+3.  [HPE — AI姿勢推定パイプライン](#hpe)
+    1.  [サーバーアーキテクチャ](#hpe-arch)
+    2.  [YOLO人物検出](#hpe-yolo)
+    3.  [rtmlib統合骨格推定（RTMPose / SynthPose）](#hpe-vitpose)
+    4.  [Norfairマルチ人物追跡](#hpe-norfair)
+    5.  [5段階フィルタリングパイプライン](#hpe-filter)
+4.  [MotionDigitizer — 空間座標変換](#md)
+    1.  [2D-DLT法](#md-dlt2d)
+    2.  [3D-DLT法](#md-dlt3d)
+    3.  [CC法（Control Coordinates Method）](#md-cc)
+    4.  [カメラモデル & レンズ歪み補正](#md-camera)
+    5.  [ChArUco自動キャリブレーション](#md-charuco)
+    6.  [実長換算](#md-reallength)
+    7.  [C3Dフォーマット](#md-c3d)
+5.  [MotionViewer — 運動学解析エンジン](#mv)
+    1.  [Butterworthフィルタ](#mv-butter)
+    2.  [Wells & Winter自動カットオフ決定](#mv-cutoff)
+    3.  [身体部分慣性係数（BSP）](#mv-bsp)
+    4.  [身体重心（COM）算出](#mv-com)
+    5.  [速度・加速度の数値微分](#mv-vel)
+    6.  [関節角度の算出](#mv-joint)
+    7.  [セグメント角度](#mv-segment)
+    8.  [Three.js 3Dレンダリング](#mv-3d)
+6.  [ファイルフォーマット仕様](#formats)
+7.  [参考文献](#refs)
+8.  [開発者・連絡先](#author)
+
+## 1\. 設計思想 & Tech Stack Comparison
+
+**SBM System** (Sports BioMechanics System) は、従来の高価な光学式モーションキャプチャ（VICON、Qualisys等）が独占していた「定量的3D動作分析」を、 汎用カメラと最先端AIと堅牢な幾何学アルゴリズムの融合によって民主化するために設計された。
+
+**Core Philosophy:** 「AIによる省力化」と「古典的幾何学による精度保証」のハイブリッド。 AIが大量フレームの骨格推定を自動処理し、人間はAIが苦手なオクルージョン区間のみを修正する。 最終的な座標変換はDLT/CC法という確立された数理モデルが担保する。
+
+特徴
+
+SBM System (Hybrid)
+
+光学式MoCap (Vicon等)
+
+簡易スマホアプリ
+
+**マーカー**
+
+不要（Markerless）
+
+必須（反射マーカー）
+
+不要
+
+**環境制約**
+
+低（屋外・試合中OK）
+
+高（専用スタジオ必須）
+
+低
+
+**3D精度**
+
+高（DLT/CC補正）
+
+極高（sub-mm）
+
+低（2Dのみが多い）
+
+**コスト**
+
+低（汎用PC+カメラ）
+
+極高（数千万円〜）
+
+無料〜安価
+
+**解析ロジック**
+
+**Hybrid（AI + Human-in-the-Loop）**
+
+幾何計算のみ
+
+AIブラックボックス
+
+**マルチカメラ3D**
+
+2〜N台（DLT法）
+
+8〜20台以上
+
+非対応が多い
+
+**出力形式**
+
+CSV / C3D / 独自形式
+
+C3D / TSV
+
+CSV / JSON
+
+## 2\. VideoSyncLab — 映像処理アルゴリズム
+
+映像の品質が分析の品質を決定する。VideoSyncLabは FFmpeg を核とした高精度映像処理エンジンである。
+
+### 2.1 FFmpeg Smart Cut（3セグメントハイブリッド）
+
+VideoSyncLab/renderer.js — performSmartCut()
+
+通常のストリームコピー（`-c copy`）はキーフレーム境界でしかカットできず、 開始点がGOPの途中にある場合は映像が乱れる。Smart Cutはこの問題を**3セグメント合成**で解決する。
+
+Segment A
+
+IN点〜次のキーフレーム  
+再エンコード（H.264）
+
+→
+
+Segment B
+
+キーフレーム〜最終キーフレーム  
+ストリームコピー（高速）
+
+→
+
+Segment C
+
+最終キーフレーム〜OUT点  
+再エンコード（H.264）
+
+→
+
+Concat
+
+FFmpeg concat demuxer  
+で3セグメントを結合
+
+**Note:** 再エンコードは先頭と末尾の数フレームのみに限定されるため、 全フレーム再エンコードに比べ処理時間は大幅に短縮され、画質劣化も最小限に抑えられる。
+
+エンコードパラメータ:
+
+// Smart Cut エンコード設定
+const encodeArgs = \[
+  '-c:v', 'libx264',
+  '-preset', 'medium',
+  '-crf', '18',          // 高品質（視覚的にほぼロスレス）
+  '-pix\_fmt', 'yuv420p',
+  '-c:a', 'aac',
+  '-b:a', '192k'
+\];
+
+### 2.2 フレーム同期アルゴリズム
+
+VideoSyncLab/renderer.js — syncToParent()
+
+マルチカメラ同期は**Parent-Child**モデルで実装されている。 左プレーヤーが親（タイムライン基準）、右プレーヤーが子となり、 ユーザーが設定した同期ポイントからオフセットを自動計算する。
+
+\\\[ \\Delta t = \\frac{F\_{sync}^{parent} - F\_{sync}^{child}}{fps} \\\] \\\[ t\_{child} = t\_{parent} - \\Delta t \\\]
+
+ここで \\( F\_{sync} \\) は各プレーヤーの同期ポイントフレーム番号、\\( fps \\) はフレームレートである。 同期再生中は `requestAnimationFrame` ループ内で毎フレーム子動画の `currentTime` を補正する。
+
+### 2.3 ストロボモーション合成
+
+VideoSyncLab/strobe-motion.js
+
+複数フレームの人物像を1枚の静止画に重ね合わせ、動作の軌跡を視覚化する。 ONNX Runtime で YOLO11m-seg モデルを実行し、人物のセグメンテーションマスクを取得する。
+
+Frame取得
+
+指定間隔でフレーム  
+をCanvasに描画
+
+→
+
+YOLO11m-seg
+
+ONNXセグメンテーション  
+人物マスク生成
+
+→
+
+マスク適用
+
+ImageDataのピクセル  
+単位でアルファ合成
+
+→
+
+合成出力
+
+背景+全フレーム  
+の人物像を重畳
+
+#### セグメンテーション処理
+
+YOLO11m-seg の出力テンソルからセグメンテーションマスクを復元する処理:
+
+// 1. 検出結果 (8400 candidates) から信頼度閾値でフィルタ
+// 2. 各検出のproto係数(32次元)とprotoマスク(160x160x32)の内積
+// 3. シグモイド関数でマスク確率に変換
+for (let i = 0; i < maskH \* maskW; i++) {
+    let val = 0;
+    for (let k = 0; k < 32; k++) {
+        val += maskCoeffs\[k\] \* protoData\[k \* maskH \* maskW + i\];
+    }
+    mask\[i\] = 1.0 / (1.0 + Math.exp(-val));  // sigmoid
+}
+// 4. bbox領域でクリップ → 元画像サイズにリサイズ
+
+#### 合成モード
+
+モード
+
+アルゴリズム
+
+用途
+
+**通常合成**
+
+透明度付きオーバーレイ（後のフレームが前面）
+
+標準的な動作軌跡の可視化
+
+**背景差分**
+
+先頭フレームとの差分でマスク生成
+
+セグメンテーションなしの高速処理
+
+**グラデーション**
+
+時間軸に沿って色相を変化（HSL回転）
+
+時間経過の視覚的表現
+
+### 2.4 ONNX人物セグメンテーション
+
+VideoSyncLab/strobe-motion.js — OnnxSegmenter
+
+`onnxruntime-web` (WebAssembly backend) により、ブラウザプロセス内でYOLO11m-segを推論する。 モデルは `.onnx` 形式で配布され、GPUを必要としない。
+
+パラメータ
+
+値
+
+説明
+
+入力テンソル
+
+`[1, 3, 640, 640]`
+
+NCHW形式、RGB正規化 (0-1)
+
+検出出力
+
+`[1, 116, 8400]`
+
+bbox(4) + conf(1) + classes(80) + mask\_coeffs(32) × 8400候補
+
+マスク出力
+
+`[1, 32, 160, 160]`
+
+プロトタイプマスク（32チャンネル）
+
+NMS閾値
+
+`0.45`
+
+IoUによる重複除去
+
+信頼度閾値
+
+`0.5`
+
+検出スコアの下限
+
+## 3\. HPE — AI姿勢推定パイプライン
+
+HPEは**Electron（フロントエンド）+ Python IPC（バックエンド）**の二層構成で動作する。GPU/CPUの重い推論処理をPythonプロセスに委譲し、UIの応答性を維持する。
+
+**対応プラットフォーム**: Windows (CUDA GPU) / macOS (CoreML/Apple Silicon) / CPU フォールバック
+
+**Python環境**: `.venv` 仮想環境（Win/Mac共通）
+
+### 3.1 サーバーアーキテクチャ
+
+```
+Electron (main.js)
+  UI / ファイル管理
+  spawn + stdin/stdout
+      ⇄
+  Python (ipc_handler.py)
+  JSON-line プロトコル
+      →
+  YOLO + RTMPose / SynthPose
+  ONNX Runtime (CUDA / CoreML / CPU)
+      →
+  Norfair Tracking
+  ID永続化
+```
+
+起動シーケンス:
+
+```
+# Electron main.js から子プロセスとして起動
+.venv/bin/python -u server/ipc_handler.py     # macOS
+.venv\Scripts\python.exe -u server\ipc_handler.py  # Windows
+
+# JSON-line プロトコル (stdin/stdout)
+→ {"type": "load_model", "data": {...}}
+← {"type": "model_loaded", "data": {"success": true, "device": "cuda"}}
+→ {"type": "detect", "data": {"video_path": "...", ...}}
+← {"type": "progress", "data": {"percent": 50}}
+← {"type": "detection_complete", "data": {...}}
+```
+
+GPU自動検出:
+- **Windows**: `nvcuda.dll` の存在を高速チェック → `CUDAExecutionProvider` 確認
+- **macOS**: `CoreMLExecutionProvider` / `MPSExecutionProvider` 確認
+- **フォールバック**: CPUExecutionProvider
+
+### 3.2 YOLO人物検出
+
+YOLO（You Only Look Once）は1パスでバウンディングボックスとクラスを同時予測するリアルタイム物体検出モデルである。 本システムでは **YOLOv11x**（最高精度モデル）をONNX形式で利用する。
+
+設定
+
+値
+
+備考
+
+モデル
+
+`yolo11x.onnx`
+
+Extra Largeモデル（最高精度）
+
+入力解像度
+
+`640 × 640`
+
+letterbox padding で縦横比保持
+
+対象クラス
+
+`person (id=0)`
+
+COCO 80クラスからpersonのみフィルタ
+
+信頼度閾値
+
+`0.25`
+
+低めに設定（追跡で補完）
+
+NMS IoU
+
+`0.45`
+
+重複ボックス除去
+
+推論バックエンド
+
+`CUDA / CPU`
+
+自動判定
+
+検出結果は各人物の bounding box `[x1, y1, x2, y2, confidence]` として次段の骨格推定モデルに渡される。
+
+### 3.3 rtmlib統合骨格推定（RTMPose / SynthPose）
+
+v1.1.0 から **rtmlib** に一本化された。rtmlib は MMDeploy を使わず ONNX Runtime で直接推論する軽量ラッパーであり、RTMPose・ViTPose・SynthPose を統一インターフェースで扱える。PyTorch は不要で、ONNX ファイルのみで動作する。
+
+#### 計測プリセットとモデル対応
+
+プリセット | ポーズモデル | 検出モデル | 出力キーポイント | 主な用途
+---|---|---|---|---
+**23点（RTMPose-M・高速）** | `RTMPose-M` (HALPE 26pt ONNX) | `yolo11s.onnx` | 26pt → **23pt**変換 | 高速プレビュー・大量バッチ
+**23点（RTMPose-X・高精度）** | `RTMPose-X` (HALPE 26pt ONNX) | `yolo11x.onnx` | 26pt → **23pt**変換 | 標準分析（推奨）
+**52点（SynthPose-Huge）** | `SynthPose-Huge` (ViT-Huge ONNX) | `yolo11x.onnx` | **52pt** (OpenCapBench) | バイオメカニクス精密解析・OpenSim連携
+
+#### RTMPose（23点モード）
+
+**RTMPose**（Real-Time Multi-Person Pose Estimation）は、RTMDet をバックボーンとした高速・高精度 CNN 姿勢推定モデルである。
+
+項目 | RTMPose-M | RTMPose-X
+---|---|---
+バックボーン | CSPNeXt-M | CSPNeXt-XL
+入力解像度 | `256 × 192` | `256 × 192`
+出力キーポイント | **26点** (HALPE) | **26点** (HALPE)
+変換後 | **23点**（バイオメカニクス標準） | **23点**（バイオメカニクス標準）
+速度 | 高速 | 標準
+推論形式 | ONNX Runtime (CUDA/CPU) | ONNX Runtime (CUDA/CPU)
+
+#### SynthPose（52点モード）
+
+**SynthPose** は OpenCap / OpenCapBench の合成データで学習した ViT-Huge ベースのモデルで、OpenSim 互換の **52点** バイオメカニクスマーカーを直接出力する。
+
+項目 | 詳細
+---|---
+モデル | `synthpose-vitpose-huge-hf.onnx` (ViT-Huge backbone)
+入力解像度 | `256 × 192`
+出力 | **52点** ヒートマップ `[batch, 52, 64, 48]`
+フォーマット | OpenCapBench（OpenSim マーカー互換）
+推論形式 | ONNX Runtime (CUDA/CPU)
+
+#### HALPE 26点 → 23点マッピング（RTMPoseモード）
+
+RTMPose の HALPE 26点出力から、バイオメカニクス分析に必要な 23 関節を選択・統合する:
+
+#
+
+関節名
+
+HALPE元ID
+
+備考
+
+0
+
+鼻 (Nose)
+
+0
+
+頭部基準
+
+1-2
+
+左右目
+
+1, 2
+
+頭部方向の推定
+
+3-4
+
+左右耳
+
+3, 4
+
+頭部幅の推定
+
+5-6
+
+左右肩
+
+5, 6
+
+上肢の起点
+
+7-8
+
+左右肘
+
+7, 8
+
+—
+
+9-10
+
+左右手首
+
+9, 10
+
+—
+
+11-12
+
+左右股関節
+
+11, 12
+
+下肢の起点
+
+13-14
+
+左右膝
+
+13, 14
+
+—
+
+15-16
+
+左右足首
+
+15, 16
+
+—
+
+17-18
+
+左右つま先
+
+17, 20 (foot)
+
+大指先端
+
+19-20
+
+左右かかと
+
+19, 22 (foot)
+
+踵骨後端
+
+21-22
+
+左右手指先
+
+mid-finger tip
+
+中指先端
+
+### 3.4 Norfairマルチ人物追跡
+
+HPE/server/main.py — Norfair Tracker
+
+複数人物が交差する場面でのID入れ替わりを防止するため、 **Norfair**ライブラリのカルマンフィルタ + ハンガリアンアルゴリズムによる追跡を実装。
+
+#### カルマンフィルタ
+
+各追跡対象の状態ベクトルは位置と速度で構成される:
+
+\\\[ \\mathbf{x}\_k = \\begin{bmatrix} x \\\\ y \\\\ \\dot{x} \\\\ \\dot{y} \\end{bmatrix}, \\quad \\mathbf{x}\_{k|k-1} = \\mathbf{F} \\mathbf{x}\_{k-1} + \\mathbf{w}\_k \\\]
+
+予測ステップで次フレームの位置を推定し、観測ステップで実際の検出結果と照合する。
+
+#### ハンガリアンアルゴリズム
+
+予測位置と検出結果のコスト行列（ユークリッド距離）を構築し、 ハンガリアン法で最小コストの割り当てを求める。 閾値を超えた場合は新規IDを発行する。
+
+パラメータ
+
+値
+
+役割
+
+`distance_function`
+
+Euclidean (keypoints)
+
+キーポイント間の距離で類似度評価
+
+`distance_threshold`
+
+`100`px
+
+この距離を超えると別人物と判定
+
+`hit_counter_max`
+
+`15`
+
+検出消失後も15フレーム保持
+
+`initialization_delay`
+
+`3`
+
+3フレーム連続検出でID確定
+
+### 3.5 5段階フィルタリングパイプライン
+
+HPE/renderer/app.js — filterPipeline()
+
+AI推定の生データにはスパイクノイズ、左右入替、欠損が含まれる。 以下の5段階フィルタで段階的にデータ品質を改善する。
+
+① 外れ値除去
+
+速度ベース  
+閾値判定
+
+→
+
+② 左右入替補正
+
+交差距離  
+チェック
+
+→
+
+③ 補間
+
+PCHIP / Cubic  
+Akima / Linear
+
+→
+
+④ Butterworth
+
+ローパス  
+フィルタ
+
+→
+
+⑤ Kalman
+
+前後双方向  
+スムーザ
+
+#### ① 外れ値除去（Velocity-based Outlier Rejection）
+
+隣接フレーム間の移動速度が閾値を超えた場合、そのフレームのキーポイントを欠損（NaN）とマークする。
+
+\\\[ v\_i = \\sqrt{(x\_i - x\_{i-1})^2 + (y\_i - y\_{i-1})^2} \\\] \\\[ \\text{if} \\quad v\_i > \\mu + k \\sigma \\quad \\Rightarrow \\quad (x\_i, y\_i) = \\text{NaN} \\\]
+
+#### ② 左右入替補正（Limb Swap Correction）
+
+AIが左右のキーポイントを誤って入れ替えるケースを検出・修正する。 対称関節ペア（左肩-右肩等）の交差距離をフレーム間で追跡し、急激な入替を検出する。
+
+#### ③ 補間（Interpolation）
+
+欠損区間を以下のアルゴリズムで補間する（ユーザー選択可能）:
+
+手法
+
+特徴
+
+推奨場面
+
+**PCHIP**
+
+区分的3次エルミート。オーバーシュートなし
+
+一般的な動作（推奨）
+
+**Cubic Spline**
+
+滑らかだがオーバーシュートの可能性あり
+
+滑らかな動作
+
+**Akima**
+
+局所的フィット。急激な変化に強い
+
+爆発的動作
+
+**Linear**
+
+直線補間。最もシンプル
+
+短い欠損区間
+
+#### ④ Butterworthローパスフィルタ
+
+高周波ノイズを除去する2次Butterworthフィルタ。カットオフ周波数はユーザー設定（デフォルト: 6Hz）。
+
+#### ⑤ Kalmanスムーザ
+
+前方パス（フィルタ）と後方パス（スムーザ）を組み合わせた **RTS（Rauch-Tung-Striebel）スムーザ**。 時系列全体の情報を使って最適な状態推定を行う。
+
+### 3.6 ONNX Runtime Optimization & Acceleration
+
+本システムでは、PyTorchなどの学習フレームワークをそのまま推論に使用せず、 **ONNX (Open Neural Network Exchange) Runtime** を採用することで、 商用レベルの推論速度と効率性を実現している。
+
+#### なぜ PyTorch 生モデルではなく ONNX なのか？
+
+学習（Training）と推論（Inference）は要求されるリソース特性が全く異なる。 ONNX Runtimeへの移行により、以下の数理的・工学的最適化が適用される。
+
+最適化技術
+
+詳細
+
+効果
+
+**Graph Optimization**
+
+計算グラフの静的解析による不要ノード削除、定数畳み込み（Constant Folding）、 演算融合（Operator Fusion: Conv+BatchNorm+Relu → Single Kernel）。
+
+メモリアクセス回数の削減、レイテンシ低下
+
+**Execution Providers**
+
+ハードウェアごとのバックエンド（CUDA, TensorRT, CPU, DirectML）を 抽象化レイヤーで切り替え、各デバイスに特化したカーネルを実行。
+
+ハードウェア性能の最大化
+
+**Quantization (量子化)**
+
+FP32（32bit浮動小数点）から FP16 / INT8 への精度・型変換。 ダイナミックレンジの縮小による計算コスト削減。
+
+モデルサイズ 1/2〜1/4、推論速度 2〜4倍
+
+**Memory Optimization**
+
+メモリ割り当ての計画化（Static Memory Planning）により、 動的なメモリ確保・解放のオーバーヘッドを排除。
+
+ピークメモリ使用量の削減
+
+**Deployment Benefit:** PyTorchの巨大な依存関係（数GB）を排除し、軽量なONNX Runtimeライブラリのみで動作するため、 配布パッケージサイズを劇的に削減でき、Python環境のバージョン依存問題（Dependency Hell）も回避できる。
+
+## 4\. MotionDigitizer — 空間座標変換
+
+MotionDigitizerの中核は「ピクセル座標（画像平面）を実世界座標（メートル空間）に変換する」ことである。 この変換を支える数理的基盤を詳述する。
+
+### 4.1 2D-DLT法（Direct Linear Transformation）
+
+MotionDigitizer/src/analysis-engine.js — solveDLT2D()
+
+単一カメラで撮影した2D平面上の運動を実長換算する手法。 **8個のカメラ定数** \\( L\_1 \\dots L\_8 \\) を用いて射影変換を定義する。
+
+\\\[ u = \\frac{L\_1 X + L\_2 Y + L\_3}{L\_7 X + L\_8 Y + 1} \\\] \\\[ v = \\frac{L\_4 X + L\_5 Y + L\_6}{L\_7 X + L\_8 Y + 1} \\\]
+
+ここで \\( (u, v) \\) は画像座標（ピクセル）、\\( (X, Y) \\) は実空間座標（メートル等）。 分母を払って線形化すると:
+
+\\\[ \\begin{bmatrix} X\_1 & Y\_1 & 1 & 0 & 0 & 0 & -u\_1 X\_1 & -u\_1 Y\_1 \\\\ 0 & 0 & 0 & X\_1 & Y\_1 & 1 & -v\_1 X\_1 & -v\_1 Y\_1 \\\\ \\vdots & & & & & & & \\vdots \\end{bmatrix} \\begin{bmatrix} L\_1 \\\\ L\_2 \\\\ \\vdots \\\\ L\_8 \\end{bmatrix} = \\begin{bmatrix} u\_1 \\\\ v\_1 \\\\ \\vdots \\end{bmatrix} \\\]
+
+**必要条件:** 最低4個の制御点（8個の方程式で8個の未知数を解く）。冗長性のため6点以上を推奨。
+
+**逆変換:** 既知の \\( L\_1 \\dots L\_8 \\) を用いて、任意の画像座標 \\( (u, v) \\) から実空間座標 \\( (X, Y) \\) を逆算可能。 これにより、デジタイズした全キーポイントを実長に換算する。
+
+### 4.2 3D-DLT法
+
+MotionDigitizer/src/analysis-engine.js — solveDLT3D()
+
+2台以上のカメラ映像から3次元座標を復元する。各カメラに**11個の定数** \\( L\_1 \\dots L\_{11} \\) を定義する。
+
+\\\[ u = \\frac{L\_1 X + L\_2 Y + L\_3 Z + L\_4}{L\_9 X + L\_{10} Y + L\_{11} Z + 1} \\\] \\\[ v = \\frac{L\_5 X + L\_6 Y + L\_7 Z + L\_8}{L\_9 X + L\_{10} Y + L\_{11} Z + 1} \\\]
+
+**キャリブレーション:** 6個以上の既知3D制御点から、各カメラの11定数を最小二乗法で算出。
+
+**3D復元:** 2台のカメラで同一点をデジタイズすると、4本の方程式（各カメラ2本）で3つの未知数 \\( (X, Y, Z) \\) を解く過決定系となる。
+
+// 3D-DLT 座標復元（2カメラの場合）
+// 行列 A (4×3) と ベクトル b (4×1) を構築
+A = \[
+  \[L11 - L91·u1,  L21 - L101·u1,  L31 - L111·u1\],
+  \[L51 - L91·v1,  L61 - L101·v1,  L71 - L111·v1\],
+  \[L12 - L92·u2,  L22 - L102·u2,  L32 - L112·u2\],
+  \[L52 - L92·v2,  L62 - L102·v2,  L72 - L112·v2\]
+\];
+// 最小二乗法: X = (AᵀA)⁻¹ Aᵀb
+const result = math.lusolve(AtA, Atb);
+
+### 4.3 3次元CC法（競技場特徴点利用）
+
+MotionDigitizer/src/cc-method-implementation.js
+
+**鈴木ら (2016)** によって提案された「競技場の特徴点を利用したカメラパラメータ算出法」。 DLT法が少なくとも6点の3次元的（Z軸方向に広がりのある）な制御点を必要とするのに対し、 CC法は**平面上（Z=0）の最低3点**の制御点のみでキャリブレーションが可能である。
+
+#### 透視投影モデル（共線性条件式）
+
+\\\[ u = u\_0 - f\_u \\frac{r\_{11}(X - X\_0) + r\_{12}(Y - Y\_0) + r\_{13}(Z - Z\_0)}{r\_{31}(X - X\_0) + r\_{32}(Y - Y\_0) + r\_{33}(Z - Z\_0)} \\\] \\\[ v = v\_0 - f\_v \\frac{r\_{21}(X - X\_0) + r\_{22}(Y - Y\_0) + r\_{23}(Z - Z\_0)}{r\_{31}(X - X\_0) + r\_{32}(Y - Y\_0) + r\_{33}(Z - Z\_0)} \\\]
+
+ここで \\((X\_0, Y\_0, Z\_0)\\) はカメラ位置、\\((u\_0, v\_0)\\) は光学中心、 \\((f\_u, f\_v)\\) は焦点距離、\\(r\_{ij}\\) は回転行列要素（オイラー角 \\(\\phi, \\theta, \\psi\\) より算出）である。
+
+#### 最適化の2段階戦略
+
+#### Stage 1: 大域的探索 (GA)
+
+**遺伝的アルゴリズム（Genetic Algorithm）**を用いて、多峰性を持つ探索空間から大域的最適解の候補を探索する。 これにより、初期値依存性を低減し、局所解へのトラップを回避する（鈴木らの手法の核）。
+
+#### Stage 2: 局所的収束
+
+**Nelder-Mead法**（シンプレックス法）または準ニュートン法で、GAの解を初期値として高精度に収束させる。 再投影誤差を最小化するパラメータを確定する。
+
+#### 目的関数（再投影誤差）
+
+\\\[ E = \\sum\_{i=1}^{N} \\sqrt{(u\_i - \\hat{u}\_i(\\mathbf{p}))^2 + (v\_i - \\hat{v}\_i(\\mathbf{p}))^2} \\\]
+
+**Accuracy Improvement:** 本システムでは、**Charucoボード**で事前に取得した高精度な内部パラメータ（焦点距離、歪み係数）を固定値として利用することで、 最適化計算の自由度を下げ、外部パラメータ（カメラ位置・姿勢）の推定精度を飛躍的に向上させている。
+
+### 4.4 カメラモデル & レンズ歪み補正
+
+CC法の内部で使用されるピンホールカメラモデルとレンズ歪みモデルを示す。
+
+#### ピンホールカメラ投影
+
+\\\[ \\begin{bmatrix} x' \\\\ y' \\\\ z' \\end{bmatrix} = \\mathbf{R} \\begin{bmatrix} X - T\_x \\\\ Y - T\_y \\\\ Z - T\_z \\end{bmatrix} \\\] \\\[ u\_0 = f \\cdot \\frac{x'}{z'}, \\quad v\_0 = f \\cdot \\frac{y'}{z'} \\\]
+
+ここで \\( \\mathbf{R} \\) は回転行列（3つの回転角 ω, φ, κ から構成）、\\( (T\_x, T\_y, T\_z) \\) はカメラ位置、\\( f \\) は焦点距離。
+
+#### レンズ歪み補正
+
+放射歪みと接線歪みの両方を補正する:
+
+\\\[ r^2 = u\_0^2 + v\_0^2 \\\] \\\[ \\Delta\_r = k\_1 r^2 + k\_2 r^4 + k\_3 r^6 \\quad \\text{(放射歪み)} \\\] \\\[ \\Delta u\_t = 2 p\_1 u\_0 v\_0 + p\_2 (r^2 + 2 u\_0^2) \\quad \\text{(接線歪み)} \\\] \\\[ \\Delta v\_t = p\_1 (r^2 + 2 v\_0^2) + 2 p\_2 u\_0 v\_0 \\\] \\\[ u = u\_0 (1 + \\Delta\_r) + \\Delta u\_t + c\_x \\\] \\\[ v = v\_0 (1 + \\Delta\_r) + \\Delta v\_t + c\_y \\\]
+
+歪み係数
+
+種別
+
+効果
+
+\\( k\_1, k\_2, k\_3 \\)
+
+放射歪み
+
+樽型 / 糸巻き型歪みの補正
+
+\\( p\_1, p\_2 \\)
+
+接線歪み
+
+レンズ軸のズレによる歪みの補正
+
+\\( c\_x, c\_y \\)
+
+主点
+
+光学中心のオフセット
+
+### 4.5 ChArUco自動キャリブレーション
+
+MotionDigitizer/src/charuco-calibration.js
+
+ChArUcoボード（チェスボード + ArUcoマーカーの融合）を撮影した複数枚の画像から、 カメラの内部パラメータと歪み係数を自動推定する。OpenCV nativeモジュールを使用。
+
+処理ステップ
+
+内容
+
+1\. ArUco検出
+
+各画像からArUcoマーカーのIDと角点を検出
+
+2\. ChArUco補間
+
+ArUcoの位置からチェスボード角点のサブピクセル位置を補間
+
+3\. キャリブレーション
+
+`cv.calibrateCamera()` で内部パラメータと歪み係数を推定
+
+4\. 再投影誤差
+
+平均再投影誤差（RMS）を表示。0.5px以下が良好
+
+### 4.6 実長換算（4点法）
+
+MotionDigitizer/src/renderer.js — calculateRealLength()
+
+DLT/CC法が使えない簡易的な場面では、映像内の既知距離（身長、器具の長さ等）を 基準として画素→実長のスケールファクターを算出する。
+
+\\\[ \\text{scale} = \\frac{D\_{real}}{D\_{pixel}} = \\frac{D\_{real}}{\\sqrt{(x\_2 - x\_1)^2 + (y\_2 - y\_1)^2}} \\\]
+
+4点法では2組の基準距離（例: 水平方向と垂直方向）を指定し、直交2方向のスケールを独立に設定できる。
+
+### 4.7 C3Dフォーマット
+
+MotionDigitizer/src/c3d-exporter.js
+
+**C3D**（Coordinate 3D）はバイオメカニクス分野の標準バイナリ交換フォーマットである。 Visual3D、MATLAB等の外部ソフトウェアとのデータ互換を確保する。
+
+セクション
+
+内容
+
+ヘッダー
+
+マーカー数、フレーム数、サンプリングレート等（512バイトブロック）
+
+パラメータ
+
+グループ/パラメータ階層構造（POINT:LABELS, POINT:RATE等）
+
+3Dデータ
+
+各フレーム × 各マーカーの (X, Y, Z, residual) を float32 で格納
+
+**エンディアン:** C3Dはリトルエンディアン（Intel形式）とビッグエンディアン（SGI形式）の両方をサポート。 本システムはリトルエンディアンで出力する。
+
+## 5\. MotionViewer — 運動学解析エンジン
+
+3D座標データから運動学的パラメータ（速度、角度、重心等）を算出し、 3D可視化と時系列グラフで表示するエンジン。
+
+### 5.1 Butterworthフィルタ
+
+MotionViewer/src/renderer/butterworth-filter.js
+
+座標データの高周波ノイズを除去するため、**4次Butterworthローパスフィルタ**を実装。 カスケード接続された2つの2次セクション（biquad）で構成される。
+
+#### 伝達関数（アナログ）
+
+\\\[ |H(j\\omega)|^2 = \\frac{1}{1 + \\left(\\frac{\\omega}{\\omega\_c}\\right)^{2n}} \\\]
+
+ここで \\( n = 4 \\)（4次）、\\( \\omega\_c \\) はカットオフ角周波数。
+
+#### カスケードBiquad実装
+
+4次フィルタは2つの2次セクションに分解される。各セクションのQ値:
+
+セクション
+
+Q値
+
+極角度
+
+Biquad 1
+
+\\( Q\_1 = 0.5411961 \\)
+
+\\( \\pi \\cdot 5/8 \\)
+
+Biquad 2
+
+\\( Q\_2 = 1.3065630 \\)
+
+\\( \\pi \\cdot 7/8 \\)
+
+双線形変換（Bilinear Transform）でデジタルフィルタ係数に変換:
+
+\\\[ \\omega\_a = \\tan\\left(\\frac{\\pi f\_c}{f\_s}\\right) \\quad \\text{(周波数プリワーピング)} \\\] \\\[ a\_0 = 1 + \\frac{\\omega\_a}{Q} + \\omega\_a^2, \\quad b\_0 = \\frac{\\omega\_a^2}{a\_0}, \\quad b\_1 = \\frac{2\\omega\_a^2}{a\_0}, \\quad b\_2 = b\_0 \\\]
+
+#### ゼロ位相フィルタ（filtfilt）
+
+位相遅れを完全に除去するため、**前方パス + 時系列反転 + 後方パス**の構成を採用。 実効的なフィルタ次数は 4×2 = **8次** 相当となる。
+
+function filtfilt(b, a, data) {
+    const forward = applyFilter(b, a, data);         // 前方パス
+    const reversed = forward.slice().reverse();     // 時系列反転
+    const backward = applyFilter(b, a, reversed);    // 後方パス
+    return backward.slice().reverse();              // 再反転で出力
+}
+
+### 5.2 Wells & Winter 自動カットオフ決定
+
+MotionViewer/src/renderer/butterworth-filter.js — autoDetectCutoff()
+
+**Wells & Winter (1980)** の残差分析法により、最適なカットオフ周波数を自動決定する。 各候補周波数でフィルタリングを行い、残差の二乗和（SSE）を評価する。
+
+\\\[ SSE(f\_c) = \\sum\_{i=1}^{N} \\left( x\_i - \\hat{x}\_i(f\_c) \\right)^2 \\\]
+
+SSE曲線を高周波側（ノイズ成分のみが残る領域）で線形回帰し、 その外挿直線からSSE曲線が乖離し始める点を最適カットオフとする。
+
+// 候補周波数 1Hz〜Nyquist/2 を走査
+for (let fc = 1; fc <= nyquist / 2; fc += 0.5) {
+    const filtered = butterworthFilter(data, fc, fs);
+    const sse = data.reduce((sum, x, i) =>
+        sum + (x - filtered\[i\]) \*\* 2, 0);
+    residuals.push({ fc, sse });
+}
+// SSE曲線の変曲点を検出 → 最適カットオフ
+
+### 5.3 身体部分慣性係数（BSP）
+
+MotionViewer/src/renderer/body-com.js
+
+各身体セグメントの**質量比**（体重に対する割合）と**重心比**（近位端からの距離比）を 文献データベースとして保持している。
+
+#### Ae et al. (2014/2015) — 日本人成人モデル
+
+セグメント
+
+質量比 (男性)
+
+重心比 (男性)
+
+質量比 (女性)
+
+重心比 (女性)
+
+頭部
+
+0.0694
+
+0.4860
+
+0.0669
+
+0.4860
+
+体幹
+
+0.4270
+
+0.4510
+
+0.4260
+
+0.4510
+
+上腕
+
+0.0280
+
+0.5290
+
+0.0255
+
+0.5290
+
+前腕
+
+0.0168
+
+0.4150
+
+0.0138
+
+0.4150
+
+手
+
+0.0061
+
+0.8910
+
+0.0056
+
+0.8910
+
+大腿
+
+0.1100
+
+0.4330
+
+0.1180
+
+0.4330
+
+下腿
+
+0.0500
+
+0.4340
+
+0.0480
+
+0.4340
+
+足
+
+0.0124
+
+0.4400
+
+0.0107
+
+0.4400
+
+#### 対応BSPモデル一覧
+
+モデル名
+
+対象
+
+特徴
+
+文献
+
+**Ae 2014**
+
+日本人成人
+
+15セグメント、23点モデル対応
+
+阿江ほか (2014)
+
+**Ae 2015**
+
+日本人成人
+
+15セグメント、25点モデル対応
+
+阿江ほか (2015)
+
+**Yokoi**
+
+日本人小児 (3-15歳)
+
+年齢別パラメータ（発育補正）
+
+横井ほか
+
+**Okada**
+
+日本人高齢者
+
+サルコペニア・脂肪分布を考慮
+
+岡田ほか
+
+### 5.4 身体重心（COM）算出
+
+各セグメントの重心位置 \\( \\mathbf{g}\_i \\) をBSPの重心比から算出し、 質量加重平均で全身重心を求める。
+
+#### セグメント重心の算出
+
+\\\[ \\mathbf{g}\_i = \\mathbf{p}\_{proximal} + r\_i \\cdot (\\mathbf{p}\_{distal} - \\mathbf{p}\_{proximal}) \\\]
+
+ここで \\( r\_i \\) はBSPテーブルの重心比、\\( \\mathbf{p}\_{proximal} \\) は近位端、\\( \\mathbf{p}\_{distal} \\) は遠位端の座標。
+
+#### 全身重心
+
+\\\[ \\mathbf{G}\_{body} = \\frac{\\sum\_{i=1}^{n} m\_i \\cdot \\mathbf{g}\_i}{\\sum\_{i=1}^{n} m\_i} = \\sum\_{i=1}^{n} w\_i \\cdot \\mathbf{g}\_i \\\]
+
+ここで \\( w\_i = m\_i / M \\) は各セグメントの質量比（BSPテーブルの値そのもの）。
+
+### 5.5 速度・加速度の数値微分（FDF法）
+
+MotionViewer/src/renderer/filter.js — calculateVelocitySeries() MotionViewer/src/renderer/app.js — calculateAndCacheVelocity()
+
+速度の算出には、微分によるノイズ増幅を抑制するため、**FDF法（Filtering-Differentiation-Filtering）**を採用している。 位置データの平滑化だけでなく、微分後の速度データに対しても再度ローパスフィルタを適用する。
+
+位置データ
+
+Raw Coordinate
+
+→
+
+Filter 1
+
+Butterworth 4次  
+(位置用Cutoff)
+
+→
+
+微分
+
+3点中央差分  
+Central Diff
+
+→
+
+Filter 2
+
+Butterworth 4次  
+(速度用Cutoff)
+
+→
+
+速度
+
+Smooth Velocity
+
+#### 1\. 中央差分法（Central Difference）
+
+2次精度の3点中央差分により、フレーム \\( i \\) における仮速度を算出する:
+
+\\\[ v\_x(t) = \\frac{x(t + \\Delta t) - x(t - \\Delta t)}{2 \\Delta t} \\\]
+
+#### 2\. 第2段階フィルタリング（Velocity Filtering）
+
+数値微分プロセスは高周波ノイズを直線的に増幅させる特性がある（\\( \\frac{d}{dt} e^{i\\omega t} = i\\omega e^{i\\omega t} \\)）。 そのため、第1段階（位置）のフィルタだけでは不十分であり、微分後に第2段階のフィルタリングを行うことがバイオメカニクス分析のベストプラクティスとされる。
+
+速度データの最適カットオフ周波数は **Wells & Winter法** (\`calculateVelocityCutoff\`) により、位置データとは独立して推定される。通常、位置データよりも低い周波数が選択される傾向にある。
+
+**Performance Note:** このFDF処理は計算コストが高いため、\`app.js\` 内で **事前計算キャッシュ (Velocity Cache)** される。 グラフ描画時にはキャッシュされたデータが高速に参照され、フィルタ設定変更時のみ再計算が行われる。
+
+### 5.6 関節角度の算出
+
+MotionViewer/src/renderer/app.js — calculateJointAngles()
+
+3点で定義される関節角度を、ベクトルの内積とアークコサインで算出する。
+
+\\\[ \\mathbf{a} = \\mathbf{P}\_1 - \\mathbf{P}\_2, \\quad \\mathbf{b} = \\mathbf{P}\_3 - \\mathbf{P}\_2 \\\] \\\[ \\theta = \\arccos\\left(\\frac{\\mathbf{a} \\cdot \\mathbf{b}}{|\\mathbf{a}| \\cdot |\\mathbf{b}|}\\right) \\\]
+
+#### 14関節角度の定義
+
+関節
+
+P₁（近位）
+
+P₂（関節中心）
+
+P₃（遠位）
+
+左肘
+
+左肩
+
+左肘
+
+左手首
+
+右肘
+
+右肩
+
+右肘
+
+右手首
+
+左肩
+
+体幹上
+
+左肩
+
+左肘
+
+右肩
+
+体幹上
+
+右肩
+
+右肘
+
+左股関節
+
+体幹下
+
+左股関節
+
+左膝
+
+右股関節
+
+体幹下
+
+右股関節
+
+右膝
+
+左膝
+
+左股関節
+
+左膝
+
+左足首
+
+右膝
+
+右股関節
+
+右膝
+
+右足首
+
+左足首
+
+左膝
+
+左足首
+
+左つま先
+
+右足首
+
+右膝
+
+右足首
+
+右つま先
+
+左手首
+
+左肘
+
+左手首
+
+左手指先
+
+右手首
+
+右肘
+
+右手首
+
+右手指先
+
+体幹前傾
+
+頭頂
+
+肩中点
+
+股関節中点
+
+骨盤傾斜
+
+肩中点
+
+股関節中点
+
+膝中点
+
+### 5.7 セグメント角度
+
+座標軸に対するセグメントの絶対角度を `atan2` で算出する。 これは重力方向に対する体幹傾斜などの評価に用いる。
+
+\\\[ \\theta\_{XY} = \\text{atan2}(Y\_{distal} - Y\_{proximal}, \\; X\_{distal} - X\_{proximal}) \\\] \\\[ \\theta\_{XZ} = \\text{atan2}(Z\_{distal} - Z\_{proximal}, \\; X\_{distal} - X\_{proximal}) \\\]
+
+各座標平面（XY, XZ, YZ）への投影角度を独立に算出可能。
+
+### 5.8 Three.js 3Dレンダリング
+
+MotionViewer/src/renderer/app.js — init3DScene()
+
+WebGL ベースの **Three.js** ライブラリで3Dスティックピクチャーをリアルタイム描画する。
+
+コンポーネント
+
+実装
+
+用途
+
+レンダラー
+
+`THREE.WebGLRenderer`
+
+GPU描画エンジン
+
+カメラ
+
+`THREE.PerspectiveCamera`
+
+透視投影（FOV 75°）
+
+コントロール
+
+`OrbitControls`
+
+マウスドラッグで回転・ズーム
+
+骨格線
+
+`THREE.LineSegments`
+
+関節間を線分で接続
+
+関節点
+
+`THREE.Points / Mesh`
+
+球体で関節位置を表示
+
+軌跡
+
+`THREE.Line`
+
+選択キーポイントの移動軌跡
+
+床面
+
+`THREE.GridHelper`
+
+空間参照用グリッド
+
+アニメーション再生は `requestAnimationFrame` ループで制御され、 タイムラインスライダーと同期する。FFmpeg経由でMP4動画としてエクスポートも可能。
+
+## 6\. ファイルフォーマット仕様
+
+拡張子
+
+アプリ
+
+形式
+
+内容
+
+`.vsl`
+
+VideoSyncLab
+
+JSON
+
+同期ポイント、トリム範囲、ファイルパス、再生速度
+
+`.hpe`
+
+HPE
+
+JSON
+
+フレームごとの全キーポイント座標・信頼度、人物ID、メタデータ
+
+`.csv`
+
+HPE
+
+CSV
+
+タブ区切り。frame, person\_id, kp0\_x, kp0\_y, kp0\_conf, ... の列構成
+
+`.mdp`
+
+MotionDigitizer
+
+JSON
+
+キャリブレーション定数、デジタイズ座標、スケール情報、プロジェクト設定
+
+`.rd`
+
+MotionDigitizer
+
+CSV
+
+実長換算済み2D/3D座標データ（旧形式互換）
+
+`.3d`
+
+MotionDigitizer
+
+CSV
+
+3D座標データ（DLT復元後）
+
+`.c3d`
+
+MotionDigitizer
+
+Binary
+
+国際標準バイオメカニクス交換フォーマット
+
+`.mvp`
+
+MotionViewer
+
+JSON
+
+解析設定、フィルタパラメータ、BSPモデル選択、表示設定
+
+## 7\. 参考文献
+
+### 座標変換・キャリブレーション
+
+*   Abdel-Aziz, Y.I. & Karara, H.M. (1971). Direct linear transformation from comparator coordinates into object space coordinates in close-range photogrammetry. _Proc. ASP/UI Symposium on Close-Range Photogrammetry_.
+*   Walton, J.S. (1981). Close-range cine-photogrammetry: A generalized technique for quantifying gross human motion. _Ph.D. Dissertation, Penn State University_.
+*   池上康男, 桜井伸二, 矢部京之助 (1991). DLT法. _Jpn J Sports Sci_, 10, 191-195.
+*   鈴木雄太, 竹中俊輔, 榎本靖士, 田内健二 (2016). 競技場の特徴点を利用したカメラパラメータ算出法に関する研究. _バイオメカニクス研究_, 20(1), 2-9.
+
+### フィルタリング
+
+*   Butterworth, S. (1930). On the theory of filter amplifiers. _Experimental Wireless and the Wireless Engineer_, 7, 536-541.
+*   Winter, D.A. (2009). _Biomechanics and Motor Control of Human Movement_ (4th ed.). Wiley.
+*   Wells, R.P. & Winter, D.A. (1980). Assessment of signal and noise in the kinematics of normal, pathological and sporting gaits. _Human Locomotion I_, 92-93.
+
+### 身体部分慣性係数
+
+*   阿江通良, 湯海鵬, 横井孝志 (1992). 日本人アスリートの身体部分慣性特性の推定. _バイオメカニズム_, 11, 23-33.
+*   横井孝志, 渋川侃二, 阿江通良 (1986). 日本人幼少年の身体部分係数. _体育学研究_, 31(1), 53-66.
+*   岡田英孝, 阿江通良, 藤井範久, 森丘保典 (1996). 日本人高齢者の身体部分慣性特性. _バイオメカニズム_, 13, 125-139.
+
+### AI・姿勢推定
+
+*   Xu, Y. et al. (2022). ViTPose: Simple Vision Transformer Baselines for Human Pose Estimation. _NeurIPS 2022_.
+*   Jiang, T. et al. (2023). RTMPose: Real-Time Multi-Person Pose Estimation based on MMPose. _arXiv:2303.07399_.
+*   Uhlrich, S.D. et al. (2023). OpenCap: Human movement dynamics from smartphone videos. _PLOS Computational Biology_, 19(10).
+*   rtmlib — Lightweight ONNX inference wrapper for RTMPose/ViTPose. https://github.com/Tau-J/rtmlib
+*   Ultralytics. YOLOv11 — Real-Time Object Detection.
+*   Xie, J. et al. Norfair: Customizable Lightweight Python Library for Real-Time Multi-Object Tracking.
+
+### ARマーカー・画像処理
+
+*   Garrido-Jurado, S., Muñoz-Salinas, R., Madrid-Cuevas, F.J., & Medina-Carnicer, R. (2014). Automatic generation and detection of highly reliable fiducial markers under occlusion. _Pattern Recognition_, 47(6), 2280-2292.
+*   Garrido-Jurado, S. et al. (2016). Generation of fiducial marker dictionaries using Mixed Integer Linear Programming. _Pattern Recognition_, 51, 481-491.
+
+### データフォーマット
+
+*   C3D.org. The C3D File Format — A Standard for Biomechanics Data Exchange.
+
+## 8\. 開発者・連絡先
+
+#### 開発・監修
+
+**村田 和隆** (Kazutaka Murata)
+
+桃山学院大学 人間教育学部
+
+#### Contact
+
+研究・開発に関するお問い合わせ:
+
+`k-murata[at]andrew.ac.jp`
+
+© 2026 Electoron Biomechanics Suite | Algorithm & Mathematics Documentation | Generated from Source Code Analysis

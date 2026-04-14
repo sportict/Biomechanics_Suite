@@ -1,0 +1,444 @@
+/* === ストロボモーション機能スタイル === */
+
+/* パネル - フローティングウィンドウ */
+.strobe-motion-panel {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 400px;
+    max-height: 90vh;
+    background: linear-gradient(135deg, #2d2d2d 0%, #1a1a1a 100%);
+    border: 1px solid #444;
+    border-radius: 12px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
+    z-index: 1000;
+    overflow-y: auto;
+    font-size: 13px;
+    display: none;
+}
+
+.strobe-motion-panel.active {
+    display: block;
+}
+
+.strobe-motion-panel.dragging {
+    transition: none;
+    user-select: none;
+}
+
+/* ヘッダー - ドラッグハンドル */
+.strobe-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 20px;
+    background: linear-gradient(90deg, #ff6b35 0%, #f7931e 100%);
+    border-radius: 12px 12px 0 0;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    cursor: move;
+    user-select: none;
+}
+
+.strobe-header h3 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: white;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.strobe-close-btn {
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    color: white;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.strobe-close-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: scale(1.1);
+}
+
+/* ヘッダーボタンコンテナ */
+.strobe-header-buttons {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+/* 最小化ボタン */
+.strobe-minimize-btn {
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    color: white;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.strobe-minimize-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: scale(1.1);
+}
+
+/* コンテンツ部分 */
+.strobe-content {
+    transition: all 0.2s ease;
+}
+
+/* セクション */
+.strobe-section {
+    padding: 15px 20px;
+    border-bottom: 1px solid #333;
+}
+
+.strobe-section:last-child {
+    border-bottom: none;
+}
+
+.strobe-label {
+    font-weight: 600;
+    color: #ff9800;
+    margin-bottom: 10px;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* ツールボタン */
+.strobe-tool-buttons {
+    display: flex;
+    gap: 10px;
+}
+
+.strobe-tool-btn {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    padding: 12px;
+    background: #3a3a3a;
+    border: 2px solid #555;
+    border-radius: 8px;
+    color: #ccc;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.strobe-tool-btn:hover {
+    background: #4a4a4a;
+    border-color: #666;
+    color: white;
+}
+
+.strobe-tool-btn.active {
+    background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
+    border-color: #ff9800;
+    color: white;
+}
+
+.strobe-tool-btn .tool-icon {
+    font-size: 24px;
+}
+
+.strobe-tool-btn .tool-name {
+    font-size: 11px;
+    font-weight: 500;
+}
+
+/* 設定行 */
+.strobe-setting-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.strobe-setting-row:last-child {
+    margin-bottom: 0;
+}
+
+.strobe-setting-row label {
+    min-width: 100px;
+    color: #aaa;
+    font-size: 12px;
+}
+
+.strobe-setting-row input[type="range"] {
+    flex: 1;
+    height: 6px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: #444;
+    border-radius: 3px;
+    outline: none;
+}
+
+.strobe-setting-row input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #ff9800;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.strobe-setting-row input[type="range"]::-webkit-slider-thumb:hover {
+    transform: scale(1.2);
+}
+
+.strobe-setting-row input[type="number"] {
+    width: 60px;
+    padding: 6px 8px;
+    background: #3a3a3a;
+    border: 1px solid #555;
+    border-radius: 4px;
+    color: white;
+    font-size: 12px;
+    text-align: center;
+}
+
+.strobe-setting-row input[type="number"]:focus {
+    outline: none;
+    border-color: #ff9800;
+}
+
+.strobe-setting-row select {
+    flex: 1;
+    padding: 8px 10px;
+    background: #3a3a3a;
+    border: 1px solid #555;
+    border-radius: 4px;
+    color: white;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.strobe-setting-row select:focus {
+    outline: none;
+    border-color: #ff9800;
+}
+
+.strobe-setting-row span {
+    color: #888;
+    font-size: 11px;
+    min-width: 40px;
+}
+
+/* 出力オプション */
+.strobe-output-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.strobe-output-options label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: #ccc;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.strobe-output-options input[type="radio"] {
+    accent-color: #ff9800;
+}
+
+/* アクションセクション */
+.strobe-actions {
+    background: #252525;
+}
+
+.strobe-frame-info {
+    text-align: center;
+    padding: 8px;
+    background: #1a1a1a;
+    border-radius: 6px;
+    margin-bottom: 12px;
+}
+
+#strobe-frame-count {
+    color: #4CAF50;
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.strobe-action-buttons {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+
+.strobe-btn {
+    padding: 10px 12px;
+    border: none;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.strobe-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
+}
+
+.strobe-btn:active {
+    transform: translateY(0);
+}
+
+.strobe-btn-primary {
+    background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
+    color: white;
+}
+
+.strobe-btn-secondary {
+    background: linear-gradient(135deg, #607D8B 0%, #455A64 100%);
+    color: white;
+}
+
+.strobe-btn-warning {
+    background: linear-gradient(135deg, #FF5722 0%, #D84315 100%);
+    color: white;
+}
+
+.strobe-btn-success {
+    background: linear-gradient(135deg, #4CAF50 0%, #388E3C 100%);
+    color: white;
+    font-size: 13px;
+    padding: 10px;
+}
+
+/* ストロボマーカー（スライダー上） */
+.strobe-marker {
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.strobe-marker:hover {
+    transform: translateX(-50%) scale(1.3);
+    box-shadow: 0 3px 8px rgba(255, 152, 0, 0.5);
+}
+
+/* プレビュー */
+.strobe-preview-section {
+    background: #1a1a1a;
+}
+
+.strobe-preview-container {
+    display: flex;
+    justify-content: center;
+    padding: 10px;
+    background: #0a0a0a;
+    border-radius: 8px;
+}
+
+#strobe-preview-canvas {
+    max-width: 100%;
+    border-radius: 4px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+}
+
+/* 使い方 */
+.strobe-instructions {
+    padding: 15px 20px;
+    background: #1a1a1a;
+    border-radius: 0 0 12px 12px;
+}
+
+.strobe-instructions p {
+    color: #ff9800;
+    font-weight: 600;
+    margin-bottom: 8px;
+    font-size: 12px;
+}
+
+.strobe-instructions ol {
+    margin: 0;
+    padding-left: 20px;
+    color: #888;
+    font-size: 11px;
+    line-height: 1.8;
+}
+
+.strobe-instructions li {
+    margin-bottom: 4px;
+}
+
+/* オーバーレイキャンバス */
+.strobe-overlay-canvas {
+    cursor: crosshair;
+}
+
+/* ストロボモーションボタン（メインUI用） */
+.strobe-motion-button {
+    background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%) !important;
+    border-color: #ff9800 !important;
+}
+
+.strobe-motion-button:hover {
+    background: linear-gradient(135deg, #ff8c5a 0%, #ffb347 100%) !important;
+    transform: scale(1.05);
+}
+
+/* スクロールバーのスタイル */
+.strobe-motion-panel::-webkit-scrollbar {
+    width: 8px;
+}
+
+.strobe-motion-panel::-webkit-scrollbar-track {
+    background: #1a1a1a;
+}
+
+.strobe-motion-panel::-webkit-scrollbar-thumb {
+    background: #555;
+    border-radius: 4px;
+}
+
+.strobe-motion-panel::-webkit-scrollbar-thumb:hover {
+    background: #666;
+}
+
+/* アニメーション */
+@keyframes pulse {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.6;
+    }
+}
+
+.strobe-btn-success:disabled {
+    animation: pulse 1.5s infinite;
+    opacity: 0.5;
+    cursor: not-allowed;
+}

@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>キャリブレーション3D表示 - MotionDigitizer</title>
+    <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; img-src 'self' data: blob:; script-src 'self' https://cdnjs.cloudflare.com 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' data: blob:;">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f5f5;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .header h2 {
+            margin: 0;
+            font-size: 1.2rem;
+        }
+
+        .controls {
+            padding: 12px 20px;
+            background: white;
+            border-bottom: 1px solid #e0e0e0;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .controls label {
+            font-weight: 500;
+            color: #495057;
+        }
+
+        .controls select {
+            padding: 6px 12px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            background: white;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .controls select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+        }
+
+        #chart-container {
+            flex: 1;
+            background: white;
+            margin: 0;
+            padding: 0;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="header">
+        <h2>キャリブレーション3D表示</h2>
+    </div>
+    <div class="controls">
+        <label for="view-type">表示タイプ:</label>
+        <select id="view-type">
+            <option value="camera-centric">Camera-centric (カメラ中心)</option>
+            <option value="pattern-centric">Pattern-centric (ボード中心)</option>
+        </select>
+    </div>
+    <div id="chart-container"></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.26.0/plotly.min.js"></script>
+    <script>
+        const { ipcRenderer } = require('electron');
+        let calibrationData = null;
+
+        // メインプロセスからデータを受信
+        ipcRenderer.on('calibration-data', (event, data) => {
+            calibrationData = data;
+            update3DView();
+        });
+
+        // 表示タイプ変更時
+        document.getElementById('view-type').addEventListener('change', () => {
+            update3DView();
+        });
+
+        function update3DView() {
+            const chartDiv = document.getElementById('chart-container');
+            const controlsDiv = document.querySelector('.controls');
+            if (!chartDiv || !window.Plotly) return;
+
+            // ステレオモードの場合はステレオデータをチェック
+            const isStereo = calibrationData && calibrationData.isStereo === true;
+            // CC法または3次元DLT法の場合
+            const isCCMethod = calibrationData && calibrationData.isCCMethod === true;
+            const is3DDLTMethod = calibrationData && calibrationData.is3DDLTMethod === true;
+
+            if (isCCMethod || is3DDLTMethod) {
+                if (controlsDiv) controlsDiv.style.display = 'none';
+                renderPointBasedMethodView(chartDiv, calibrationData, is3DDLTMethod ? '3D DLT Method' : '3D CC Method');
+                return;
+            }
+
+            if (controlsDiv) controlsDiv.style.display = 'flex';
+
+            if (isStereo) {
+                if (!calibrationData || !calibrationData.stereoR || !calibrationData.stereoT) {
+                    return;
+                }
+            } else {
+                if (!calibrationData || !calibrationData.rvecs || !calibrationData.tvecs) {
+                    return;
+                }
+            }
+
+            const viewType = document.getElementById('view-type').value;
+            if (!chartDiv || !window.Plotly) return;
+
+            // ボード設定
+            const rows = calibrationData.boardRows || 3;
+            const cols = calibrationData.boardCols || 6;
+            const squareSizeMm = calibrationData.squareSizeMm || 130;
+            const squareSizeM = squareSizeMm / 1000; // mm → m
+
+            const boardWidthM = (cols - 1) * squareSizeM;
+            const boardHeightM = (rows - 1) * squareSizeM;
+
+            // OpenCV座標系から表示座標系への変換
+            const transformToDisplay = (point) => {
+                return [point[0], point[2], -point[1]];
+            };
+
+            // 回転ベクトルから回転行列を計算（Rodrigues）
+            const rodrigues = (rvec) => {
+                const theta = Math.sqrt(rvec[0] ** 2 + rvec[1] ** 2 + rvec[2] ** 2);
+                if (theta < 1e-6) {
+                    return [[1, 0, 0], [0, 1, 0], [0, 0, 1]];
+                }
+                const kx = rvec[0] / theta;
+                const ky = rvec[1] / theta;
+                const kz = rvec[2] / theta;
+                const c = Math.cos(theta);
+                const s = Math.sin(theta);
+                const v = 1 - c;
+                return [
+                    [kx * kx * v + c, kx * ky * v - kz * s, kx * kz * v + ky * s],
+                    [kx * ky * v + kz * s, ky * ky * v + c, ky * kz * v - kx * s],
+                    [kx * kz * v - ky * s, ky * kz * v + kx * s, kz * kz * v + c]
+                ];
+            };
+
+            // 行列とベクトルの積
+            const matMul = (R, v) => {
+                return [
+                    R[0][0] * v[0] + R[0][1] * v[1] + R[0][2] * v[2],
+                    R[1][0] * v[0] + R[1][1] * v[1] + R[1][2] * v[2],
+                    R[2][0] * v[0] + R[2][1] * v[1] + R[2][2] * v[2]
+                ];
+            };
+
+            // 転置行列
+            const transpose = (R) => {
+                return [
+                    [R[0][0], R[1][0], R[2][0]],
+                    [R[0][1], R[1][1], R[2][1]],
+                    [R[0][2], R[1][2], R[2][2]]
+                ];
+            };
+
+            const traces = [];
+            const colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf'];
+
+            // ステレオモードの場合、ステレオカメラを表示
+            if (isStereo) {
+                // ステレオカメラの位置関係を表示
+                // OpenCV stereoCalibrate の出力 R, T は Cam1→Cam2 への座標変換
+                // P_cam2 = R * P_cam1 + T
+                // Cam2の位置をCam1座標系で表すには逆変換が必要:
+                // Cam2_pos_in_Cam1 = -R^T * T
+                // 参照: https://docs.opencv.org/4.x/d9/d0c/group__calib3d.html#ga91018d80e2a93ade37539f01e6f07de5
+                const R = calibrationData.stereoR; // 3x3行列（1次元配列）
+                const T = calibrationData.stereoT; // 3要素ベクトル
+                const baseline = calibrationData.baseline || 0;
+
+                // Rを3x3行列に変換
+                const R3x3 = [
+                    [R[0], R[1], R[2]],
+                    [R[3], R[4], R[5]],
+                    [R[6], R[7], R[8]]
+                ];
+
+                // R^T（転置行列）を計算
+                const RT = [
+                    [R3x3[0][0], R3x3[1][0], R3x3[2][0]],
+                    [R3x3[0][1], R3x3[1][1], R3x3[2][1]],
+                    [R3x3[0][2], R3x3[1][2], R3x3[2][2]]
+                ];
+
+                // Tはメートル単位のまま使用
+                const TM = [T[0], T[1], T[2]];
+
+                // Cam2位置 = -R^T * T（Cam1座標系でのCam2の位置）
+                const cam2X = -(RT[0][0] * TM[0] + RT[0][1] * TM[1] + RT[0][2] * TM[2]);
+                const cam2Y = -(RT[1][0] * TM[0] + RT[1][1] * TM[1] + RT[1][2] * TM[2]);
+                const cam2Z = -(RT[2][0] * TM[0] + RT[2][1] * TM[1] + RT[2][2] * TM[2]);
+                const cam2PosInCam1 = [cam2X, cam2Y, cam2Z];
+
+                // Cam1位置（原点）
+                const cam1PosDisplay = transformToDisplay([0, 0, 0]);
+                traces.push({
+                    type: 'scatter3d',
+                    mode: 'markers+text',
+                    x: [cam1PosDisplay[0]],
+                    y: [cam1PosDisplay[1]],
+                    z: [cam1PosDisplay[2]],
+                    marker: { size: 12, color: '#1f77b4' },
+                    text: ['Cam1'],
+                    textposition: 'top center',
+                    name: 'Camera 1',
+                    showlegend: true
+                });
+
+                // Cam2位置（Cam1座標系での位置 = -R^T * T）
+                const cam2PosDisplay = transformToDisplay(cam2PosInCam1);
+                traces.push({
+                    type: 'scatter3d',
+                    mode: 'markers+text',
+                    x: [cam2PosDisplay[0]],
+                    y: [cam2PosDisplay[1]],
+                    z: [cam2PosDisplay[2]],
+                    marker: { size: 12, color: '#ff7f0e' },
+                    text: ['Cam2'],
+                    textposition: 'top center',
+                    name: 'Camera 2',
+                    showlegend: true
+                });
+
+                // カメラ間のベースラインを線で表示
+                traces.push({
+                    type: 'scatter3d',
+                    mode: 'lines',
+                    x: [cam1PosDisplay[0], cam2PosDisplay[0]],
+                    y: [cam1PosDisplay[1], cam2PosDisplay[1]],
+                    z: [cam1PosDisplay[2], cam2PosDisplay[2]],
+                    line: { color: '#2ca02c', width: 3, dash: 'dash' },
+                    name: `Baseline (${baseline.toFixed(3)} m)`,
+                    showlegend: true
+                });
+
+                // ステレオキャリブレーションで使用したボード位置を表示
+                const stereoSamples = calibrationData.stereoSamples || 0;
+                const titleSuffix = stereoSamples > 0 ? ` (${stereoSamples} samples)` : '';
+
+                // ステレオキャリブレーションで使用したボード位置を表示
+                if (calibrationData.rvecs && calibrationData.tvecs && calibrationData.rvecs.length > 0) {
+                    const boardCornersOpenCV = [
+                        [0, 0, 0],
+                        [boardWidthM, 0, 0],
+                        [boardWidthM, boardHeightM, 0],
+                        [0, boardHeightM, 0]
+                    ];
+
+                    calibrationData.rvecs.forEach((rvec, i) => {
+                        const tvec = calibrationData.tvecs[i];
+                        const R_view = rodrigues(rvec);
+                        const tvecM = [tvec[0], tvec[1], tvec[2]]; // メートル単位のまま使用
+
+                        // ボードをCam1座標系に変換
+                        const boardCornersCamOpenCV = boardCornersOpenCV.map(corner => {
+                            const rotated = matMul(R_view, corner);
+                            return [
+                                rotated[0] + tvecM[0],
+                                rotated[1] + tvecM[1],
+                                rotated[2] + tvecM[2]
+                            ];
+                        });
+
+                        const boardCornersCamDisplay = boardCornersCamOpenCV.map(transformToDisplay);
+                        boardCornersCamDisplay.push(boardCornersCamDisplay[0]);
+
+                        const color = colors[i % colors.length];
+                        traces.push({
+                            type: 'scatter3d',
+                            mode: 'lines',
+                            x: boardCornersCamDisplay.map(p => p[0]),
+                            y: boardCornersCamDisplay.map(p => p[1]),
+                            z: boardCornersCamDisplay.map(p => p[2]),
+                            line: { color: color, width: 2 },
+                            name: `Board Sample ${i + 1}`,
+                            showlegend: true
+                        });
+                    });
+                }
+
+                const layout = {
+                    title: `Stereo Camera View (Cam1 at origin, Cam2 position from R, T)${titleSuffix}`,
+                    scene: {
+                        xaxis: { title: 'X (m)' },
+                        yaxis: { title: 'Y (m) - depth' },
+                        zaxis: { title: 'Z (m) - up' },
+                        aspectmode: 'data'
+                    },
+                    margin: { l: 0, r: 0, t: 30, b: 0 }
+                };
+
+                window.Plotly.newPlot(chartDiv, traces, layout, { displayModeBar: true });
+                return;
+            }
+
+            if (viewType === 'pattern-centric') {
+                // Pattern-centric view: ボードを原点に置き、カメラ位置を表示
+                const boardCornersOpenCV = [
+                    [0, 0, 0],
+                    [boardWidthM, 0, 0],
+                    [boardWidthM, boardHeightM, 0],
+                    [0, boardHeightM, 0]
+                ];
+
+                const boardCornersDisplay = boardCornersOpenCV.map(transformToDisplay);
+                boardCornersDisplay.push(boardCornersDisplay[0]); // 閉じる
+
+                // ボードを描画
+                traces.push({
+                    type: 'scatter3d',
+                    mode: 'lines',
+                    x: boardCornersDisplay.map(p => p[0]),
+                    y: boardCornersDisplay.map(p => p[1]),
+                    z: boardCornersDisplay.map(p => p[2]),
+                    line: { color: 'gray', width: 3 },
+                    name: 'Board',
+                    showlegend: false
+                });
+
+                // 各ビューのカメラ位置を計算
+                calibrationData.rvecs.forEach((rvec, i) => {
+                    const tvec = calibrationData.tvecs[i];
+                    const R = rodrigues(rvec);
+                    const tvecM = [tvec[0], tvec[1], tvec[2]]; // メートル単位のまま使用
+
+                    // カメラ位置（OpenCV座標系）= -R^T @ t
+                    const RT = transpose(R);
+                    const cameraPosOpenCV = [
+                        -(RT[0][0] * tvecM[0] + RT[0][1] * tvecM[1] + RT[0][2] * tvecM[2]),
+                        -(RT[1][0] * tvecM[0] + RT[1][1] * tvecM[1] + RT[1][2] * tvecM[2]),
+                        -(RT[2][0] * tvecM[0] + RT[2][1] * tvecM[1] + RT[2][2] * tvecM[2])
+                    ];
+
+                    const cameraPosDisplay = transformToDisplay(cameraPosOpenCV);
+                    const color = colors[i % colors.length];
+
+                    // カメラ位置を点で表示
+                    traces.push({
+                        type: 'scatter3d',
+                        mode: 'markers+text',
+                        x: [cameraPosDisplay[0]],
+                        y: [cameraPosDisplay[1]],
+                        z: [cameraPosDisplay[2]],
+                        marker: { size: 8, color: color },
+                        text: [String(i)],
+                        textposition: 'top center',
+                        name: `View ${i}`,
+                        showlegend: true
+                    });
+                });
+
+                const layout = {
+                    title: 'Pattern-centric View (Board at origin, showing camera positions)',
+                    scene: {
+                        xaxis: { title: 'X (m)' },
+                        yaxis: { title: 'Y (m) - depth' },
+                        zaxis: { title: 'Z (m) - up' },
+                        aspectmode: 'data'
+                    },
+                    margin: { l: 0, r: 0, t: 30, b: 0 }
+                };
+
+                window.Plotly.newPlot(chartDiv, traces, layout, { displayModeBar: true });
+
+            } else {
+                // Camera-centric view: カメラを原点に置き、ボード位置を表示
+                // カメラ位置（原点）
+                traces.push({
+                    type: 'scatter3d',
+                    mode: 'markers',
+                    x: [0],
+                    y: [0],
+                    z: [0],
+                    marker: { size: 10, color: 'gray' },
+                    name: 'Camera',
+                    showlegend: true
+                });
+
+                // 各ビューのボード位置を計算
+                const boardCornersOpenCV = [
+                    [0, 0, 0],
+                    [boardWidthM, 0, 0],
+                    [boardWidthM, boardHeightM, 0],
+                    [0, boardHeightM, 0]
+                ];
+
+                calibrationData.rvecs.forEach((rvec, i) => {
+                    const tvec = calibrationData.tvecs[i];
+                    const R = rodrigues(rvec);
+                    const tvecM = [tvec[0], tvec[1], tvec[2]]; // メートル単位のまま使用
+
+                    // ボードをカメラ座標系に変換（OpenCV座標系）
+                    const boardCornersCamOpenCV = boardCornersOpenCV.map(corner => {
+                        const rotated = matMul(R, corner);
+                        return [
+                            rotated[0] + tvecM[0],
+                            rotated[1] + tvecM[1],
+                            rotated[2] + tvecM[2]
+                        ];
+                    });
+
+                    const boardCornersCamDisplay = boardCornersCamOpenCV.map(transformToDisplay);
+                    boardCornersCamDisplay.push(boardCornersCamDisplay[0]); // 閉じる
+
+                    const color = colors[i % colors.length];
+
+                    // ボードを描画
+                    traces.push({
+                        type: 'scatter3d',
+                        mode: 'lines',
+                        x: boardCornersCamDisplay.map(p => p[0]),
+                        y: boardCornersCamDisplay.map(p => p[1]),
+                        z: boardCornersCamDisplay.map(p => p[2]),
+                        line: { color: color, width: 2 },
+                        name: `View ${i}`,
+                        showlegend: true
+                    });
+                });
+
+                const layout = {
+                    title: 'Camera-centric View (Camera at origin, showing board positions)',
+                    scene: {
+                        xaxis: { title: 'X (m)' },
+                        yaxis: { title: 'Y (m) - depth' },
+                        zaxis: { title: 'Z (m) - up' },
+                        aspectmode: 'data'
+                    },
+                    margin: { l: 0, r: 0, t: 30, b: 0 }
+                };
+
+                window.Plotly.newPlot(chartDiv, traces, layout, { displayModeBar: true });
+            }
+        }
+
+        // CC法 / 3D DLT法用の3D表示レンダリング
+        function renderPointBasedMethodView(chartDiv, data, titlePrefix) {
+            const traces = [];
+
+            // 床面（Z=0平面）の描画範囲の決定
+            let xVals = [], yVals = [];
+            if (data.points) {
+                xVals.push(...data.points.map(p => p.x));
+                yVals.push(...data.points.map(p => p.y));
+            }
+            if (data.cam1 && data.cam1.x !== undefined) { xVals.push(data.cam1.x); yVals.push(data.cam1.y); }
+            if (data.cam2 && data.cam2.x !== undefined) { xVals.push(data.cam2.x); yVals.push(data.cam2.y); }
+
+            if (xVals.length === 0) { xVals = [-1, 1]; yVals = [-1, 1]; }
+
+            const minX = Math.min(...xVals);
+            const maxX = Math.max(...xVals);
+            const minY = Math.min(...yVals);
+            const maxY = Math.max(...yVals);
+
+            // 少し広げる
+            const marginX = (maxX - minX) * 0.2 || 1;
+            const marginY = (maxY - minY) * 0.2 || 1;
+            const floorMinX = minX - marginX;
+            const floorMaxX = maxX + marginX;
+            const floorMinY = minY - marginY;
+            const floorMaxY = maxY + marginY;
+
+            // Z=0 平面 (Mesh3d)
+            traces.push({
+                type: 'mesh3d',
+                x: [floorMinX, floorMaxX, floorMaxX, floorMinX],
+                y: [floorMinY, floorMinY, floorMaxY, floorMaxY],
+                z: [0, 0, 0, 0],
+                i: [0, 0], // index of vertices for triangles
+                j: [1, 2],
+                k: [2, 3],
+                opacity: 0.15,
+                color: '#888888',
+                name: 'Floor (Z=0)',
+                showscale: false,
+                hoverinfo: 'skip'
+            });
+
+            // 床面の枠線
+            traces.push({
+                type: 'scatter3d',
+                mode: 'lines',
+                x: [floorMinX, floorMaxX, floorMaxX, floorMinX, floorMinX],
+                y: [floorMinY, floorMinY, floorMaxY, floorMaxY, floorMinY],
+                z: [0, 0, 0, 0, 0],
+                line: { color: '#aaaaaa', width: 2 },
+                showlegend: false,
+                hoverinfo: 'none'
+            });
+
+            // カメラ1
+            if (data.cam1 && data.cam1.x !== undefined) {
+                traces.push({
+                    type: 'scatter3d',
+                    mode: 'markers+text',
+                    x: [data.cam1.x],
+                    y: [data.cam1.y],
+                    z: [data.cam1.z],
+                    marker: { size: 12, color: '#1f77b4' }, // Blue
+                    text: ['Cam1'],
+                    textposition: 'top center',
+                    name: 'Camera 1',
+                    showlegend: true,
+                    hovertemplate: '%{text}<br>X: %{x:.3f}<br>Y: %{y:.3f}<br>Z: %{z:.3f}<extra></extra>'
+                });
+                // 垂線
+                traces.push({
+                    type: 'scatter3d', mode: 'lines',
+                    x: [data.cam1.x, data.cam1.x], y: [data.cam1.y, data.cam1.y], z: [data.cam1.z, 0],
+                    line: { color: '#1f77b4', width: 1, dash: 'dot' },
+                    showlegend: false, hoverinfo: 'none'
+                });
+            }
+
+            // カメラ2
+            if (data.cam2 && data.cam2.x !== undefined) {
+                traces.push({
+                    type: 'scatter3d',
+                    mode: 'markers+text',
+                    x: [data.cam2.x],
+                    y: [data.cam2.y],
+                    z: [data.cam2.z],
+                    marker: { size: 12, color: '#ff7f0e' }, // Orange
+                    text: ['Cam2'],
+                    textposition: 'top center',
+                    name: 'Camera 2',
+                    showlegend: true,
+                    hovertemplate: '%{text}<br>X: %{x:.3f}<br>Y: %{y:.3f}<br>Z: %{z:.3f}<extra></extra>'
+                });
+                // 垂線
+                traces.push({
+                    type: 'scatter3d', mode: 'lines',
+                    x: [data.cam2.x, data.cam2.x], y: [data.cam2.y, data.cam2.y], z: [data.cam2.z, 0],
+                    line: { color: '#ff7f0e', width: 1, dash: 'dot' },
+                    showlegend: false, hoverinfo: 'none'
+                });
+            }
+
+            // 制御点
+            if (data.points && data.points.length > 0) {
+                traces.push({
+                    type: 'scatter3d',
+                    mode: 'markers+text',
+                    x: data.points.map(p => p.x),
+                    y: data.points.map(p => p.y),
+                    z: data.points.map(p => p.z),
+                    marker: { size: 8, color: '#d62728' }, // Red
+                    text: data.points.map(p => p.name),
+                    textposition: 'top center',
+                    name: 'Control Points',
+                    showlegend: true,
+                    hovertemplate: '%{text}<br>X: %{x:.3f}<br>Y: %{y:.3f}<br>Z: %{z:.3f}<extra></extra>'
+                });
+            }
+
+            // パラメータの情報をタイトルや注釈に入れる
+            const layout = {
+                title: `${titlePrefix} Results (Camera Positions & Control Points)`,
+                scene: {
+                    xaxis: { title: 'X' },
+                    yaxis: { title: 'Y' },
+                    zaxis: { title: 'Z' },
+                    aspectmode: 'data',
+                    camera: {
+                        up: { x: 0, y: 0, z: 1 } // Z-up
+                    }
+                },
+                margin: { l: 0, r: 0, t: 30, b: 0 }
+            };
+
+            window.Plotly.newPlot(chartDiv, traces, layout, { displayModeBar: true });
+        }
+
+        // ウィンドウが閉じられる前にクリーンアップ
+        window.addEventListener('beforeunload', () => {
+            ipcRenderer.removeAllListeners('calibration-data');
+        });
+    </script>
+</body>
+
+</html>

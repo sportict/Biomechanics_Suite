@@ -1,0 +1,35 @@
+/* List Styling for Manual */
+.step-list {
+    margin: 1.5rem 0 1.5rem 1.5rem;
+    counter-reset: item;
+    list-style-type: none;
+}
+
+.step-list li {
+    margin-bottom: 1rem;
+    position: relative;
+    padding-left: 0.5rem;
+    color: var(--text-primary);
+}
+
+.step-list li::before {
+    counter-increment: item;
+    content: counter(item);
+    position: absolute;
+    left: -2rem;
+    top: 0;
+    width: 1.5rem;
+    height: 1.5rem;
+    background: var(--accent-blue);
+    color: white;
+    border-radius: 50%;
+    text-align: center;
+    line-height: 1.5rem;
+    font-size: 0.9rem;
+    font-weight: bold;
+    box-shadow: 0 0 10px rgba(59, 130, 246, 0.4);
+}
+
+.step-list li strong {
+    color: var(--accent-cyan);
+}

@@ -1,0 +1,27 @@
+# rtmlib (ViTPose/RTMPose backend) - install from local copy:
+#   .venv/Scripts/pip install ./rtmlib/ --no-deps   (Windows)
+#   .venv/bin/pip install ./rtmlib/ --no-deps       (macOS)
+rtmlib>=0.0.15
+
+fastapi>=0.104.0
+uvicorn>=0.24.0
+python-multipart>=0.0.6
+numpy>=1.24.0,<2.0.0
+opencv-python>=4.8.0
+onnxruntime-gpu>=1.18.0; sys_platform == "win32"
+# macOS: Apple Silicon は CoreML 対応の onnxruntime-silicon が高速
+# pip install onnxruntime-silicon  (arm64) または pip install onnxruntime (x86_64)
+onnxruntime>=1.18.0; sys_platform != "win32"
+
+Pillow>=10.0.0
+tqdm>=4.66.0
+scipy>=1.11.0
+
+filterpy>=1.4.0
+ffmpeg-python>=0.2.0
+norfair>=2.2.0
+
+# SynthPose (PyTorch) 用
+torch>=2.0.0
+safetensors>=0.4.0
+transformers>=4.35.0

@@ -1,0 +1,237 @@
+    CgSheet = "重心座標"
+    BspSheet = method
+    PointSheet = "デジタイズポイント"
+    
+    For Each WS In Worksheets '身体重心シートの存在の判定
+        If WS.Name = CgSheet Then flag = True
+    Next WS
+    If flag = False Then 'シートが存在しない場合は作成
+        With Sheets.Add(After:=Sheets(Sheets.count))
+            .Name = CgSheet
+        End With
+    Else
+        Sheets(CgSheet).Cells.Clear 'シートが存在する場合はデータクリア
+    End If
+    
+    '性別の設定
+    If CG_inf.MaleButton.Value = True Then
+        sex = 1 '男性
+    ElseIf CG_inf.FemaleButton.Value = True Then
+        sex = 2 '女性
+    End If
+
+    'ポイント数の設定
+    If CG_inf.NPButton1.Value = True Then
+        n_Body = 23
+        n_vp = 1    '仮想ポイント数
+    ElseIf CG_inf.NPButton2.Value = True Then
+        n_Body = 25
+        n_vp = 2    '仮想ポイント数
+    End If
+    
+    'ヘッダファイルの読み込み
+    nf = Sheets(DataSheet).Range("A1").Value
+    np = Sheets(DataSheet).Range("B1").Value
+    dt = Sheets(DataSheet).Range("C1").Value
+    fps = 1 / dt
+    dt = 1 / fps
+    
+    '次元の設定
+    CEP = Sheets(DataSheet).Range("A2").End(xlToRight).Column
+    dimension = CEP / np
+     
+    'データを配列化
+    Dim dat As Variant
+    Sheets(DataSheet).Activate
+    dat = Sheets(DataSheet).Range(Cells(2, 1), Cells(nf + 1, n_Body * dimension)).Value '座標データを取得
+
+    ReDim Preserve dat(1 To nf, 1 To (n_Body + n_vp) * dimension)
+
+    '仮想ポイントの設定
+    p1 = 14 '右大転子
+    p2 = 20 '左大転子
+    For iFr = 1 To nf
+        dat(iFr, n_Body * dimension + 1) = (dat(iFr, (p1 - 1) * dimension + 1) + dat(iFr, (p2 - 1) * dimension + 1)) / 2 '大転子x座標中心
+        dat(iFr, n_Body * dimension + 2) = (dat(iFr, (p1 - 1) * dimension + 2) + dat(iFr, (p2 - 1) * dimension + 2)) / 2 '大転子y座標中心
+        If dimension = 3 Then
+            dat(iFr, (n_Body + 1) * dimension) = (dat(iFr, p1 * dimension) + dat(iFr, p2 * dimension)) / 2 '大転子z座標中心
+        End If
+    Next iFr
+    
+    If n_Body = 25 Then
+        p1 = 24 '右肋骨下端
+        p2 = 25 '左肋骨下端
+        For iFr = 1 To nf
+            dat(iFr, (n_Body + 1) * dimension + 1) = (dat(iFr, (p1 - 1) * dimension + 1) + dat(iFr, (p2 - 1) * dimension + 1)) / 2 '肋骨下端x座標中心
+            dat(iFr, (n_Body + 1) * dimension + 2) = (dat(iFr, (p1 - 1) * dimension + 2) + dat(iFr, (p2 - 1) * dimension + 2)) / 2  '肋骨下端y座標中心
+            If dimension = 3 Then
+                dat(iFr, (n_Body + 2) * dimension) = (dat(iFr, p1 * dimension) + dat(iFr, p2 * dimension)) / 2 '肋骨下端z座標中心
+            End If
+        Next iFr
+    End If
+    
+    'BSPファイルの設定
+    n_BSP = Sheets(BspSheet).Range("A1").End(xlDown).Row - 1
+    
+    Dim name_BSP As Variant
+    Sheets(BspSheet).Activate
+    name_BSP = Sheets(BspSheet).Range(Cells(2, 1), Cells(n_BSP + 1, 1)).Value 'セグメント名を取得
+
+    ReDim BSP(1 To n_BSP, 1 To 4) As Variant
+    For i_BSP = 1 To n_BSP
+        BSP(i_BSP, 1) = Sheets(BspSheet).Cells(i_BSP + 1, 4)    '末梢端Po
+        BSP(i_BSP, 2) = Sheets(BspSheet).Cells(i_BSP + 1, 5)    '中枢端Po
+        BSP(i_BSP, 3) = Sheets(BspSheet).Cells(i_BSP + 1, 5 + sex) / 100 '質量比
+        BSP(i_BSP, 4) = Sheets(BspSheet).Cells(i_BSP + 1, 7 + sex) / 100 '質量中心比
+    Next i_BSP
+    
+    '部分重心の設定
+    ReDim Segment(1 To nf, 1 To n_BSP * dimension) As Variant
+    
+    '身体重心の設定
+    ReDim cgd(1 To nf, 1 To dimension) As Variant
+    
+    For iFr = 1 To nf
+        '部分重心の計算
+        For i_BSP = 1 To n_BSP
+            x1 = dat(iFr, (BSP(i_BSP, 1) - 1) * dimension + 1)
+            x2 = dat(iFr, (BSP(i_BSP, 2) - 1) * dimension + 1)
+            y1 = dat(iFr, (BSP(i_BSP, 1) - 1) * dimension + 2)
+            y2 = dat(iFr, (BSP(i_BSP, 2) - 1) * dimension + 2)
+            Segment(iFr, (i_BSP - 1) * dimension + 1) = x1 * BSP(i_BSP, 4) + x2 * (1 - BSP(i_BSP, 4))   '部分重心x座標
+            Segment(iFr, (i_BSP - 1) * dimension + 2) = y1 * BSP(i_BSP, 4) + y2 * (1 - BSP(i_BSP, 4))   '部分重心y座標
+            If dimension = 3 Then
+                z1 = dat(iFr, BSP(i_BSP, 1) * dimension)
+                z2 = dat(iFr, BSP(i_BSP, 2) * dimension)
+                Segment(iFr, i_BSP * dimension) = z1 * BSP(i_BSP, 4) + z2 * (1 - BSP(i_BSP, 4))  '部分重心z座標
+            End If
+        Next i_BSP
+        
+        '身体重心の計算
+        tmp_x = 0
+        tmp_y = 0
+        tmp_z = 0
+        For i_BSP = 1 To n_BSP
+            tmp_x = tmp_x + Segment(iFr, (i_BSP - 1) * dimension + 1) * BSP(i_BSP, 3)
+            tmp_y = tmp_y + Segment(iFr, (i_BSP - 1) * dimension + 2) * BSP(i_BSP, 3)
+            If dimension = 3 Then
+                tmp_z = tmp_z + Segment(iFr, i_BSP * dimension) * BSP(i_BSP, 3)
+            End If
+        Next i_BSP
+        
+        cgd(iFr, 1) = tmp_x
+        cgd(iFr, 2) = tmp_y
+        If dimension = 3 Then
+            cgd(iFr, 3) = tmp_z
+        End If
+            
+    Next iFr
+
+    '時間の設定
+    ReDim tt(1 To nf) As Variant
+    For iFr = 1 To nf
+        If iFr = 1 Then
+            tt(1) = 0
+        Else
+            tt(iFr) = tt(iFr - 1) + dt
+        End If
+    Next iFr
+
+    'cg_dataの設定
+    Sheets(CgSheet).Activate
+    Range("A1") = "時間"
+    ReDim p(1 To n_BSP + 1) As Variant
+    p(1) = "身体重心"
+    For iPnt = 2 To n_BSP + 1
+        p(iPnt) = name_BSP(iPnt - 1, 1)
+    Next iPnt
+    For iPnt = 1 To n_BSP + 1
+        With Sheets(CgSheet)
+            .Cells(1, (iPnt - 1) * dimension + 2) = p(iPnt) & "x座標"
+            .Cells(1, (iPnt - 1) * dimension + 3) = p(iPnt) & "y座標"
+            If dimension = 3 Then
+                .Cells(1, iPnt * dimension + 1) = p(iPnt) & "z座標"
+            End If
+        
+        End With
+    Next iPnt
+
+    'cg_dataシートに転記
+    Range(Cells(2, 1), Cells(nf + 1, 1)) = WorksheetFunction.Transpose(tt)
+    Range(Cells(2, 2), Cells(nf + 1, dimension + 1)) = cgd
+    Range(Cells(2, dimension + 2), Cells(nf + 1, dimension + 1 + n_BSP * dimension)) = Segment
+
+    'dataシートに身体重心を追加するかどうかの判定
+    Dim Result As Long
+    'Result = MsgBox("dataシートに身体重心を追加しますか？", vbYesNo + vbExclamation)
+    Result = vbYes
+    If Result = vbYes Then
+        Sheets("初期設定").Range("B11") = np + 1
+        Sheets(DataSheet).Activate
+        Sheets(DataSheet).Range("B1").Value = np + 1
+        Sheets(DataSheet).Range(Cells(2, np * dimension + 1), Cells(nf + 1, np * dimension + dimension)) = cgd
+        Sheets(PointSheet).Cells(np + 2, 1) = np + 1
+        Sheets(PointSheet).Cells(np + 2, 2) = "身体重心"
+        Sheets(PointSheet).Cells(np + 2, 3).HorizontalAlignment = xlCenter
+        With Sheets(PointSheet).Cells(np + 2, 3).Validation
+            .Delete
+            .Add Type:=xlValidateList, _
+                 Operator:=xlEqual, _
+                 Formula1:="◯,　,"
+        End With
+        With Sheets(PointSheet).Cells(np + 2, 4).Validation
+            .Delete
+            .Add Type:=xlValidateDecimal, _
+                 Operator:=xlBetween, _
+                 Formula1:=2, _
+                 Formula2:=72
+        End With
+        With Sheets(PointSheet).Cells(np + 2, 5).Validation
+            .Delete
+            .Add Type:=xlValidateList, _
+                 Operator:=xlEqual, _
+                 Formula1:="黒,赤,緑,青,黄,白"
+        End With
+        With Sheets(PointSheet).Cells(np + 2, 6).Validation
+            .Delete
+            .Add Type:=xlValidateList, _
+                 Operator:=xlEqual, _
+                 Formula1:="黒,赤,緑,青,黄,白,なし"
+        End With
+    End If
+
+End Sub
+-------------------------------------------------------------------------------
+VBA MACRO CG_inf.frm 
+in file: xl/vbaProject.bin - OLE stream: 'VBA/CG_inf'
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+
+Private Sub OKButton_Click()
+    Dim method As String
+    
+    '身体重心の算出
+    If AdultButton.Value = True Then
+        If NPButton1.Value = True Then
+            method = "阿江14"
+        ElseIf NPButton2.Value = True Then
+            method = "阿江15"
+        End If
+    ElseIf KidsButton.Value = True Then
+        If KidsAgeBox < 3 Then
+            MsgBox "子どもの年齢は3歳から15歳に設定して下さい。"
+            Exit Sub
+        ElseIf KidsAgeBox > 15 Then
+            MsgBox "子どもの年齢は3歳から15歳に設定して下さい。"
+            Exit Sub
+        ElseIf KidsAgeBox >= 3 And KidsAgeBox <= 5 Then
+            If KidsBodyButton1.Value = True Then
+                method = "横井03-05yr痩身"
+            ElseIf KidsBodyButton2.Value = True Then
+                method = "横井03-05yr標準"
+            ElseIf KidsBodyButton3.Value = True Then
+                method = "横井03-05yr肥満"
+            End If
+        ElseIf KidsAgeBox >= 6 And KidsAgeBox <= 8 Then
+            If KidsBodyButton1.Value = True Then
+                method = "横井06-08yr痩身"
+            ElseIf KidsBodyButton2.Value = True Then

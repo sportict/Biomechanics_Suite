@@ -1,0 +1,32 @@
+{
+  "_model":   "Rajagopal2015 (FullBodyModel-4.0) / Rajagopal2015.osim",
+  "_comment": "MotionDigitizer 23点 → Rajagopal2015 マーカー名マッピング",
+  "_note":    "対応マーカーがない点（耳珠点・頭頂）は省略 → OpenSimに無視される",
+
+  "右肩":     "RACR",
+  "右肘":     "RLEL",
+  "右手首":   "RFAradius",
+  "右手先":   "RFAulna",
+
+  "左肩":     "LACR",
+  "左肘":     "LLEL",
+  "左手首":   "LFAradius",
+  "左手先":   "LFAulna",
+
+  "右大転子": "RHJC",
+  "右膝":     "RLFC",
+  "右足首":   "RLMAL",
+  "右かかと": "RCAL",
+  "右つま先": "RTOE",
+  "右母指球": "RMT5",
+
+  "左大転子": "LHJC",
+  "左膝":     "LLFC",
+  "左足首":   "LLMAL",
+  "左かかと": "LCAL",
+  "左つま先": "LTOE",
+  "左母指球": "LMT5",
+
+  "胸骨上縁": "CLAV",
+  "頭頂":     "C7"
+}

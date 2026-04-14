@@ -1,0 +1,759 @@
+#include <napi.h>
+#include <opencv2/opencv.hpp>
+#include <opencv2/videoio.hpp>
+#include <opencv2/imgproc.hpp>
+#include <opencv2/calib3d.hpp>
+#include <string>
+#include <vector>
+#include <chrono>
+#include <algorithm>
+#include <cmath>
+
+// マウスイベント用のグローバル変数（制限なし）
+struct MouseEventData {
+    int x;
+    int y;
+    bool clicked;
+    std::string eventType;
+    int clickCount;
+};
+
+static MouseEventData g_mouseData;
+
+// マウスコールバック関数（公式仕様準拠）
+// 参照: https://docs.opencv.org/4.x/d7/dfc/group__highgui.html#ga89e7806b0a616f6f1d502bd8c183ad3
+void mouseCallback(int event, int x, int y, int flags, void* userdata) {
+    // 公式ドキュメント: EVENT_LBUTTONDOWN = 1
+    // 参照: https://docs.opencv.org/4.x/d7/dfc/group__highgui.html#ga927593befdddc7e7013602bca9b079b
+    if (event == cv::EVENT_LBUTTONDOWN) {
+        g_mouseData.x = x;
+        g_mouseData.y = y;
+        g_mouseData.clicked = true;
+        g_mouseData.eventType = "LBUTTONDOWN";
+        g_mouseData.clickCount++;
+    }
+}
+
+// Base64 encoding function
+std::string base64_encode(const unsigned char* data, size_t length) {
+    const std::string base64_chars = 
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+        "abcdefghijklmnopqrstuvwxyz"
+        "0123456789+/";
+    
+    std::string result;
+    for (size_t i = 0; i < length; i += 3) {
+        unsigned char b1 = (i < length) ? data[i] : 0;
+        unsigned char b2 = (i + 1 < length) ? data[i + 1] : 0;
+        unsigned char b3 = (i + 2 < length) ? data[i + 2] : 0;
+        
+        unsigned char c1 = (b1 >> 2) & 0x3F;
+        unsigned char c2 = ((b1 & 0x03) << 4) | ((b2 >> 4) & 0x0F);
+        unsigned char c3 = ((b2 & 0x0F) << 2) | ((b3 >> 6) & 0x03);
+        unsigned char c4 = b3 & 0x3F;
+        
+        result += base64_chars[c1];
+        result += base64_chars[c2];
+        result += (i + 1 < length) ? base64_chars[c3] : '=';
+        result += (i + 2 < length) ? base64_chars[c4] : '=';
+    }
+    return result;
+}
+
+// Error result creation function
+Napi::Object CreateErrorResult(Napi::Env env, const std::string& error) {
+    Napi::Object result = Napi::Object::New(env);
+    result.Set("success", Napi::Boolean::New(env, false));
+    result.Set("error", Napi::String::New(env, error));
+    return result;
+}
+
+// Extract frame from video（公式仕様準拠）
+// 参照: https://docs.opencv.org/4.x/d8/dfe/classcv_1_1VideoCapture.html
+Napi::Value ExtractFrame(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    if (info.Length() < 2) {
+        Napi::TypeError::New(env, "Wrong number of arguments").ThrowAsJavaScriptException();
+        return env.Null();
+    }
+
+    std::string videoPath = info[0].As<Napi::String>();
+    int frameNumber = info[1].As<Napi::Number>().Int32Value();
+    
+    try {
+        cv::VideoCapture cap(videoPath);
+        if (!cap.isOpened()) {
+            return CreateErrorResult(env, "Failed to open video");
+        }
+
+        // 公式ドキュメント準拠: CAP_PROP_POS_FRAMES
+        cap.set(cv::CAP_PROP_POS_FRAMES, frameNumber - 1);
+        
+        cv::Mat frame;
+        if (!cap.read(frame)) {
+            cap.release();
+            return CreateErrorResult(env, "Failed to read frame");
+        }
+
+        std::vector<uchar> buffer;
+        cv::imencode(".png", frame, buffer);
+        
+        std::string base64String = base64_encode(buffer.data(), buffer.size());
+
+        Napi::Object result = Napi::Object::New(env);
+        result.Set("success", Napi::Boolean::New(env, true));
+        result.Set("frameData", Napi::String::New(env, base64String));
+        result.Set("width", Napi::Number::New(env, frame.cols));
+        result.Set("height", Napi::Number::New(env, frame.rows));
+
+        cap.release();
+        return result;
+    } catch (const cv::Exception& e) {
+        return CreateErrorResult(env, e.what());
+    }
+}
+
+// Get video information（公式仕様準拠）
+// 参照: https://docs.opencv.org/4.x/d8/dfe/classcv_1_1VideoCapture.html
+Napi::Value GetVideoInfo(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    if (info.Length() < 1) {
+        Napi::TypeError::New(env, "Wrong number of arguments").ThrowAsJavaScriptException();
+        return env.Null();
+    }
+
+    std::string videoPath = info[0].As<Napi::String>();
+    
+    try {
+        cv::VideoCapture cap(videoPath);
+        if (!cap.isOpened()) {
+            return CreateErrorResult(env, "Failed to open video");
+        }
+
+        // 公式ドキュメント準拠: CAP_PROP_*定数
+        double fps = cap.get(cv::CAP_PROP_FPS);
+        int frameCount = static_cast<int>(cap.get(cv::CAP_PROP_FRAME_COUNT));
+        int width = static_cast<int>(cap.get(cv::CAP_PROP_FRAME_WIDTH));
+        int height = static_cast<int>(cap.get(cv::CAP_PROP_FRAME_HEIGHT));
+        double duration = frameCount / fps;
+
+        Napi::Object result = Napi::Object::New(env);
+        result.Set("fps", Napi::Number::New(env, fps));
+        result.Set("frameCount", Napi::Number::New(env, frameCount));
+        result.Set("width", Napi::Number::New(env, width));
+        result.Set("height", Napi::Number::New(env, height));
+        result.Set("duration", Napi::Number::New(env, duration));
+        result.Set("success", Napi::Boolean::New(env, true));
+
+        cap.release();
+        return result;
+    } catch (const cv::Exception& e) {
+        return CreateErrorResult(env, e.what());
+    }
+}
+
+// Load image（公式仕様準拠）
+// 参照: https://docs.opencv.org/4.x/d3/d63/classcv_1_1Mat.html
+Napi::Value LoadImage(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    if (info.Length() < 1) {
+        Napi::TypeError::New(env, "Wrong number of arguments").ThrowAsJavaScriptException();
+        return env.Null();
+    }
+
+    std::string imagePath = info[0].As<Napi::String>();
+    
+    try {
+        // 公式ドキュメント準拠: IMREAD_COLOR
+        cv::Mat image = cv::imread(imagePath, cv::IMREAD_COLOR);
+        if (image.empty()) {
+            return CreateErrorResult(env, "Failed to load image");
+        }
+
+        Napi::Object result = Napi::Object::New(env);
+        result.Set("success", Napi::Boolean::New(env, true));
+        result.Set("width", Napi::Number::New(env, image.cols));
+        result.Set("height", Napi::Number::New(env, image.rows));
+        result.Set("channels", Napi::Number::New(env, image.channels()));
+        result.Set("message", Napi::String::New(env, "Image loaded successfully"));
+        
+        return result;
+    } catch (const cv::Exception& e) {
+        return CreateErrorResult(env, e.what());
+    }
+}
+
+// Process image（公式仕様準拠）
+// 参照: https://docs.opencv.org/4.x/d3/d63/classcv_1_1Mat.html
+Napi::Value ProcessImage(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    if (info.Length() < 1) {
+        Napi::TypeError::New(env, "Wrong number of arguments").ThrowAsJavaScriptException();
+        return env.Null();
+    }
+
+    std::string imagePath = info[0].As<Napi::String>();
+    
+    try {
+        cv::Mat image = cv::imread(imagePath, cv::IMREAD_COLOR);
+        if (image.empty()) {
+            return CreateErrorResult(env, "Failed to load image");
+        }
+
+        // 公式ドキュメント準拠: COLOR_BGR2GRAY
+        cv::Mat gray;
+        cv::cvtColor(image, gray, cv::COLOR_BGR2GRAY);
+        
+        // 公式ドキュメント準拠: GaussianBlur
+        cv::Mat blurred;
+        cv::GaussianBlur(gray, blurred, cv::Size(5, 5), 0);
+        
+        // 公式ドキュメント準拠: Canny
+        cv::Mat edges;
+        cv::Canny(blurred, edges, 50, 150);
+        
+        int edgePixels = cv::countNonZero(edges);
+        
+        std::vector<uchar> buffer;
+        cv::imencode(".png", edges, buffer);
+        
+        std::string base64String = base64_encode(buffer.data(), buffer.size());
+
+        Napi::Object result = Napi::Object::New(env);
+        result.Set("success", Napi::Boolean::New(env, true));
+        result.Set("originalWidth", Napi::Number::New(env, image.cols));
+        result.Set("originalHeight", Napi::Number::New(env, image.rows));
+        result.Set("edgePixels", Napi::Number::New(env, edgePixels));
+        result.Set("processedImageData", Napi::String::New(env, base64String));
+        result.Set("message", Napi::String::New(env, "Image processed successfully"));
+        
+        return result;
+    } catch (const cv::Exception& e) {
+        return CreateErrorResult(env, e.what());
+    }
+}
+
+// Get image coordinates with mouse callback
+Napi::Value GetImageCoordinatesWithMouseCallback(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    if (info.Length() < 6) {
+        Napi::TypeError::New(env, "Wrong number of arguments").ThrowAsJavaScriptException();
+        return env.Null();
+    }
+    
+    std::string videoPath = info[0].As<Napi::String>();
+    int frameNumber = info[1].As<Napi::Number>().Int32Value();
+    int canvasWidth = info[4].As<Napi::Number>().Int32Value();
+    int canvasHeight = info[5].As<Napi::Number>().Int32Value();
+    
+    try {
+        cv::VideoCapture cap(videoPath);
+        if (!cap.isOpened()) {
+            return CreateErrorResult(env, "Failed to open video");
+        }
+        
+        cap.set(cv::CAP_PROP_POS_FRAMES, frameNumber - 1);
+        
+        cv::Mat frame;
+        if (!cap.read(frame)) {
+            return CreateErrorResult(env, "Failed to read frame");
+        }
+        
+        // ウィンドウを作成してマウスコールバックを設定
+        std::string windowName = "Image Coordinates Detection";
+        cv::namedWindow(windowName, cv::WINDOW_AUTOSIZE);
+        cv::setMouseCallback(windowName, mouseCallback, nullptr);
+        
+        // マウスデータをリセット
+        g_mouseData.x = 0;
+        g_mouseData.y = 0;
+        g_mouseData.clicked = false;
+        g_mouseData.eventType = "";
+        g_mouseData.clickCount = 0;
+        
+        // 画像を表示
+        cv::imshow(windowName, frame);
+        
+        // マウスクリックを待機
+        int key;
+        while (true) {
+            key = cv::waitKey(100);
+            if (key == 27 || key == 'q' || key == 'Q') {
+                break;
+            }
+            if (g_mouseData.clicked) {
+                break;
+            }
+        }
+        
+        // ウィンドウを閉じる
+        cv::destroyWindow(windowName);
+        cap.release();
+        
+        if (!g_mouseData.clicked) {
+            return CreateErrorResult(env, "No mouse click detected");
+        }
+        
+        // 座標変換処理
+        int imageWidth = frame.cols;
+        int imageHeight = frame.rows;
+        
+        double imageAspectRatio = static_cast<double>(imageWidth) / imageHeight;
+        double canvasAspectRatio = static_cast<double>(canvasWidth) / canvasHeight;
+        
+        double displayWidth, displayHeight;
+        if (imageAspectRatio > canvasAspectRatio) {
+            displayWidth = canvasWidth;
+            displayHeight = canvasWidth / imageAspectRatio;
+        } else {
+            displayHeight = canvasHeight;
+            displayWidth = canvasHeight * imageAspectRatio;
+        }
+        
+        double imageOffsetX = (canvasWidth - displayWidth) / 2.0;
+        double imageOffsetY = (canvasHeight - displayHeight) / 2.0;
+        
+        // マウスクリック座標を画像座標に変換
+        double relativeX = g_mouseData.x - imageOffsetX;
+        double relativeY = g_mouseData.y - imageOffsetY;
+        
+        int imageX = static_cast<int>((relativeX / displayWidth) * imageWidth);
+        int imageY = static_cast<int>((relativeY / displayHeight) * imageHeight);
+        
+        imageX = std::max(0, std::min(imageWidth - 1, imageX));
+        imageY = std::max(0, std::min(imageHeight - 1, imageY));
+        
+        Napi::Object result = Napi::Object::New(env);
+        result.Set("success", Napi::Boolean::New(env, true));
+        
+        Napi::Object coordinates = Napi::Object::New(env);
+        coordinates.Set("x", Napi::Number::New(env, imageX));
+        coordinates.Set("y", Napi::Number::New(env, imageY));
+        result.Set("coordinates", coordinates);
+        
+        Napi::Object imageSize = Napi::Object::New(env);
+        imageSize.Set("width", Napi::Number::New(env, imageWidth));
+        imageSize.Set("height", Napi::Number::New(env, imageHeight));
+        result.Set("imageSize", imageSize);
+        
+        Napi::Object mouseData = Napi::Object::New(env);
+        mouseData.Set("rawX", Napi::Number::New(env, g_mouseData.x));
+        mouseData.Set("rawY", Napi::Number::New(env, g_mouseData.y));
+        mouseData.Set("clickCount", Napi::Number::New(env, g_mouseData.clickCount));
+        result.Set("mouseData", mouseData);
+        
+        return result;
+        
+    } catch (const cv::Exception& e) {
+        return CreateErrorResult(env, e.what());
+    }
+}
+
+// Zoom image
+Napi::Value ZoomImage(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    if (info.Length() < 3) {
+        Napi::TypeError::New(env, "Wrong number of arguments").ThrowAsJavaScriptException();
+        return env.Null();
+    }
+    
+    std::string videoPath = info[0].As<Napi::String>();
+    int frameNumber = info[1].As<Napi::Number>().Int32Value();
+    double zoomScale = info[2].As<Napi::Number>().DoubleValue();
+    
+    try {
+        cv::VideoCapture cap(videoPath);
+        if (!cap.isOpened()) {
+            return CreateErrorResult(env, "Failed to open video");
+        }
+        
+        cap.set(cv::CAP_PROP_POS_FRAMES, frameNumber - 1);
+        
+        cv::Mat frame;
+        if (!cap.read(frame)) {
+            return CreateErrorResult(env, "Failed to read frame");
+        }
+        
+        int originalWidth = frame.cols;
+        int originalHeight = frame.rows;
+        
+        int newWidth = static_cast<int>(originalWidth * zoomScale);
+        int newHeight = static_cast<int>(originalHeight * zoomScale);
+        
+        // 画像中心をズーム中心として使用
+        int imageCenterX = originalWidth / 2;
+        int imageCenterY = originalHeight / 2;
+        
+        int roiWidth = static_cast<int>(originalWidth / zoomScale);
+        int roiHeight = static_cast<int>(originalHeight / zoomScale);
+        
+        int roiX = std::max(0, std::min(originalWidth - roiWidth, imageCenterX - roiWidth / 2));
+        int roiY = std::max(0, std::min(originalHeight - roiHeight, imageCenterY - roiHeight / 2));
+        
+        cv::Rect roi(roiX, roiY, roiWidth, roiHeight);
+        cv::Mat roiImage = frame(roi);
+        
+        cv::Mat zoomedImage;
+        cv::resize(roiImage, zoomedImage, cv::Size(newWidth, newHeight), 0, 0, cv::INTER_LINEAR);
+        
+        std::vector<uchar> buffer;
+        cv::imencode(".png", zoomedImage, buffer);
+        std::string base64String = base64_encode(buffer.data(), buffer.size());
+        
+        Napi::Object result = Napi::Object::New(env);
+        result.Set("success", Napi::Boolean::New(env, true));
+        result.Set("imageData", Napi::String::New(env, "data:image/png;base64," + base64String));
+        result.Set("width", Napi::Number::New(env, newWidth));
+        result.Set("height", Napi::Number::New(env, newHeight));
+        result.Set("originalWidth", Napi::Number::New(env, originalWidth));
+        result.Set("originalHeight", Napi::Number::New(env, originalHeight));
+        result.Set("roiX", Napi::Number::New(env, roiX));
+        result.Set("roiY", Napi::Number::New(env, roiY));
+        result.Set("roiWidth", Napi::Number::New(env, roiWidth));
+        result.Set("roiHeight", Napi::Number::New(env, roiHeight));
+        
+        return result;
+        
+    } catch (const cv::Exception& e) {
+        return CreateErrorResult(env, e.what());
+    }
+}
+
+// Get zoomed image coordinates
+Napi::Value GetZoomedImageCoordinates(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    if (info.Length() < 7) {
+        Napi::TypeError::New(env, "Wrong number of arguments").ThrowAsJavaScriptException();
+        return env.Null();
+    }
+    
+    std::string videoPath = info[0].As<Napi::String>();
+    int frameNumber = info[1].As<Napi::Number>().Int32Value();
+    int displayX = info[2].As<Napi::Number>().Int32Value();
+    int displayY = info[3].As<Napi::Number>().Int32Value();
+    double zoomScale = info[4].As<Napi::Number>().DoubleValue();
+    int centerX = info[5].As<Napi::Number>().Int32Value();
+    int centerY = info[6].As<Napi::Number>().Int32Value();
+    
+    try {
+        cv::VideoCapture cap(videoPath);
+        if (!cap.isOpened()) {
+            return CreateErrorResult(env, "Failed to open video");
+        }
+        
+        cap.set(cv::CAP_PROP_POS_FRAMES, frameNumber - 1);
+        
+        cv::Mat frame;
+        if (!cap.read(frame)) {
+            return CreateErrorResult(env, "Failed to read frame");
+        }
+        
+        int originalWidth = frame.cols;
+        int originalHeight = frame.rows;
+        
+        int newWidth = static_cast<int>(originalWidth * zoomScale);
+        int newHeight = static_cast<int>(originalHeight * zoomScale);
+        
+        int imageCenterX = static_cast<int>((centerX / static_cast<double>(originalWidth)) * originalWidth);
+        int imageCenterY = static_cast<int>((centerY / static_cast<double>(originalHeight)) * originalHeight);
+        
+        int roiWidth = static_cast<int>(originalWidth / zoomScale);
+        int roiHeight = static_cast<int>(originalHeight / zoomScale);
+        
+        int roiX = std::max(0, std::min(originalWidth - roiWidth, imageCenterX - roiWidth / 2));
+        int roiY = std::max(0, std::min(originalHeight - roiHeight, imageCenterY - roiHeight / 2));
+        
+        int zoomedX = static_cast<int>((displayX / static_cast<double>(newWidth)) * newWidth);
+        int zoomedY = static_cast<int>((displayY / static_cast<double>(newHeight)) * newHeight);
+        
+        int originalX = roiX + static_cast<int>(zoomedX / zoomScale);
+        int originalY = roiY + static_cast<int>(zoomedY / zoomScale);
+        
+        originalX = std::max(0, std::min(originalWidth - 1, originalX));
+        originalY = std::max(0, std::min(originalHeight - 1, originalY));
+        
+        Napi::Object result = Napi::Object::New(env);
+        result.Set("success", Napi::Boolean::New(env, true));
+        
+        Napi::Object coordinates = Napi::Object::New(env);
+        coordinates.Set("x", Napi::Number::New(env, originalX));
+        coordinates.Set("y", Napi::Number::New(env, originalY));
+        result.Set("coordinates", coordinates);
+        
+        Napi::Object imageSize = Napi::Object::New(env);
+        imageSize.Set("width", Napi::Number::New(env, originalWidth));
+        imageSize.Set("height", Napi::Number::New(env, originalHeight));
+        result.Set("imageSize", imageSize);
+        
+        return result;
+        
+    } catch (const cv::Exception& e) {
+        return CreateErrorResult(env, e.what());
+    }
+}
+
+// Get display coordinates (fundamental solution)
+Napi::Value GetDisplayCoordinates(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+
+    if (info.Length() < 11) {
+        Napi::TypeError::New(env, "Wrong number of arguments").ThrowAsJavaScriptException();
+        return env.Null();
+    }
+
+    std::string videoPath = info[0].As<Napi::String>();
+    int frameNumber = info[1].As<Napi::Number>().Int32Value();
+    int mouseX = info[2].As<Napi::Number>().Int32Value();
+    int mouseY = info[3].As<Napi::Number>().Int32Value();
+    double zoomScale = info[4].As<Napi::Number>().DoubleValue();
+    double panX = info[5].As<Napi::Number>().DoubleValue();
+    double panY = info[6].As<Napi::Number>().DoubleValue();
+    int canvasWidth = info[7].As<Napi::Number>().Int32Value();
+    int canvasHeight = info[8].As<Napi::Number>().Int32Value();
+    int imageWidth = info[9].As<Napi::Number>().Int32Value();
+    int imageHeight = info[10].As<Napi::Number>().Int32Value();
+
+    try {
+        cv::VideoCapture cap(videoPath);
+        if (!cap.isOpened()) {
+            return CreateErrorResult(env, "Failed to open video");
+        }
+
+        cap.set(cv::CAP_PROP_POS_FRAMES, frameNumber - 1);
+
+        cv::Mat frame;
+        if (!cap.read(frame)) {
+            return CreateErrorResult(env, "Failed to read frame");
+        }
+
+        int actualImageWidth = frame.cols;
+        int actualImageHeight = frame.rows;
+
+        if (zoomScale != 1.0) {
+            int centerX = actualImageWidth / 2;
+            int centerY = actualImageHeight / 2;
+
+            int roiWidth = static_cast<int>(actualImageWidth / zoomScale);
+            int roiHeight = static_cast<int>(actualImageHeight / zoomScale);
+
+            int roiX = std::max(0, std::min(actualImageWidth - roiWidth, centerX - roiWidth / 2));
+            int roiY = std::max(0, std::min(actualImageHeight - roiHeight, centerY - roiHeight / 2));
+
+            int roiMouseX = static_cast<int>((mouseX - panX) / zoomScale);
+            int roiMouseY = static_cast<int>((mouseY - panY) / zoomScale);
+
+            int imageX = roiX + roiMouseX;
+            int imageY = roiY + roiMouseY;
+
+            imageX = std::max(0, std::min(actualImageWidth - 1, imageX));
+            imageY = std::max(0, std::min(actualImageHeight - 1, imageY));
+
+            Napi::Object result = Napi::Object::New(env);
+            result.Set("success", Napi::Boolean::New(env, true));
+
+            Napi::Object coordinates = Napi::Object::New(env);
+            coordinates.Set("x", Napi::Number::New(env, imageX));
+            coordinates.Set("y", Napi::Number::New(env, imageY));
+            result.Set("coordinates", coordinates);
+
+            Napi::Object imageSize = Napi::Object::New(env);
+            imageSize.Set("width", Napi::Number::New(env, actualImageWidth));
+            imageSize.Set("height", Napi::Number::New(env, actualImageHeight));
+            result.Set("imageSize", imageSize);
+
+            return result;
+        } else {
+            double imageAspectRatio = static_cast<double>(actualImageWidth) / actualImageHeight;
+            double canvasAspectRatio = static_cast<double>(canvasWidth) / canvasHeight;
+
+            double displayWidth, displayHeight;
+            if (imageAspectRatio > canvasAspectRatio) {
+                displayWidth = canvasWidth;
+                displayHeight = canvasWidth / imageAspectRatio;
+            } else {
+                displayHeight = canvasHeight;
+                displayWidth = canvasHeight * imageAspectRatio;
+            }
+
+            double imageOffsetX = (canvasWidth - displayWidth) / 2.0;
+            double imageOffsetY = (canvasHeight - displayHeight) / 2.0;
+
+            double adjustedMouseX = mouseX - panX;
+            double adjustedMouseY = mouseY - panY;
+
+            if (adjustedMouseX < imageOffsetX || adjustedMouseX > imageOffsetX + displayWidth ||
+                adjustedMouseY < imageOffsetY || adjustedMouseY > imageOffsetY + displayHeight) {
+                return CreateErrorResult(env, "Mouse click outside image area");
+            }
+
+            double relativeX = adjustedMouseX - imageOffsetX;
+            double relativeY = adjustedMouseY - imageOffsetY;
+
+            int imageX = static_cast<int>((relativeX / displayWidth) * actualImageWidth);
+            int imageY = static_cast<int>((relativeY / displayHeight) * actualImageHeight);
+
+            imageX = std::max(0, std::min(actualImageWidth - 1, imageX));
+            imageY = std::max(0, std::min(actualImageHeight - 1, imageY));
+
+            Napi::Object result = Napi::Object::New(env);
+            result.Set("success", Napi::Boolean::New(env, true));
+
+            Napi::Object coordinates = Napi::Object::New(env);
+            coordinates.Set("x", Napi::Number::New(env, imageX));
+            coordinates.Set("y", Napi::Number::New(env, imageY));
+            result.Set("coordinates", coordinates);
+
+            Napi::Object imageSize = Napi::Object::New(env);
+            imageSize.Set("width", Napi::Number::New(env, actualImageWidth));
+            imageSize.Set("height", Napi::Number::New(env, actualImageHeight));
+            result.Set("imageSize", imageSize);
+
+            return result;
+        }
+
+    } catch (const cv::Exception& e) {
+        return CreateErrorResult(env, e.what());
+    }
+}
+
+// Get image coordinates with zoom and pan consideration
+Napi::Value GetImageCoordinates(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    if (!info[0].IsObject()) {
+        Napi::TypeError::New(env, "Object expected").ThrowAsJavaScriptException();
+        return env.Null();
+    }
+    
+    Napi::Object params = info[0].As<Napi::Object>();
+    
+    double mouseX = params.Get("mouseX").As<Napi::Number>().DoubleValue();
+    double mouseY = params.Get("mouseY").As<Napi::Number>().DoubleValue();
+    double zoomScale = params.Get("zoomScale").As<Napi::Number>().DoubleValue();
+    double panX = params.Get("panX").As<Napi::Number>().DoubleValue();
+    double panY = params.Get("panY").As<Napi::Number>().DoubleValue();
+    double canvasWidth = params.Get("canvasWidth").As<Napi::Number>().DoubleValue();
+    double canvasHeight = params.Get("canvasHeight").As<Napi::Number>().DoubleValue();
+    double imageWidth = params.Get("imageWidth").As<Napi::Number>().DoubleValue();
+    double imageHeight = params.Get("imageHeight").As<Napi::Number>().DoubleValue();
+    
+    try {
+        // Canvas中心を原点とした相対座標
+        double relX = mouseX - canvasWidth / 2.0;
+        double relY = mouseY - canvasHeight / 2.0;
+        
+        // パン・ズームの逆変換
+        double imgX = (relX - panX) / zoomScale + imageWidth / 2.0;
+        double imgY = (relY - panY) / zoomScale + imageHeight / 2.0;
+        
+        // 範囲クランプ
+        int px = std::max(0, std::min(static_cast<int>(imageWidth) - 1, static_cast<int>(std::round(imgX))));
+        int py = std::max(0, std::min(static_cast<int>(imageHeight) - 1, static_cast<int>(std::round(imgY))));
+        
+        Napi::Object result = Napi::Object::New(env);
+        result.Set("success", Napi::Boolean::New(env, true));
+        result.Set("x", Napi::Number::New(env, px));
+        result.Set("y", Napi::Number::New(env, py));
+        
+        return result;
+        
+    } catch (const std::exception& e) {
+        return CreateErrorResult(env, e.what());
+    }
+}
+
+// マウスクリック座標取得関数（公式仕様準拠）
+// 参照: https://docs.opencv.org/4.x/d7/dfc/group__highgui.html#ga89e7806b0a616f6f1d502bd8c183ad3
+Napi::Value GetMouseClickCoordinates(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    if (info.Length() < 2) {
+        Napi::TypeError::New(env, "Wrong number of arguments").ThrowAsJavaScriptException();
+        return env.Null();
+    }
+    
+    std::string videoPath = info[0].As<Napi::String>();
+    int frameNumber = info[1].As<Napi::Number>().Int32Value();
+    
+    try {
+        cv::VideoCapture cap(videoPath);
+        if (!cap.isOpened()) {
+            return CreateErrorResult(env, "Failed to open video");
+        }
+        
+        cap.set(cv::CAP_PROP_POS_FRAMES, frameNumber - 1);
+        
+        cv::Mat frame;
+        if (!cap.read(frame)) {
+            return CreateErrorResult(env, "Failed to read frame");
+        }
+        
+        // 公式ドキュメント準拠: setMouseCallback
+        std::string windowName = "Mouse Click Detection";
+        cv::namedWindow(windowName, cv::WINDOW_AUTOSIZE);
+        cv::setMouseCallback(windowName, mouseCallback, nullptr);
+        
+        g_mouseData.x = 0;
+        g_mouseData.y = 0;
+        g_mouseData.clicked = false;
+        g_mouseData.eventType = "";
+        g_mouseData.clickCount = 0;
+        cv::imshow(windowName, frame);
+        
+        int key;
+        while (true) {
+            key = cv::waitKey(100);
+            if (key == 27 || key == 'q' || key == 'Q') {
+                break;
+            }
+            if (g_mouseData.clicked) {
+                break;
+            }
+        }
+        
+        cv::destroyWindow(windowName);
+        cap.release();
+        
+        Napi::Object result = Napi::Object::New(env);
+        if (g_mouseData.clicked) {
+            result.Set("success", Napi::Boolean::New(env, true));
+            result.Set("x", Napi::Number::New(env, g_mouseData.x));
+            result.Set("y", Napi::Number::New(env, g_mouseData.y));
+            result.Set("eventType", Napi::String::New(env, g_mouseData.eventType));
+            result.Set("clickCount", Napi::Number::New(env, g_mouseData.clickCount));
+            result.Set("message", Napi::String::New(env, "Mouse click detected: " + std::to_string(g_mouseData.clickCount) + " clicks"));
+        } else {
+            result.Set("success", Napi::Boolean::New(env, false));
+            result.Set("error", Napi::String::New(env, "No mouse click detected"));
+        }
+        
+        return result;
+        
+    } catch (const cv::Exception& e) {
+        return CreateErrorResult(env, e.what());
+    }
+}
+
+// Initialize module
+Napi::Object Init(Napi::Env env, Napi::Object exports) {
+    exports.Set("extractFrame", Napi::Function::New(env, ExtractFrame));
+    exports.Set("getVideoInfo", Napi::Function::New(env, GetVideoInfo));
+    exports.Set("loadImage", Napi::Function::New(env, LoadImage));
+    exports.Set("processImage", Napi::Function::New(env, ProcessImage));
+    exports.Set("getImageCoordinatesWithMouseCallback", Napi::Function::New(env, GetImageCoordinatesWithMouseCallback));
+    exports.Set("zoomImage", Napi::Function::New(env, ZoomImage));
+    exports.Set("getZoomedImageCoordinates", Napi::Function::New(env, GetZoomedImageCoordinates));
+    exports.Set("getDisplayCoordinates", Napi::Function::New(env, GetDisplayCoordinates));
+    exports.Set("getImageCoordinates", Napi::Function::New(env, GetImageCoordinates));
+    exports.Set("getMouseClickCoordinates", Napi::Function::New(env, GetMouseClickCoordinates));
+    return exports;
+}
+
+NODE_API_MODULE(opencv_module, Init) 

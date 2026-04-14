@@ -1,0 +1,101 @@
+{
+  "name": "motionviewer",
+  "version": "1.1.0",
+  "description": "MotionViewer - 軽量モーションデータ3D可視化アプリ",
+  "main": "src/main/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "cross-env NODE_ENV=development electron . --dev",
+    "prebuild": "npm run clean",
+    "build": "cross-env NODE_ENV=production electron-builder --win --x64",
+    "build:dir": "cross-env NODE_ENV=production electron-builder --win --x64 --dir",
+    "build:portable": "cross-env NODE_ENV=production electron-builder --win portable --x64",
+    "build:mac": "cross-env NODE_ENV=production electron-builder --mac --arm64",
+    "postinstall": "electron-builder install-app-deps",
+    "clean": "rimraf dist node_modules/.cache"
+  },
+  "keywords": [
+    "motion",
+    "3d",
+    "viewer",
+    "electron",
+    "threejs",
+    "biomechanics"
+  ],
+  "author": "MotionViewer",
+  "license": "MIT",
+  "dependencies": {
+    "ffmpeg-static": "^5.2.0",
+    "three": "^0.153.0"
+  },
+  "devDependencies": {
+    "cross-env": "^7.0.3",
+    "electron": "^33.0.0",
+    "electron-builder": "^25.1.8",
+    "rimraf": "^5.0.5"
+  },
+  "build": {
+    "appId": "com.motionviewer.app",
+    "productName": "MotionViewer",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "src/**/*",
+      "package.json",
+      "!src/**/*.map",
+      "!**/*.md",
+      "!**/*.txt",
+      "!data/**/*",
+      "!sample-data/**/*",
+      "!.cursor/**"
+    ],
+    "extraResources": [
+      {
+        "from": "MViewer.ico",
+        "to": "MViewer.ico"
+      },
+      {
+        "from": "MViewer.png",
+        "to": "MViewer.png"
+      }
+    ],
+    "compression": "maximum",
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "build/icon.ico",
+      "compression": "maximum",
+      "artifactName": "${productName}-Setup-${version}.${ext}",
+      "requestedExecutionLevel": "asInvoker"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowElevation": true,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "MotionViewer"
+    },
+    "fileAssociations": [
+      {
+        "ext": "mvp",
+        "name": "MotionViewer Project",
+        "description": "MotionViewer Project File",
+        "icon": "build/icon.ico",
+        "role": "Editor"
+      }
+    ],
+    "mac": {
+      "target": "dmg",
+      "icon": "build/icon.icns",
+      "category": "public.app-category.education"
+    }
+  },
+  "engines": {
+    "node": ">=16.0.0",
+    "npm": ">=8.0.0"
+  }
+}

@@ -1,0 +1,1971 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MotionDigitizer v1.1</title>
+    <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; img-src 'self' file: media-file: data: blob:; script-src 'self' https://cdnjs.cloudflare.com 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' file: media-file: data: blob:; media-src 'self' file: media-file: data: blob:;">
+    <link rel="stylesheet" href="src/style.css">
+    <!-- Material Symbols (Google Fonts) -->
+    <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
+    <!-- preloadは不要のため削除。必要になれば適切なas値で再追加する -->
+</head>
+
+<body>
+    <div class="app-container">
+
+
+        <!-- メインコンテンツ -->
+        <main class="app-main">
+            <button class="sidebar-toggle" id="sidebar-toggle" onclick="toggleSidebar()" title="サイドバーを隠す/表示">≡</button>
+            <aside class="sidebar" id="sidebar">
+                <div class="sidebar-content">
+                    <!-- プロジェクト名表示 -->
+                    <div class="section project-name-section">
+                        <div class="section-header"
+                            style="display: flex; justify-content: flex-start; text-align: left; width: 100%;"><span
+                                style="font-size:1.2em; margin-right: 6px;">📋</span>プロジェクトファイル名</div>
+                        <div id="project-name-display" class="project-name">新規プロジェクト</div>
+                    </div>
+                    <!-- キャリブレーション方法（最上位） -->
+                    <div class="section">
+                        <div class="section-header">
+                            <svg class="section-icon" viewBox="0 0 24 24">
+                                <path
+                                    d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4M12,6A6,6 0 0,0 6,12A6,6 0 0,0 12,18A6,6 0 0,0 18,12A6,6 0 0,0 12,6M12,8A4,4 0 0,1 16,12A4,4 0 0,1 12,16A4,4 0 0,1 8,12A4,4 0 0,1 12,8Z" />
+                            </svg>
+                            キャリブレーション方法
+                        </div>
+                        <div class="calibration-method-section">
+                            <select id="calibration-method" class="method-select">
+                                <option value="" selected disabled>-- 選択してください --</option>
+                                <optgroup label="📌 主要な手法">
+                                    <option value="4-point">4点実長換算</option>
+                                    <option value="2d-dlt-single">2次元DLT法（シングル）</option>
+                                    <option value="3d-dlt">3次元DLT法</option>
+                                    <option value="3d-cc-method">3次元CC法（競技場特徴点）</option>
+                                    <option value="charuco-stereo">ChArUcoボード法（ステレオ）</option>
+                                </optgroup>
+                                <optgroup label="📋 その他のオプション">
+                                    <option value="2d-dlt-stereo">2次元DLT法（ステレオ）</option>
+                                    <option value="charuco-single">ChArUcoボード法（シングル）</option>
+                                    <option value="vicon-xcp-triangulation" hidden>Vicon XCP（三角測量）</option>
+                                </optgroup>
+                            </select>
+
+                        </div>
+                    </div>
+                    <!-- モード選択 -->
+                    <div class="section">
+                        <div class="section-header">
+                            <svg class="section-icon" viewBox="0 0 24 24">
+                                <path
+                                    d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                            </svg>
+                            モード選択
+                        </div>
+                        <div class="option-group">
+                            <div class="option">
+                                <input type="radio" id="calibration" name="mode" value="calibration"
+                                    class="option-input">
+                                <label for="calibration" class="option-label">
+                                    <div class="option-indicator"></div>
+                                    キャリブレーション
+                                </label>
+                            </div>
+                            <div class="option">
+                                <input type="radio" id="motion" name="mode" value="motion" class="option-input">
+                                <label for="motion" class="option-label">
+                                    <div class="option-indicator"></div>
+                                    モーション
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- カメラ選択 -->
+                    <div class="section" id="camera-select-section">
+                        <div class="section-header"><span style="font-size:1.2em;">🎥</span> カメラ選択</div>
+                        <div class="option-group">
+                            <div class="option">
+                                <input type="radio" id="camera1" name="camera" value="cam1" class="option-input">
+                                <label for="camera1" class="option-label">
+                                    <div class="option-indicator"></div>
+                                    <div class="option-text">カメラ1</div>
+                                </label>
+                            </div>
+                            <div class="option">
+                                <input type="radio" id="camera2" name="camera" value="cam2" class="option-input">
+                                <label for="camera2" class="option-label">
+                                    <div class="option-indicator"></div>
+                                    <div class="option-text">カメラ2</div>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- プログレス表示 -->
+                    <div class="section">
+                        <div class="section-header">
+                            <svg class="section-icon" viewBox="0 0 24 24">
+                                <path
+                                    d="M13,9H11V7H13M13,17H11V11H13M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2Z" />
+                            </svg>
+                            進行状況
+                        </div>
+                        <div class="progress-section">
+                            <div class="progress-bar">
+                                <div id="progress-fill" class="progress-fill"></div>
+                            </div>
+                            <div id="progress-text" class="progress-text">0/2 ファイル選択完了</div>
+                        </div>
+                    </div>
+                    <!-- ファイル選択ワークフロー -->
+                    <div class="section">
+                        <div class="section-header">
+                            <svg class="section-icon" viewBox="0 0 24 24">
+                                <path
+                                    d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z" />
+                            </svg>
+                            ファイル選択
+                        </div>
+                        <div class="file-manager">
+                            <div id="step-1" class="workflow-step active">
+                                <div class="step-header">
+                                    <div class="step-title">
+                                        <div class="step-number">1</div>
+                                        キャリブレーション動画
+                                    </div>
+                                    <div class="step-status">選択中</div>
+                                </div>
+                                <div class="step-content">
+                                    <div id="cal-cam1" class="file-item">
+                                        <div class="file-header"
+                                            style="display: flex; justify-content: space-between; align-items: center;">
+                                            <div class="file-label">カメラ1</div>
+                                            <button class="btn btn-tiny" onclick="selectFile('cal-cam1');"
+                                                title="ファイル追加" style="min-width: 30px;">＋</button>
+                                        </div>
+                                        <div class="file-list" id="cal-cam1-list"></div>
+                                        <div class="file-info">
+                                            <div class="file-name">ファイル未選択</div>
+                                            <div class="file-path">クリックして選択</div>
+                                        </div>
+                                    </div>
+                                    <div id="cal-cam2" class="file-item" style="display: none;">
+                                        <div class="file-header"
+                                            style="display: flex; justify-content: space-between; align-items: center;">
+                                            <div class="file-label">カメラ2</div>
+                                            <button class="btn btn-tiny" onclick="selectFile('cal-cam2');"
+                                                title="ファイル追加" style="min-width: 30px;">＋</button>
+                                        </div>
+                                        <div class="file-list" id="cal-cam2-list"></div>
+                                        <div class="file-info">
+                                            <div class="file-name">ファイル未選択</div>
+                                            <div class="file-path">クリックして選択</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div id="step-2" class="workflow-step disabled">
+                                <div class="step-header">
+                                    <div class="step-title">
+                                        <div class="step-number">2</div>
+                                        モーション動画
+                                    </div>
+                                    <div class="step-status">待機中</div>
+                                </div>
+                                <div class="step-content">
+                                    <div id="motion-cam1" class="file-item">
+                                        <div class="file-header"
+                                            style="display: flex; justify-content: space-between; align-items: center;">
+                                            <div class="file-label">カメラ1</div>
+                                            <button class="btn btn-tiny" onclick="selectFile('motion-cam1');"
+                                                title="ファイル追加" style="min-width: 30px;">＋</button>
+                                        </div>
+                                        <div class="file-list" id="motion-cam1-list"></div>
+                                        <div class="file-info">
+                                            <div class="file-name">ファイル未選択</div>
+                                            <div class="file-path">クリックして選択</div>
+                                        </div>
+                                    </div>
+                                    <div id="motion-cam2" class="file-item" style="display: none;">
+                                        <div class="file-header"
+                                            style="display: flex; justify-content: space-between; align-items: center;">
+                                            <div class="file-label">カメラ2</div>
+                                            <button class="btn btn-tiny" onclick="selectFile('motion-cam2');"
+                                                title="ファイル追加" style="min-width: 30px;">＋</button>
+                                        </div>
+                                        <div class="file-list" id="motion-cam2-list"></div>
+                                        <div class="file-info">
+                                            <div class="file-name">ファイル未選択</div>
+                                            <div class="file-path">クリックして選択</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+                    <!-- 解析設定 -->
+                    <div class="section">
+                        <div class="section-header">
+                            <svg class="section-icon" viewBox="0 0 24 24">
+                                <path
+                                    d="M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.34 19.43,11.03L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.96 19.05,5.05L16.56,6.05C16.04,5.66 15.5,5.32 14.87,5.07L14.5,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.5,2.42L9.13,5.07C8.5,5.32 7.96,5.66 7.44,6.05L4.95,5.05C4.73,4.96 4.46,5.05 4.34,5.27L2.34,8.73C2.22,8.95 2.27,9.22 2.46,9.37L4.57,11.03C4.53,11.34 4.5,11.67 4.5,12C4.5,12.33 4.53,12.65 4.57,12.97L2.46,14.63C2.27,14.78 2.22,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.03 4.95,18.95L7.44,17.94C7.96,18.34 8.5,18.68 9.13,18.93L9.5,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.5,21.58L14.87,18.93C15.5,18.68 16.04,18.34 16.56,17.94L19.05,18.95C19.27,19.03 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.97Z" />
+                            </svg>
+                            解析設定
+                        </div>
+                        <div class="settings-section">
+                            <div class="settings-group">
+                                <div class="settings-label">FPS設定</div>
+                                <input type="number" id="fps" value="30" min="1" max="120" step="0.1"
+                                    class="input-field">
+                            </div>
+                        </div>
+                    </div>
+                    <!-- 表示設定 -->
+                    <!-- 表示・動作設定 -->
+                    <div class="section">
+                        <div class="section-header">
+                            <svg class="section-icon" viewBox="0 0 24 24">
+                                <path
+                                    d="M12,9A3,3 0 0,0 9,12A3,3 0 0,0 12,15A3,3 0 0,0 15,12A3,3 0 0,0 12,9M12,17A5,5 0 0,1 7,12A5,5 0 0,1 12,7A5,5 0 0,1 17,12A5,5 0 0,1 12,17M12,4.5C7,4.5 2.73,7.61 1,12C2.73,16.39 7,19.5 12,19.5C17,19.5 21.27,16.39 23,12C21.27,7.61 17,4.5 12,4.5Z" />
+                            </svg>
+                            表示・動作設定
+                        </div>
+                        <div class="settings-section compact-settings">
+                            <!-- Row 1: Point Name & Size -->
+                            <div class="setting-row">
+                                <div class="checkbox-option compact">
+                                    <input type="checkbox" id="show-point-names">
+                                    <label for="show-point-names">ポイント名</label>
+                                </div>
+                                <div class="input-group compact">
+                                    <label for="point-size" class="settings-label">サイズ</label>
+                                    <input type="number" id="point-size" value="5" min="1" max="20" class="small-input">
+                                </div>
+                            </div>
+                            <!-- Row 2: Trajectory & Width -->
+                            <div class="setting-row">
+                                <div class="checkbox-option compact">
+                                    <input type="checkbox" id="show-trajectory">
+                                    <label for="show-trajectory">軌跡表示</label>
+                                </div>
+                                <div class="input-group compact">
+                                    <label for="trajectory-width" class="settings-label">太さ</label>
+                                    <input type="number" id="trajectory-width" value="5" min="1" max="10"
+                                        class="small-input">
+                                </div>
+                            </div>
+                            <!-- Row 3: Reverse Digitize -->
+                            <div class="setting-row">
+                                <div class="checkbox-option compact">
+                                    <input type="checkbox" id="reverse-digitize">
+                                    <label for="reverse-digitize">リバースデジタイズ</label>
+                                </div>
+                            </div>
+                            <!-- Row 4: Digitize Interval -->
+                            <div class="setting-row">
+                                <div class="input-group compact">
+                                    <label for="digitize-interval" class="settings-label">デジタイズ間隔</label>
+                                    <input type="number" id="digitize-interval" value="1" min="1" max="20"
+                                        class="small-input">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 開発・テスト（ChArUcoキャリブレーション設定） -->
+                    <div class="section" id="charuco-calibration-section">
+                        <div class="section-header">
+                            <svg class="section-icon" viewBox="0 0 24 24">
+                                <path d="M9.4,16.6L4.8,12L3.4,13.4L9.4,19.4L20.6,8.2L19.2,6.8L9.4,16.6Z" />
+                            </svg>
+                            ChArUcoキャリブレーション
+                        </div>
+                        <div class="action-section">
+                            <div class="action-group" style="margin-bottom:8px;">
+                                <div style="font-weight:600;margin-bottom:4px;">ChArUcoボード設定</div>
+                                <div style="display:flex;gap:8px;align-items:center;">
+                                    <label>縦数:
+                                        <input type="number" id="charuco-rows" value="5" min="2" max="20"
+                                            style="width:40px;">
+                                    </label>
+                                    <label>横数:
+                                        <input type="number" id="charuco-cols" value="7" min="2" max="20"
+                                            style="width:40px;">
+                                    </label>
+                                </div>
+                                <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+                                    <label>チェッカーサイズ[mm]:
+                                        <input type="number" id="charuco-square-mm" value="165" min="1" max="200"
+                                            step="0.1" style="width:90px;">
+                                    </label>
+                                    <label>マーカーサイズ[mm]:
+                                        <input type="number" id="charuco-marker-mm" value="123" min="1" max="200"
+                                            step="0.1" style="width:90px;">
+                                    </label>
+                                </div>
+                                <div style="margin-top:5px;">
+                                    <label>マーカー辞書:
+                                        <select id="charuco-dictionary" style="width:120px;">
+                                            <option value="DICT_4X4_50" selected>DICT_4X4</option>
+                                            <option value="DICT_5X5_50">DICT_5X5</option>
+                                            <option value="DICT_6X6_50">DICT_6X6</option>
+                                            <option value="DICT_7X7_50">DICT_7X7</option>
+                                        </select>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="action-group">
+                                <button onclick="detectCharucoBoard()"
+                                    class="action-button secondary">自動ChArUcoボード検出</button>
+                            </div>
+                            <div class="charuco-results" style="font-size:0.85em; line-height:1.4; color:#555;">
+                                <div id="charuco-detect-single">
+                                    <span>マーカー数: <b id="charuco-markers">-</b></span>
+                                    <span style="margin-left:8px;">検出コーナー数: <b id="charuco-corners">-</b></span>
+                                </div>
+                                <div id="charuco-detect-stereo" style="display:none;">
+                                    <div>Cam1: マーカー<b id="charuco-markers-cam1">-</b> / コーナー<b
+                                            id="charuco-corners-cam1">-</b></div>
+                                    <div>Cam2: マーカー<b id="charuco-markers-cam2">-</b> / コーナー<b
+                                            id="charuco-corners-cam2">-</b></div>
+                                </div>
+                            </div>
+                            <div class="action-group" style="margin-top:8px;">
+                                <button id="calib-session-btn" onclick="calibration.toggleSession()"
+                                    class="action-button primary">セッション開始</button>
+                                <button onclick="calibration.capture()"
+                                    class="action-button secondary">現在フレームを追加</button>
+                                <button onclick="calibration.compute()"
+                                    class="action-button secondary">キャリブレーション実行</button>
+                            </div>
+                            <p id="calibration-inline-status" style="margin-top:6px;color:#555;">待機中</p>
+                            <!-- ボード選択（charuco-singleモード用） -->
+                            <div id="charuco-single-board-select" style="display:none; margin-top:12px;">
+                                <label style="font-size:12px; color:#666;">分析時のボード選択:</label>
+                                <select id="charuco-board-select" class="method-select"
+                                    style="width:100%; margin-top:4px;">
+                                    <option value="">-- ボードを選択 --</option>
+                                </select>
+                                <button id="show-selected-board-frame" class="btn btn-small"
+                                    style="margin-top:8px; display:none;">
+                                    選択したボードのフレームを表示
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 3D計算・解析 -->
+                    <div class="section" id="sidebar-3d-section" style="display:none;">
+                        <div class="section-header">
+                            <svg class="section-icon" viewBox="0 0 24 24">
+                                <path
+                                    d="M12,2A3,3 0 0,1 15,5V11A3,3 0 0,1 12,14A3,3 0 0,1 9,11V5A3,3 0 0,1 12,2M19,11C19,14.53 16.39,17.44 13,17.93V21H11V17.93C7.61,17.44 5,14.53 5,11H7A5,5 0 0,0 12,16A5,5 0 0,0 17,11H19Z" />
+                            </svg>
+                            3D計算・解析
+                        </div>
+                        <div class="action-section">
+                            <div class="action-group">
+                                <button onclick="showCalibration()" class="action-button secondary">
+                                    <span class="material-symbols-outlined">deployed_code</span>キャリブレーション
+                                </button>
+                                <button onclick="calculateRealLength()" class="action-button primary">
+                                    <span class="material-symbols-outlined">straighten</span>実長換算
+                                </button>
+                                <button onclick="calculateError()" class="action-button secondary">
+                                    <span class="material-symbols-outlined">analytics</span>標準誤差計算
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- メインエリア -->
+            <div class="main-content">
+                <!-- タブナビゲーション -->
+                <nav class="tab-nav">
+                    <button class="tab-btn active" onclick="switchTab('digitize')" data-tooltip="デジタイズ">
+                        <span class="tab-icon">✏️</span>
+                    </button>
+                    <button class="tab-btn" onclick="switchTab('points')" data-tooltip="ポイント設定">
+                        <span class="tab-icon">⚙️</span>
+                    </button>
+                    <button class="tab-btn" onclick="switchTab('calibration')" id="calibration-tab-btn"
+                        data-tooltip="キャリブレーション">
+                        <span class="tab-icon">📏</span>
+                    </button>
+                    <button class="tab-btn" onclick="switchTab('data')" id="data-tab-btn" data-tooltip="モーションデータ">
+                        <span class="tab-icon">📊</span>
+                    </button>
+                    <button class="tab-btn" onclick="switchTab('preview')" data-tooltip="プレビュー">
+                        <span class="tab-icon">👁️</span>
+                    </button>
+
+                    <button class="tab-btn" onclick="switchTab('analysis')" data-tooltip="分析結果">
+                        <span class="tab-icon">📋</span>
+                    </button>
+                </nav>
+
+                <!-- タブコンテンツ -->
+                <div class="tab-content">
+                    <!-- デジタイズタブ -->
+                    <div id="digitize-tab" class="tab-panel active">
+                        <div class="digitize-canvas-container">
+                            <canvas id="digitize-canvas" width="800" height="600"></canvas>
+                            <!-- ネイティブ描画用隠しVideo要素 -->
+                            <video id="digitize-video" style="display: none;" muted playsinline
+                                preload="metadata" crossorigin="anonymous"></video>
+                            <video id="digitize-video-2" style="display: none;" muted playsinline
+                                preload="metadata" crossorigin="anonymous"></video>
+                        </div>
+                        <!-- フレーム制御（コンパクト版） -->
+                        <div class="frame-control-panel compact">
+                            <div class="frame-control-row">
+                                <!-- ポイント選択（コンパクト） -->
+                                <div class="landmark-selector compact" id="motion-landmark-selector">
+                                    <button onclick="previousPoint()" class="btn btn-tiny" title="前のポイント">◀</button>
+                                    <select id="motion-landmark-select" onchange="onMotionLandmarkChange()">
+                                        <option value="">-- ポイント --</option>
+                                    </select>
+                                    <button onclick="nextPoint()" class="btn btn-tiny" title="次のポイント">▶</button>
+                                </div>
+                                <div class="landmark-selector compact" id="calibration-landmark-selector"
+                                    style="display: none;">
+                                    <button onclick="previousCalPoint()" class="btn btn-tiny" title="前のポイント">◀</button>
+                                    <select id="calibration-landmark-select" onchange="onCalibrationLandmarkChange()">
+                                        <option value="">-- Cal --</option>
+                                    </select>
+                                    <button onclick="nextCalPoint()" class="btn btn-tiny" title="次のポイント">▶</button>
+                                </div>
+
+                                <span class="control-separator">|</span>
+
+                                <!-- フレームコントロール -->
+                                <div class="frame-buttons">
+                                    <button onclick="goToFirstFrame()" class="btn btn-tiny" title="先頭へ">⏮</button>
+                                    <button onclick="previousFrame()" class="btn btn-tiny" title="前のフレーム">❮</button>
+                                    <button onclick="togglePlayback()" class="btn btn-tiny" id="playPauseBtn"
+                                        title="再生/一時停止" style="font-size: 14px;">▶️</button>
+                                    <button onclick="nextFrame()" class="btn btn-tiny" title="次のフレーム">❯</button>
+                                    <button onclick="goToLastFrame()" class="btn btn-tiny" title="終了点へ">⏭</button>
+                                </div>
+
+                                <span id="frame-display-text" class="frame-info-compact">1 / 333</span>
+
+                                <span class="control-separator">|</span>
+
+                                <!-- ズーム/パンリセット -->
+                                <button onclick="resetZoomPan()" class="btn btn-tiny" title="ズーム/パンをリセット">🔄</button>
+                            </div>
+                            <div class="frame-slider-row">
+                                <div class="frame-slider-container">
+                                    <input type="range" id="frame-slider" min="1" max="1000" value="1"
+                                        onchange="goToFrame(this.value)">
+                                </div>
+                                <!-- キャッシュ進捗表示 -->
+                                <div class="cache-progress" id="cacheProgressContainer">
+                                    <span class="cache-label" id="cacheLabel">キャッシュ中...</span>
+                                    <div class="cache-progress-bar">
+                                        <div class="cache-progress-fill" id="cacheProgressFill"></div>
+                                    </div>
+                                    <span class="cache-percent" id="cachePercent">0%</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- データタブ -->
+                    <div id="data-tab" class="tab-panel">
+                        <div class="data-table-controls"
+                            style="margin-bottom: 8px; display: flex; justify-content: flex-end; gap: 8px;">
+                            <button class="btn btn-secondary" onclick="importHPEData()">
+                                <span class="material-symbols-outlined"
+                                    style="font-size: 1.2em; vertical-align: bottom; margin-right: 4px;">psychology</span>HPEインポート
+                            </button>
+                            <button class="btn btn-secondary" onclick="importMotionDataCSV()">
+                                <span class="material-symbols-outlined"
+                                    style="font-size: 1.2em; vertical-align: bottom; margin-right: 4px;">file_open</span>CSVインポート
+                            </button>
+                        </div>
+                        <div class="table-container">
+                            <table id="data-table" class="data-table">
+                                <thead id="data-table-head"></thead>
+                                <tbody id="data-table-body"></tbody>
+                            </table>
+                        </div>
+
+                        <!-- 統合された下部パネル (アクション & ミニマップ) -->
+                        <div class="unified-bottom-panel"
+                            style="display: grid !important; grid-template-columns: 1fr auto !important; align-items: center; height: 48px; padding: 4px 8px; margin-top: 12px;">
+                            <!-- 左側グループ: アクション -->
+                            <div class="panel-left-group" style="display: flex; align-items: center; height: 100%;">
+                                <div class="unified-section action-section" style="margin-bottom: 0;">
+                                    <div class="unified-label">操作:</div>
+                                    <div class="unified-content action-buttons">
+                                        <button class="unified-btn with-label"
+                                            onclick="performSplineInterpolationOnSelection()" title="選択範囲をスプライン補間">
+                                            <span class="action-icon">📈</span>
+                                            <span class="action-text">補間</span>
+                                        </button>
+                                        <button class="unified-btn with-label" onclick="deleteSelectedCells()"
+                                            title="選択範囲を削除 (Delete)">
+                                            <span class="action-icon">🗑️</span>
+                                            <span class="action-text">削除</span>
+                                        </button>
+                                        <button class="unified-btn with-label" onclick="copySelectedCellsToClipboard()"
+                                            title="コピー (Ctrl+C)">
+                                            <span class="action-icon">📋</span>
+                                            <span class="action-text">コピー</span>
+                                        </button>
+                                        <button class="unified-btn with-label" onclick="pasteFromClipboard()"
+                                            title="貼り付け (Ctrl+V)">
+                                            <span class="action-icon">📄</span>
+                                            <span class="action-text">貼付</span>
+                                        </button>
+                                        <button class="unified-btn with-label" onclick="selectAll()"
+                                            title="全選択 (Ctrl+A)">
+                                            <span class="action-icon">☑️</span>
+                                            <span class="action-text">全選択</span>
+                                        </button>
+                                        <span style="border-left: 1px solid #ccc; height: 20px; margin: 0 2px;"></span>
+                                        <button class="unified-btn with-label" id="btn-undo"
+                                            onclick="window.undoManager.undo()" title="元に戻す (Ctrl+Z)" disabled>
+                                            <span class="action-icon">↩️</span>
+                                            <span class="action-text">戻す</span>
+                                        </button>
+                                        <button class="unified-btn with-label" id="btn-redo"
+                                            onclick="window.undoManager.redo()" title="やり直す (Ctrl+Y)" disabled>
+                                            <span class="action-icon">↪️</span>
+                                            <span class="action-text">やり直す</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 右側グループ: ミニマップ -->
+                            <div class="panel-right-group" style="display: flex; align-items: center; height: 100%;">
+                                <div class="unified-section minimap-section"
+                                    style="margin: 0; padding: 0; display: flex;">
+                                    <div class="unified-label" style="margin-right: 4px;">データマップ:</div>
+                                    <div class="unified-content" style="display: flex; height: 100%;">
+                                        <canvas id="data-minimap" width="200" height="38"
+                                            style="display: block;"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ポイント設定タブ -->
+                    <div id="points-tab" class="tab-panel">
+                        <div class="points-content">
+                            <h3>ポイント設定</h3>
+                            <div class="points-controls">
+                                <div class="point-group">
+                                    <h4>キャリブレーションポイント</h4>
+                                    <button onclick="addCalibrationPoint()"
+                                        class="btn btn-small">キャリブレーションポイント追加</button>
+                                    <button onclick="removeCalibrationPoint()"
+                                        class="btn btn-small danger">ポイント削除</button>
+                                    <div class="point-list" id="calibration-points-list" tabindex="0">
+                                        <!-- キャリブレーションポイントのリストがここに表示される -->
+                                    </div>
+                                </div>
+                                <div class="point-group">
+                                    <h4>モーションポイント</h4>
+                                    <button onclick="addMotionPoint()" class="btn btn-small">モーションポイント追加</button>
+                                    <button onclick="removeMotionPoint()" class="btn btn-small danger">ポイント削除</button>
+                                    <div class="point-list" id="motion-points-list" tabindex="0">
+                                        <!-- モーションポイントのリストがここに表示される -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- キャリブレーションタブ -->
+                    <div id="calibration-tab" class="tab-panel">
+                        <!-- 3次元CC法 UI（競技場特徴点）- テーブルの上に配置 -->
+                        <div id="cc-method-container" style="display:none; margin-bottom:12px;">
+                            <h3>3次元CC法（競技場特徴点）</h3>
+                            <div id="cc-requirements" class="notice-box" style="margin:8px 0;">
+                                <div>必要カメラ数: カメラ1、カメラ2</div>
+                                <div>最低制御点数: 3点（推奨: 4点以上）</div>
+                                <div style="font-size:0.85em; color:#666; margin-top:4px;">※ 制御点はキャリブレーションテーブルから取得されます
+                                </div>
+                            </div>
+
+                            <!-- 操作手順ガイド -->
+                            <div class="step-guide"
+                                style="margin:8px 0; padding:8px; background:#eef4ff; border-radius:4px; font-size:0.9em; border-left:4px solid #4a90e2;">
+                                <div style="font-weight:bold; margin-bottom:4px;">📋 手順ガイド</div>
+                                <ol style="margin:0; padding-left:20px; color:#333;">
+                                    <li>モードパネルで「キャリブレーション」を選択し、カメラ1・2の動画を読み込む</li>
+                                    <li>下のテーブルで制御点をデジタイズし、実空間座標(X,Y,Z)を入力する</li>
+                                    <li>下の「カメラ初期位置」におおよそのカメラ位置を設定する</li>
+                                    <li>「CC法キャリブレーション実行」ボタンを押す</li>
+                                </ol>
+                            </div>
+                        </div>
+
+                        <!-- 手法別ガイド（toggleCalibrationPanelsで切り替え） -->
+                        <div id="method-guide-2d-dlt-single" class="method-guide" style="display:none; margin-bottom:12px;">
+                            <h3>2次元DLT法（シングル）</h3>
+                            <div class="notice-box" style="margin:8px 0;">
+                                <div>必要カメラ数: カメラ1</div>
+                                <div>最低制御点数: 4点</div>
+                            </div>
+                            <div class="step-guide" style="margin:8px 0; padding:8px; background:#eef4ff; border-radius:4px; font-size:0.9em; border-left:4px solid #4a90e2;">
+                                <div style="font-weight:bold; margin-bottom:4px;">📋 手順ガイド</div>
+                                <ol style="margin:0; padding-left:20px; color:#333;">
+                                    <li>「キャリブレーション」モードで、カメラ1の動画を読み込む</li>
+                                    <li>テーブルで制御点をデジタイズし、実空間座標(X,Y)を入力する</li>
+                                    <li>「カメラ定数」ボタンを押してキャリブレーションを実行する</li>
+                                </ol>
+                            </div>
+                        </div>
+                        <div id="method-guide-2d-dlt-stereo" class="method-guide" style="display:none; margin-bottom:12px;">
+                            <h3>2次元DLT法（ステレオ）</h3>
+                            <div class="notice-box" style="margin:8px 0;">
+                                <div>必要カメラ数: カメラ1、カメラ2</div>
+                                <div>最低制御点数: 各カメラ4点</div>
+                            </div>
+                            <div class="step-guide" style="margin:8px 0; padding:8px; background:#eef4ff; border-radius:4px; font-size:0.9em; border-left:4px solid #4a90e2;">
+                                <div style="font-weight:bold; margin-bottom:4px;">📋 手順ガイド</div>
+                                <ol style="margin:0; padding-left:20px; color:#333;">
+                                    <li>「キャリブレーション」モードで、カメラ1・2の動画を読み込む</li>
+                                    <li>カメラ1→カメラ2の順に制御点をデジタイズし、実空間座標(X,Y)を入力する</li>
+                                    <li>カメラ1・2のフレーム範囲を設定する</li>
+                                    <li>「カメラ定数」ボタンを押してキャリブレーションを実行する</li>
+                                </ol>
+                            </div>
+                        </div>
+                        <div id="method-guide-3d-dlt" class="method-guide" style="display:none; margin-bottom:12px;">
+                            <h3>3次元DLT法</h3>
+                            <div class="notice-box" style="margin:8px 0;">
+                                <div>必要カメラ数: カメラ1、カメラ2</div>
+                                <div>最低制御点数: 6点（推奨: 8点以上）</div>
+                            </div>
+                            <div class="step-guide" style="margin:8px 0; padding:8px; background:#eef4ff; border-radius:4px; font-size:0.9em; border-left:4px solid #4a90e2;">
+                                <div style="font-weight:bold; margin-bottom:4px;">📋 手順ガイド</div>
+                                <ol style="margin:0; padding-left:20px; color:#333;">
+                                    <li>「キャリブレーション」モードで、カメラ1・2の動画を読み込む</li>
+                                    <li>テーブルで制御点をデジタイズし、実空間座標(X,Y,Z)を入力する</li>
+                                    <li>「カメラ定数」ボタンを押してキャリブレーションを実行する</li>
+                                </ol>
+                            </div>
+                        </div>
+                        <div id="method-guide-4-point" class="method-guide" style="display:none; margin-bottom:12px;">
+                            <h3>4点実長換算</h3>
+                            <div class="notice-box" style="margin:8px 0;">
+                                <div>必要カメラ数: カメラ1</div>
+                                <div>必須制御点: マーカー4点（右奥・右前・左前・左奥）</div>
+                                <div style="font-size:0.85em; color:#666; margin-top:4px;">※ オプション: スケール水平左・右、スケール垂直上・下、原点（水平・垂直のスケール検証や座標原点設定に使用）</div>
+                            </div>
+                            <div class="step-guide" style="margin:8px 0; padding:8px; background:#eef4ff; border-radius:4px; font-size:0.9em; border-left:4px solid #4a90e2;">
+                                <div style="font-weight:bold; margin-bottom:4px;">📋 手順ガイド</div>
+                                <ol style="margin:0; padding-left:20px; color:#333;">
+                                    <li>「キャリブレーション」モードで、カメラ1の動画を読み込む</li>
+                                    <li>マーカー4点を必ずデジタイズする</li>
+                                    <li>マーカー間距離（実測値 [m]）を入力する</li>
+                                    <li>「結果を計算」ボタンを押す</li>
+                                </ol>
+                            </div>
+                        </div>
+                        <div id="method-guide-charuco-single" class="method-guide" style="display:none; margin-bottom:12px;">
+                            <h3>ChArUcoボード法（シングル）</h3>
+                            <div class="notice-box" style="margin:8px 0;">
+                                <div>必要カメラ数: カメラ1</div>
+                                <div>必要サンプル数: 20枚以上推奨</div>
+                            </div>
+                            <div class="step-guide" style="margin:8px 0; padding:8px; background:#eef4ff; border-radius:4px; font-size:0.9em; border-left:4px solid #4a90e2;">
+                                <div style="font-weight:bold; margin-bottom:4px;">📋 手順ガイド</div>
+                                <ol style="margin:0; padding-left:20px; color:#333;">
+                                    <li>「キャリブレーション」モードで動画を読み込む</li>
+                                    <li>ChArUcoボード設定（縦横数・チェッカーサイズ等）を確認する</li>
+                                    <li>「自動ChArUcoボード検出」でボードが映るフレームを検出する</li>
+                                    <li>「現在フレームを追加」で20枚以上のサンプルを蓄積する</li>
+                                    <li>「キャリブレーション実行」ボタンを押す</li>
+                                </ol>
+                            </div>
+                        </div>
+                        <div id="method-guide-charuco-stereo" class="method-guide" style="display:none; margin-bottom:12px;">
+                            <h3>ChArUcoボード法（ステレオ）</h3>
+                            <div class="notice-box" style="margin:8px 0;">
+                                <div>必要カメラ数: カメラ1、カメラ2</div>
+                                <div>必要サンプル数: 20枚以上推奨</div>
+                            </div>
+                            <div class="step-guide" style="margin:8px 0; padding:8px; background:#eef4ff; border-radius:4px; font-size:0.9em; border-left:4px solid #4a90e2;">
+                                <div style="font-weight:bold; margin-bottom:4px;">📋 手順ガイド</div>
+                                <ol style="margin:0; padding-left:20px; color:#333;">
+                                    <li>「キャリブレーション」モードで、カメラ1・2の動画を読み込む</li>
+                                    <li>ChArUcoボード設定を確認する</li>
+                                    <li>「セッション開始」→「自動ChArUcoボード検出」で両カメラの検出を確認する</li>
+                                    <li>「現在フレームを追加」で20枚以上のサンプルを蓄積する</li>
+                                    <li>「キャリブレーション実行」ボタンを押す</li>
+                                </ol>
+                            </div>
+                        </div>
+
+                        <div class="calibration-table-container" id="legacy-calibration-container">
+                            <table id="calibration-table" class="calibration-table calibration-mode">
+                                <thead id="calibration-table-head"></thead>
+                                <tbody id="calibration-table-body"></tbody>
+                            </table>
+                            <!-- キャリブレーションテーブル操作ボタン -->
+                            <div class="calibration-table-actions"
+                                style="margin-top:8px; padding:6px 8px; background:#f5f5f5; border-radius:4px; display:flex; align-items:center; gap:8px;">
+                                <span style="font-size:0.85em; color:#666;">操作:</span>
+                                <button class="unified-btn with-label" onclick="copyCalibrationCellsToClipboard()"
+                                    title="コピー (Ctrl+C)">
+                                    <span class="action-icon">📋</span>
+                                    <span class="action-text">コピー</span>
+                                </button>
+                                <button class="unified-btn with-label" onclick="pasteToCalibrationTable()"
+                                    title="貼り付け (Ctrl+V)">
+                                    <span class="action-icon">📄</span>
+                                    <span class="action-text">貼付</span>
+                                </button>
+                                <button class="unified-btn with-label" onclick="deleteCalibrationSelectedCells()"
+                                    title="削除 (Delete)">
+                                    <span class="action-icon">🗑️</span>
+                                    <span class="action-text">削除</span>
+                                </button>
+                                <span style="border-left: 1px solid #ccc; height: 20px; margin: 0 2px;"></span>
+                                <button class="unified-btn with-label" id="btn-undo-cal"
+                                    onclick="window.undoManager.undo()" title="元に戻す (Ctrl+Z)" disabled>
+                                    <span class="action-icon">↩️</span>
+                                    <span class="action-text">戻す</span>
+                                </button>
+                                <button class="unified-btn with-label" id="btn-redo-cal"
+                                    onclick="window.undoManager.redo()" title="やり直す (Ctrl+Y)" disabled>
+                                    <span class="action-icon">↪️</span>
+                                    <span class="action-text">やり直す</span>
+                                </button>
+                            </div>
+                            <!-- 誤差色分けの凡例 -->
+                            <div id="calibration-error-legend"
+                                style="margin: 5px 20px 20px 0px; font-size: 0.9em; display: flex; gap: 15px; align-items: center; color: #555;">
+                                <span style="font-weight: 600; margin-right: 5px;">【誤差表示】</span>
+                                <span><span
+                                        style="display: inline-block; width: 12px; height: 12px; background-color: #d4edda; margin-right: 4px; border: 1px solid #c3e6cb;"></span><span
+                                        style="color: #155724;">2cm未満</span></span>
+                                <span><span
+                                        style="display: inline-block; width: 12px; height: 12px; background-color: #fff3cd; margin-right: 4px; border: 1px solid #ffeeba;"></span><span
+                                        style="color: #856404;">2cm〜5cm未満</span></span>
+                                <span><span
+                                        style="display: inline-block; width: 12px; height: 12px; background-color: #f8d7da; margin-right: 4px; border: 1px solid #f5c6cb;"></span><span
+                                        style="color: #721c24;">5cm以上</span></span>
+                                <span style="font-size: 0.85em; margin-left: auto;">(※絶対値評価)</span>
+                            </div>
+                            <!-- 2D DLT ステレオ用パネル -->
+                            <div id="dlt2d-stereo-panel" style="display:none; margin-top:8px;">
+                                <div class="stereo-inputs" style="display:flex; gap:16px; flex-wrap:wrap;">
+                                    <div>
+                                        <label>カメラ1フレーム範囲</label>
+                                        <input id="cam1-start" type="number" min="1" value="1" style="width:90px;"> 〜
+                                        <input id="cam1-end" type="number" min="1" value="700" style="width:90px;">
+                                    </div>
+                                    <div>
+                                        <label>カメラ2フレーム範囲</label>
+                                        <input id="cam2-start" type="number" min="1" value="501" style="width:90px;"> 〜
+                                        <input id="cam2-end" type="number" min="1" value="1200" style="width:90px;">
+                                    </div>
+                                    <div>
+                                        <label>重なり区間のブレンド</label>
+                                        <select id="stereo-blend">
+                                            <option value="linear">線形ブレンド（推奨）</option>
+                                            <option value="average">単純平均</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 4点実長換算用のマーカー間距離入力 -->
+                            <div id="four-point-input-container" style="display:none; margin-top:8px;">
+                                <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                                    <label for="marker-distance-input" style="font-size:0.9em; white-space:nowrap;">マーカー間距離 [m]:</label>
+                                    <input type="number" id="marker-distance-input"
+                                        style="width:100px; padding:4px 8px; border:1px solid #ccc; border-radius:4px;"
+                                        step="0.001" min="0" placeholder="1.000" value="1.000">
+                                    <button id="update-scale-factor" class="btn btn-secondary" style="padding:4px 12px; font-size:0.9em;">結果を計算</button>
+                                </div>
+                                <div style="font-size:0.8em; color:#888; margin-top:2px;">対角線の平均長さからスケールファクターを計算します</div>
+                            </div>
+
+                            <!-- カメラ定数算出ボタン -->
+                            <div class="calibration-controls">
+                                <button id="calculate-camera-coefficients" class="btn btn-primary">カメラ定数</button>
+                            </div>
+                        </div>
+
+                        <!-- 3次元CC法 設定部分（テーブルの下に配置） -->
+                        <div id="cc-method-settings" style="display:none; margin-top:12px;">
+                            <!-- 詳細設定は内部デフォルト値で固定（UIは非表示） -->
+                            <select id="cc-initial-guess" style="display:none;"><option value="center-fixed" selected></option></select>
+                            <select id="cc-search-range" style="display:none;"><option value="default" selected></option></select>
+                            <select id="cc-init-method" style="display:none;"><option value="auto" selected></option></select>
+                            <!-- 外部カメラパラメータ読み込み -->
+                            <div class="group"
+                                style="display:none;"></div>
+                        </div>
+
+                        <!-- カメラ初期位置設定 -->
+                        <div id="cc-camera-positions" class="section"
+                            style="margin-top:8px; padding:8px; border:1px solid #ddd; border-radius:4px; background:#f9f9f9;">
+                            <h4 style="margin:0 0 8px 0; font-size:0.95em;">カメラ初期位置（実空間座標系）</h4>
+                            <div
+                                style="display:grid; grid-template-columns: auto repeat(3, 1fr); gap:6px 12px; align-items:center;">
+                                <!-- ヘッダー -->
+                                <span></span>
+                                <span style="font-weight:bold; font-size:0.85em;">X0 (m)</span>
+                                <span style="font-weight:bold; font-size:0.85em;">Y0 (m)</span>
+                                <span style="font-weight:bold; font-size:0.85em;">Z0 (m)</span>
+                                <!-- カメラ1 -->
+                                <label style="font-weight:500;">カメラ1:</label>
+                                <input type="number" id="cc-cam1-x" value="-40" step="0.1" style="width:80px;">
+                                <input type="number" id="cc-cam1-y" value="-10" step="0.1" style="width:80px;">
+                                <input type="number" id="cc-cam1-z" value="13" step="0.1" style="width:80px;">
+                                <!-- カメラ2 -->
+                                <label style="font-weight:500;">カメラ2:</label>
+                                <input type="number" id="cc-cam2-x" value="40" step="0.1" style="width:80px;">
+                                <input type="number" id="cc-cam2-y" value="-10" step="0.1" style="width:80px;">
+                                <input type="number" id="cc-cam2-z" value="13" step="0.1" style="width:80px;">
+                            </div>
+                            <div style="margin-top:6px; font-size:0.8em; color:#666;">
+                                ※ カメラのおおよその設置位置を入力してください。探索範囲の中心として使用されます。
+                            </div>
+                        </div>
+
+                        <div id="cc-actions" class="section"
+                            style="display:flex; gap:8px; align-items:center; margin-top:8px;">
+                            <button id="cc-run" class="btn btn-primary">CC法キャリブレーション実行</button>
+                            <button id="cc-cancel" class="btn btn-secondary">中止</button>
+                            <span id="cc-status" class="status-text"></span>
+                        </div>
+
+                        <div id="cc-two-step-container" style="display:none;">
+                            <input type="checkbox" id="cc-two-step">
+                        </div>
+
+                        <div id="cc-progress" class="section" style="margin-top:8px;">
+                            <div class="progress-bar">
+                                <div id="cc-progress-fill" class="progress-fill"></div>
+                            </div>
+                            <div class="progress-stats" style="margin-top:4px; display:flex; gap:12px;">
+                                <span>世代: <span id="cc-gen">0</span></span>
+                                <span>最良誤差: <span id="cc-best">-</span> px</span>
+                            </div>
+                            <pre id="cc-log" class="log-panel" style="max-height:120px; overflow:auto;"></pre>
+                        </div>
+
+                        <div id="cc-method-results-container" class="section" style="display:none; margin-top:8px;">
+
+                            <!-- 品質サマリーカード -->
+                            <div id="cc-quality-card" class="calib-quality-card">
+                                <div class="calib-quality-header">
+                                    <button onclick="show3DCCMethodView()" class="btn btn-secondary" style="padding:2px 10px; font-size:0.85em; margin-right:8px;">
+                                        <span class="material-symbols-outlined" style="font-size:16px; vertical-align:middle;">3d_rotation</span> 3D表示
+                                    </button>
+                                    <span class="material-symbols-outlined calib-quality-icon" id="cc-quality-icon">help_outline</span>
+                                    <div class="calib-quality-title-block">
+                                        <div class="calib-quality-title">CC法キャリブレーション品質</div>
+                                        <div id="cc-quality-badge" class="calib-quality-badge">未実行</div>
+                                    </div>
+                                    <div class="calib-quality-metrics">
+                                        <div class="calib-quality-metric">
+                                            <span class="calib-quality-metric-label">誤差</span>
+                                            <span id="cc-reproj-error" class="calib-quality-metric-value" data-px="-" data-mm="-">-</span>
+                                            <span id="cc-reproj-unit" class="calib-quality-metric-unit calib-unit-toggle" onclick="toggleCalibUnit(this)" title="クリックで単位切替">mm</span>
+                                        </div>
+                                        <div class="calib-quality-metric">
+                                            <span class="calib-quality-metric-label">使用CP数</span>
+                                            <span id="cc-point-count" class="calib-quality-metric-value">-</span>
+                                            <span class="calib-quality-metric-unit">点</span>
+                                        </div>
+                                        <div class="calib-quality-metric">
+                                            <span class="calib-quality-metric-label">実行時間</span>
+                                            <span id="cc-exec-time" class="calib-quality-metric-value">-</span>
+                                            <span class="calib-quality-metric-unit">ms</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="calib-quality-bar-wrap">
+                                    <div class="calib-quality-bar-scale">
+                                        <span>0</span><span>0.5</span><span>1.0</span><span>2.0</span><span>3.0+ px</span>
+                                    </div>
+                                    <div class="calib-quality-bar-track">
+                                        <div class="calib-quality-bar-fill"></div>
+                                        <div id="cc-quality-marker" class="calib-quality-marker"></div>
+                                    </div>
+                                    <div class="calib-quality-bar-zones">
+                                        <div class="calib-zone calib-zone-excellent">非常に良好</div>
+                                        <div class="calib-zone calib-zone-good">良好</div>
+                                        <div class="calib-zone calib-zone-fair">許容範囲</div>
+                                        <div class="calib-zone calib-zone-poor">要再実行</div>
+                                    </div>
+                                </div>
+                                <div id="cc-quality-desc" class="calib-quality-desc">-</div>
+                                <!-- 後方互換用（非表示） -->
+                                <span id="cc-generations" style="display:none"></span>
+                            </div>
+
+                            <!-- カメラパラメータ（折りたたみ） -->
+                            <details style="margin-top:10px;">
+                                <summary style="cursor:pointer; font-weight:600; font-size:0.9em;">算出されたカメラパラメータ</summary>
+                                <div class="calib-param-group" style="margin-top:6px;">
+                                    <table class="cc-params-table">
+                                        <thead>
+                                            <tr><th>パラメータ</th><th>Cam1</th><th>Cam2</th></tr>
+                                        </thead>
+                                        <tbody id="cc-camera-params-body">
+                                            <tr><td colspan="3" style="text-align:center; color:#aaa;">計算結果なし</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </details>
+
+                            <!-- DLTパラメータ（折りたたみ） -->
+                            <details style="margin-top:6px;">
+                                <summary style="cursor:pointer; font-weight:600; font-size:0.9em;">DLTパラメータ (L1-L11)</summary>
+                                <div style="overflow-x:auto; padding:6px 0 2px;">
+                                    <table class="cc-params-table">
+                                        <thead>
+                                            <tr><th>Param</th><th>Cam1</th><th>Cam2</th></tr>
+                                        </thead>
+                                        <tbody id="cc-dlt-params-body">
+                                            <tr><td colspan="3" style="text-align:center; color:#aaa;">データなし</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </details>
+                        </div>
+
+                        <div id="cc-visualization" class="section" style="margin-top:8px;">
+                            <details>
+                                <summary style="cursor:pointer; font-weight:600; font-size:0.9em;">最適化収束グラフ</summary>
+                                <div id="cc-convergence-chart" style="height:250px; width:100%; margin-top:6px;"></div>
+                            </details>
+                        </div>
+                        <!-- ChArUco結果（シングル/ステレオ） -->
+                        <div id="charuco-result-container">
+                            <h3>ChArUcoボード結果</h3>
+
+                            <!-- ステレオキャリブレーション結果（ステレオモード時のみ表示） -->
+                            <div id="stereo-calibration-result-block" style="display:none; margin-bottom:16px;">
+
+                                <!-- アクションボタン -->
+                                <div class="action-group"
+                                    style="margin-bottom:12px; display:flex; gap:8px; flex-wrap:wrap;">
+                                    <button onclick="show3DCalibrationView()" class="btn btn-secondary">
+                                        <span class="material-symbols-outlined">3d_rotation</span> 3D表示
+                                    </button>
+                                    <button onclick="loadStereoCalibration()" class="btn btn-secondary">
+                                        <span class="material-symbols-outlined">folder_open</span> ステレオパラメータ読み込み
+                                    </button>
+                                    <button onclick="saveStereoCalibration()" class="btn btn-primary">
+                                        <span class="material-symbols-outlined">save</span> ステレオパラメータ保存
+                                    </button>
+                                </div>
+
+                                <!-- 品質サマリーカード -->
+                                <div id="stereo-quality-card" class="calib-quality-card">
+                                    <div class="calib-quality-header">
+                                        <span class="material-symbols-outlined calib-quality-icon" id="stereo-quality-icon">help_outline</span>
+                                        <div class="calib-quality-title-block">
+                                            <div class="calib-quality-title">ステレオキャリブレーション品質</div>
+                                            <div id="stereo-quality-badge" class="calib-quality-badge">未実行</div>
+                                        </div>
+                                        <div class="calib-quality-metrics">
+                                            <div class="calib-quality-metric">
+                                                <span class="calib-quality-metric-label">誤差</span>
+                                                <span id="stereo-reproj-big" class="calib-quality-metric-value" data-px="-" data-mm="-">-</span>
+                                                <span id="stereo-reproj-unit" class="calib-quality-metric-unit calib-unit-toggle" onclick="toggleCalibUnit(this)" title="クリックで単位切替">mm</span>
+                                            </div>
+                                            <div class="calib-quality-metric">
+                                                <span class="calib-quality-metric-label">サンプル数</span>
+                                                <span id="stereo-samples-big" class="calib-quality-metric-value">-</span>
+                                                <span class="calib-quality-metric-unit">枚</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="calib-quality-bar-wrap">
+                                        <div class="calib-quality-bar-scale stereo-bar-scale">
+                                            <span>0</span><span>1.0</span><span>2.0</span><span>3.0</span><span>4.0+ px</span>
+                                        </div>
+                                        <div class="calib-quality-bar-track stereo-bar-track">
+                                            <div id="stereo-quality-bar" class="calib-quality-bar-fill"></div>
+                                            <div id="stereo-quality-marker" class="calib-quality-marker"></div>
+                                        </div>
+                                        <div class="calib-quality-bar-zones stereo-bar-zones">
+                                            <div class="calib-zone calib-zone-excellent">非常に良好</div>
+                                            <div class="calib-zone calib-zone-good">良好</div>
+                                            <div class="calib-zone calib-zone-fair">許容範囲</div>
+                                            <div class="calib-zone calib-zone-poor">要再実行</div>
+                                        </div>
+                                    </div>
+                                    <div id="stereo-quality-desc" class="calib-quality-desc">-</div>
+                                </div>
+
+                                <!-- ステレオジオメトリ -->
+                                <div id="stereo-geometry-panel" class="calib-section" style="margin-top:10px;">
+                                    <div class="calib-section-header">
+                                        <span class="material-symbols-outlined">social_distance</span>
+                                        <span class="calib-section-title">ステレオジオメトリ</span>
+                                        <span class="calib-section-hint">2台のカメラ間の相対的な位置・姿勢関係</span>
+                                    </div>
+
+                                    <!-- ベースライン -->
+                                    <div class="calib-param-group">
+                                        <div class="calib-param-group-label">
+                                            ベースライン（カメラ間距離）
+                                            <span class="calib-param-badge" id="stereo-baseline-badge"></span>
+                                        </div>
+                                        <div class="calib-param-hint">並進ベクトル T の長さ。2カメラ間の実測距離と比較して妥当性を確認してください</div>
+                                        <div class="calib-param-row">
+                                            <div class="calib-param-item">
+                                                <span class="calib-param-name">距離</span>
+                                                <span id="stereo-baseline" class="calib-param-value">-</span>
+                                                <span class="calib-param-unit">m</span>
+                                            </div>
+                                            <div class="calib-param-item">
+                                                <span class="calib-param-name">収束角</span>
+                                                <span id="stereo-convergence-angle" class="calib-param-value">-</span>
+                                                <span class="calib-param-unit">°</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- 相対並進ベクトル T -->
+                                    <div class="calib-param-group">
+                                        <div class="calib-param-group-label">相対並進ベクトル T</div>
+                                        <div class="calib-param-hint">Cam1 座標系における Cam2 の位置 [Tx, Ty, Tz]（単位: m）</div>
+                                        <div class="calib-param-row">
+                                            <div class="calib-param-item">
+                                                <span class="calib-param-name">Tx</span>
+                                                <span id="stereo-tx" class="calib-param-value">-</span>
+                                                <span class="calib-param-unit">m</span>
+                                            </div>
+                                            <div class="calib-param-item">
+                                                <span class="calib-param-name">Ty</span>
+                                                <span id="stereo-ty" class="calib-param-value">-</span>
+                                                <span class="calib-param-unit">m</span>
+                                            </div>
+                                            <div class="calib-param-item">
+                                                <span class="calib-param-name">Tz</span>
+                                                <span id="stereo-tz" class="calib-param-value">-</span>
+                                                <span class="calib-param-unit">m</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- 相対回転行列 R -->
+                                <div id="stereo-rotation-panel" class="calib-section" style="margin-top:10px;">
+                                    <div class="calib-section-header">
+                                        <span class="material-symbols-outlined">rotate_90_degrees_ccw</span>
+                                        <span class="calib-section-title">相対回転行列 R</span>
+                                        <span class="calib-section-hint">Cam1 から Cam2 への回転変換（直交行列・行列式=1が正常）</span>
+                                    </div>
+                                    <div class="calib-param-group">
+                                        <div class="calib-param-hint">対角成分が 1 に近く、非対角成分が 0 に近いほど2カメラが平行に近い配置</div>
+                                        <table class="calib-matrix-table">
+                                            <tbody id="stereo-R-table">
+                                                <tr><td>-</td><td>-</td><td>-</td></tr>
+                                                <tr><td>-</td><td>-</td><td>-</td></tr>
+                                                <tr><td>-</td><td>-</td><td>-</td></tr>
+                                            </tbody>
+                                        </table>
+                                        <!-- 後方互換用（非表示） -->
+                                        <span id="stereo-rms" style="display:none"></span>
+                                        <span id="stereo-samples" style="display:none"></span>
+                                        <span id="stereo-R" style="display:none"></span>
+                                        <span id="stereo-T" style="display:none"></span>
+                                    </div>
+                                </div>
+
+                                <!-- 実長換算誤差グラフ（Plotly） -->
+                                <div id="real-length-error-chart" style="width:100%; height:250px; margin-top:12px;"></div>
+                                <!-- ステレオ誤差グラフ（Plotly） -->
+                                <div id="stereo-error-chart" style="width:100%; height:180px; margin-top:12px;"></div>
+                            </div>
+
+                            <div id="charuco-tables">
+                                <div class="charuco-table-block">
+                                    <h4>Cam1</h4>
+                                    <!-- ChArUcoキャリブレーション操作ボタン -->
+                                    <div class="action-group"
+                                        style="margin-bottom:12px; display:flex; gap:8px; flex-wrap:wrap;">
+                                        <button onclick="show3DCalibrationViewCam1()" class="btn btn-secondary">
+                                            <span class="material-symbols-outlined">3d_rotation</span> 3D表示
+                                        </button>
+                                        <button onclick="loadCharucoCalibrationCam1()" class="btn btn-secondary">
+                                            <span class="material-symbols-outlined">folder_open</span> カメラパラメータ読み込み
+                                        </button>
+                                        <button onclick="saveCharucoCalibrationCam1()" class="btn btn-primary">
+                                            <span class="material-symbols-outlined">save</span> カメラパラメータ保存
+                                        </button>
+                                    </div>
+                                    <!-- 読み込み状態カード（ステレオモード用） -->
+                                    <div id="cam1-intrinsic-card" class="intrinsic-status-card intrinsic-not-loaded" style="display:none;">
+                                        <div class="intrinsic-card-header">
+                                            <span class="material-symbols-outlined intrinsic-card-icon" id="cam1-status-icon">error</span>
+                                            <div class="intrinsic-card-main">
+                                                <div id="cam1-intrinsic-status-text" class="intrinsic-card-label">内部パラメータ 未読み込み</div>
+                                                <div id="cam1-intrinsic-status-hint" class="intrinsic-card-hint">「カメラパラメータ読み込み」で .json ファイルを指定してください</div>
+                                            </div>
+                                        </div>
+                                        <!-- パラメータ詳細（読み込み済み時のみ表示） -->
+                                        <div id="cam1-intrinsic-summary" class="intrinsic-card-params" style="display:none;">
+                                            <div class="intrinsic-param-row">
+                                                <span class="intrinsic-param-item"><span class="intrinsic-param-name">サンプル数</span><strong id="cam1-samples">-</strong></span>
+                                                <span class="intrinsic-param-item"><span class="intrinsic-param-name">RMS</span><strong id="cam1-rms">-</strong> <span class="intrinsic-param-unit">px</span></span>
+                                            </div>
+                                            <div class="intrinsic-param-row">
+                                                <span class="intrinsic-param-item"><span class="intrinsic-param-name">fx</span><strong id="cam1-fx">-</strong></span>
+                                                <span class="intrinsic-param-item"><span class="intrinsic-param-name">fy</span><strong id="cam1-fy">-</strong></span>
+                                                <span class="intrinsic-param-item"><span class="intrinsic-param-name">cx</span><strong id="cam1-cx">-</strong></span>
+                                                <span class="intrinsic-param-item"><span class="intrinsic-param-name">cy</span><strong id="cam1-cy">-</strong></span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <!-- 後方互換用（非表示） -->
+                                    <div id="cam1-intrinsic-status" style="display:none;"><span id="cam1-intrinsic-status-compat"></span></div>
+                                    <!-- シングルモード用テーブルとグラフ -->
+                                    <div id="cam1-single-details">
+                                        <table class="calibration-table">
+                                            <thead>
+                                                <tr>
+                                                    <th>ビュー</th>
+                                                    <th>検出コーナー数</th>
+                                                    <th>検出マーカー数</th>
+                                                    <th>距離(原点間)</th>
+                                                    <th>距離(Z成分)</th>
+                                                    <th>距離(面法線)</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="charuco-table-body-cam1"></tbody>
+                                        </table>
+                                        <div id="charuco-error-chart-cam1" style="width:100%; height:220px;"></div>
+                                    </div>
+                                </div>
+                                <div class="charuco-table-block" id="charuco-cam2-block" style="display:none;">
+                                    <h4>Cam2</h4>
+                                    <!-- ChArUcoキャリブレーション操作ボタン（Cam2用） -->
+                                    <div class="action-group"
+                                        style="margin-bottom:12px; display:flex; gap:8px; flex-wrap:wrap;">
+                                        <button onclick="show3DCalibrationViewCam2()" class="btn btn-secondary">
+                                            <span class="material-symbols-outlined">3d_rotation</span> 3D表示
+                                        </button>
+                                        <button onclick="loadCharucoCalibrationCam2()" class="btn btn-secondary">
+                                            <span class="material-symbols-outlined">folder_open</span> カメラパラメータ読み込み
+                                        </button>
+                                        <button onclick="saveCharucoCalibrationCam2()" class="btn btn-primary">
+                                            <span class="material-symbols-outlined">save</span> カメラパラメータ保存
+                                        </button>
+                                    </div>
+                                    <!-- 読み込み状態カード（ステレオモード用） -->
+                                    <div id="cam2-intrinsic-card" class="intrinsic-status-card intrinsic-not-loaded" style="display:none;">
+                                        <div class="intrinsic-card-header">
+                                            <span class="material-symbols-outlined intrinsic-card-icon" id="cam2-status-icon">error</span>
+                                            <div class="intrinsic-card-main">
+                                                <div id="cam2-intrinsic-status-text" class="intrinsic-card-label">内部パラメータ 未読み込み</div>
+                                                <div id="cam2-intrinsic-status-hint" class="intrinsic-card-hint">「カメラパラメータ読み込み」で .json ファイルを指定してください</div>
+                                            </div>
+                                        </div>
+                                        <!-- パラメータ詳細（読み込み済み時のみ表示） -->
+                                        <div id="cam2-intrinsic-summary" class="intrinsic-card-params" style="display:none;">
+                                            <div class="intrinsic-param-row">
+                                                <span class="intrinsic-param-item"><span class="intrinsic-param-name">サンプル数</span><strong id="cam2-samples">-</strong></span>
+                                                <span class="intrinsic-param-item"><span class="intrinsic-param-name">RMS</span><strong id="cam2-rms">-</strong> <span class="intrinsic-param-unit">px</span></span>
+                                            </div>
+                                            <div class="intrinsic-param-row">
+                                                <span class="intrinsic-param-item"><span class="intrinsic-param-name">fx</span><strong id="cam2-fx">-</strong></span>
+                                                <span class="intrinsic-param-item"><span class="intrinsic-param-name">fy</span><strong id="cam2-fy">-</strong></span>
+                                                <span class="intrinsic-param-item"><span class="intrinsic-param-name">cx</span><strong id="cam2-cx">-</strong></span>
+                                                <span class="intrinsic-param-item"><span class="intrinsic-param-name">cy</span><strong id="cam2-cy">-</strong></span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <!-- 後方互換用（非表示） -->
+                                    <div id="cam2-intrinsic-status" style="display:none;"><span id="cam2-intrinsic-status-compat"></span></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 内部・外部パラメータ -->
+                        <div id="intrinsic-extrinsic-container" style="margin-top:12px;">
+
+                            <!-- 品質サマリーカード -->
+                            <div id="calib-quality-card" class="calib-quality-card">
+                                <div class="calib-quality-header">
+                                    <span class="material-symbols-outlined calib-quality-icon" id="calib-quality-icon">help_outline</span>
+                                    <div class="calib-quality-title-block">
+                                        <div class="calib-quality-title">キャリブレーション品質</div>
+                                        <div id="calib-quality-badge" class="calib-quality-badge">未実行</div>
+                                    </div>
+                                    <div class="calib-quality-metrics">
+                                        <div class="calib-quality-metric">
+                                            <span class="calib-quality-metric-label">誤差</span>
+                                            <span id="calib-reproj-big" class="calib-quality-metric-value" data-px="-" data-mm="-">-</span>
+                                            <span id="calib-reproj-unit" class="calib-quality-metric-unit calib-unit-toggle" onclick="toggleCalibUnit(this)" title="クリックで単位切替">mm</span>
+                                        </div>
+                                        <div class="calib-quality-metric">
+                                            <span class="calib-quality-metric-label">サンプル数</span>
+                                            <span id="calib-samples-big" class="calib-quality-metric-value">-</span>
+                                            <span class="calib-quality-metric-unit">枚</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="calib-quality-bar-wrap">
+                                    <div class="calib-quality-bar-scale">
+                                        <span>0</span><span>0.5</span><span>1.0</span><span>2.0</span><span>3.0+ px</span>
+                                    </div>
+                                    <div class="calib-quality-bar-track">
+                                        <div id="calib-quality-bar" class="calib-quality-bar-fill"></div>
+                                        <div id="calib-quality-marker" class="calib-quality-marker"></div>
+                                    </div>
+                                    <div class="calib-quality-bar-zones">
+                                        <div class="calib-zone calib-zone-excellent">非常に良好</div>
+                                        <div class="calib-zone calib-zone-good">良好</div>
+                                        <div class="calib-zone calib-zone-fair">許容範囲</div>
+                                        <div class="calib-zone calib-zone-poor">要再実行</div>
+                                    </div>
+                                </div>
+                                <div id="calib-quality-desc" class="calib-quality-desc">-</div>
+                            </div>
+
+                            <!-- 内部パラメータ -->
+                            <div id="calibration-result-panel" class="calib-section">
+                                <div class="calib-section-header">
+                                    <span class="material-symbols-outlined">camera_indoor</span>
+                                    <span class="calib-section-title">内部パラメータ</span>
+                                    <span class="calib-section-hint">レンズとセンサーの光学特性を表す固有値</span>
+                                </div>
+
+                                <!-- 焦点距離 -->
+                                <div class="calib-param-group">
+                                    <div class="calib-param-group-label">
+                                        焦点距離
+                                        <span class="calib-param-badge" id="calib-focal-ratio-badge"></span>
+                                    </div>
+                                    <div class="calib-param-hint">センサー上での焦点距離（ピクセル単位）。fx≈fyなら正方形ピクセルで良好</div>
+                                    <div class="calib-param-row">
+                                        <div class="calib-param-item">
+                                            <span class="calib-param-name">fx</span>
+                                            <span id="calib-fx" class="calib-param-value">-</span>
+                                            <span class="calib-param-unit">px</span>
+                                        </div>
+                                        <div class="calib-param-item">
+                                            <span class="calib-param-name">fy</span>
+                                            <span id="calib-fy" class="calib-param-value">-</span>
+                                            <span class="calib-param-unit">px</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- 主点 -->
+                                <div class="calib-param-group">
+                                    <div class="calib-param-group-label">
+                                        主点（光学中心）
+                                        <span class="calib-param-badge" id="calib-principal-badge"></span>
+                                    </div>
+                                    <div class="calib-param-hint">光軸が画像面と交わる点。解像度の半分（画像中心）に近い値が正常</div>
+                                    <div class="calib-param-row">
+                                        <div class="calib-param-item">
+                                            <span class="calib-param-name">cx</span>
+                                            <span id="calib-cx" class="calib-param-value">-</span>
+                                            <span class="calib-param-unit">px</span>
+                                        </div>
+                                        <div class="calib-param-item">
+                                            <span class="calib-param-name">cy</span>
+                                            <span id="calib-cy" class="calib-param-value">-</span>
+                                            <span class="calib-param-unit">px</span>
+                                        </div>
+                                        <div class="calib-param-item calib-param-item-secondary">
+                                            <span class="calib-param-name">中心からのずれ</span>
+                                            <span id="calib-center-offset" class="calib-param-value">-</span>
+                                            <span class="calib-param-unit">px</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- 歪み係数 -->
+                                <div class="calib-param-group">
+                                    <div class="calib-param-group-label">
+                                        歪み係数
+                                        <span class="calib-param-badge" id="calib-distortion-badge"></span>
+                                    </div>
+                                    <div class="calib-param-hint">k = 放射歪み（k1&lt;0: 樽型 / k1&gt;0: 糸巻型）　p = 接線歪み（レンズ傾き）</div>
+                                    <div class="calib-param-row">
+                                        <div class="calib-param-item">
+                                            <span class="calib-param-name">k1</span>
+                                            <span id="calib-dist-k1" class="calib-param-value">-</span>
+                                        </div>
+                                        <div class="calib-param-item">
+                                            <span class="calib-param-name">k2</span>
+                                            <span id="calib-dist-k2" class="calib-param-value">-</span>
+                                        </div>
+                                        <div class="calib-param-item">
+                                            <span class="calib-param-name">p1</span>
+                                            <span id="calib-dist-p1" class="calib-param-value">-</span>
+                                        </div>
+                                        <div class="calib-param-item">
+                                            <span class="calib-param-name">p2</span>
+                                            <span id="calib-dist-p2" class="calib-param-value">-</span>
+                                        </div>
+                                        <div class="calib-param-item">
+                                            <span class="calib-param-name">k3</span>
+                                            <span id="calib-dist-k3" class="calib-param-value">-</span>
+                                        </div>
+                                    </div>
+                                    <!-- 後方互換用（非表示） -->
+                                    <span id="calib-dist" style="display:none"></span>
+                                    <span id="calib-samples" style="display:none"></span>
+                                    <span id="calib-reproj" style="display:none"></span>
+                                </div>
+                            </div>
+
+                            <!-- 外部パラメータ -->
+                            <div id="extrinsic-result-panel" class="calib-section" style="margin-top:10px;">
+                                <div class="calib-section-header">
+                                    <span class="material-symbols-outlined">view_in_ar</span>
+                                    <span class="calib-section-title">外部パラメータ</span>
+                                    <span class="calib-section-hint">各撮影ビューにおけるボードの位置と姿勢</span>
+                                    <div class="calib-view-select-wrap">
+                                        <label for="calib-view-select">ビュー</label>
+                                        <select id="calib-view-select"></select>
+                                    </div>
+                                </div>
+
+                                <div class="calib-param-row calib-param-row-2col">
+                                    <div class="calib-param-group">
+                                        <div class="calib-param-group-label">回転ベクトル rvec</div>
+                                        <div class="calib-param-hint">Rodrigues形式でのボードの向き [rx, ry, rz]（単位: rad）</div>
+                                        <code id="calib-rvec" class="calib-code-value">-</code>
+                                    </div>
+                                    <div class="calib-param-group">
+                                        <div class="calib-param-group-label">並進ベクトル tvec</div>
+                                        <div class="calib-param-hint">カメラ座標系でのボード原点位置 [tx, ty, tz]（単位: m）</div>
+                                        <code id="calib-tvec" class="calib-code-value">-</code>
+                                    </div>
+                                </div>
+
+                                <div class="calib-param-group" style="margin-top:8px;">
+                                    <div class="calib-param-group-label">回転行列 R（3×3）</div>
+                                    <div class="calib-param-hint">rvecをRodrigues変換した行列。行列式=1かつ直交行列であれば正常</div>
+                                    <table class="calib-matrix-table">
+                                        <tbody id="calib-R">
+                                            <tr id="calib-R-row0"><td>-</td><td>-</td><td>-</td></tr>
+                                            <tr id="calib-R-row1"><td>-</td><td>-</td><td>-</td></tr>
+                                            <tr id="calib-R-row2"><td>-</td><td>-</td><td>-</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                <div class="calib-param-group" style="margin-top:8px;">
+                                    <div class="calib-param-group-label">カメラ〜ボード間距離</div>
+                                    <div class="calib-param-hint">並進ベクトルから算出した撮影距離の推定値</div>
+                                    <div class="calib-param-row">
+                                        <div class="calib-param-item">
+                                            <span class="calib-param-name">原点間</span>
+                                            <span id="calib-dist-origin" class="calib-param-value">-</span>
+                                            <span class="calib-param-unit">m</span>
+                                        </div>
+                                        <div class="calib-param-item">
+                                            <span class="calib-param-name">Z成分</span>
+                                            <span id="calib-dist-z" class="calib-param-value">-</span>
+                                            <span class="calib-param-unit">m</span>
+                                        </div>
+                                        <div class="calib-param-item">
+                                            <span class="calib-param-name">面法線</span>
+                                            <span id="calib-dist-plane" class="calib-param-value">-</span>
+                                            <span class="calib-param-unit">m</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 実長換算誤差グラフ（Plotly） -->
+
+
+                        <!-- 2次元DLT法のカメラ定数と誤差検証表示エリア -->
+                        <div class="dlt-calibration-results" id="dlt2d-results-container">
+                            <!-- 品質カード（CC法・ChArUco法と統一デザイン） -->
+                            <div id="dlt2d-quality-card" class="calib-quality-card">
+                                <div class="calib-quality-header">
+                                    <span class="material-symbols-outlined calib-quality-icon" id="dlt2d-quality-icon">help_outline</span>
+                                    <div class="calib-quality-title-block">
+                                        <div class="calib-quality-title">2次元DLT法 キャリブレーション品質</div>
+                                        <div id="dlt2d-quality-badge" class="calib-quality-badge">未実行</div>
+                                    </div>
+                                    <div class="calib-quality-metrics">
+                                        <div class="calib-quality-metric">
+                                            <span class="calib-quality-metric-label">誤差</span>
+                                            <span id="dlt2d-reproj-error" class="calib-quality-metric-value" data-px="-" data-mm="-">-</span>
+                                            <span id="dlt2d-reproj-unit" class="calib-quality-metric-unit calib-unit-toggle" onclick="toggleCalibUnit(this)" title="クリックで単位切替">mm</span>
+                                        </div>
+                                        <div class="calib-quality-metric">
+                                            <span class="calib-quality-metric-label">較正点数</span>
+                                            <span id="dlt2d-point-count" class="calib-quality-metric-value">-</span>
+                                            <span class="calib-quality-metric-unit">点</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="calib-quality-bar-wrap">
+                                    <div class="calib-quality-bar-scale">
+                                        <span>0</span><span>5</span><span>10</span><span>20</span><span>30+ mm</span>
+                                    </div>
+                                    <div class="calib-quality-bar-track">
+                                        <div class="calib-quality-bar-fill"></div>
+                                        <div id="dlt2d-quality-marker" class="calib-quality-marker"></div>
+                                    </div>
+                                    <div class="calib-quality-bar-zones">
+                                        <div class="calib-zone calib-zone-excellent">非常に良好</div>
+                                        <div class="calib-zone calib-zone-good">良好</div>
+                                        <div class="calib-zone calib-zone-fair">許容範囲</div>
+                                        <div class="calib-zone calib-zone-poor">要再実行</div>
+                                    </div>
+                                </div>
+                                <div id="dlt2d-quality-desc" class="calib-quality-desc">-</div>
+                            </div>
+
+                            <!-- カメラ定数（折りたたみ） -->
+                            <details style="margin-top:10px;">
+                                <summary style="cursor:pointer; font-weight:600; font-size:0.9em;">DLTパラメータ (A-H)</summary>
+                                <div style="display:flex; gap:16px; flex-wrap:wrap; margin-top:6px;">
+                                    <div>
+                                        <h4 style="margin:0 0 4px; font-size:0.85em;">Cam1</h4>
+                                        <div class="coefficients-grid">
+                                            <div class="coefficient-item"><label>A:</label><span id="coeff-a">-</span></div>
+                                            <div class="coefficient-item"><label>B:</label><span id="coeff-b">-</span></div>
+                                            <div class="coefficient-item"><label>C:</label><span id="coeff-c">-</span></div>
+                                            <div class="coefficient-item"><label>D:</label><span id="coeff-d">-</span></div>
+                                            <div class="coefficient-item"><label>E:</label><span id="coeff-e">-</span></div>
+                                            <div class="coefficient-item"><label>F:</label><span id="coeff-f">-</span></div>
+                                            <div class="coefficient-item"><label>G:</label><span id="coeff-g">-</span></div>
+                                            <div class="coefficient-item"><label>H:</label><span id="coeff-h">-</span></div>
+                                        </div>
+                                    </div>
+                                    <div id="dlt2d-cam2-coeffs">
+                                        <h4 style="margin:0 0 4px; font-size:0.85em;">Cam2</h4>
+                                        <div class="coefficients-grid">
+                                            <div class="coefficient-item"><label>A:</label><span id="coeff-a-cam2">-</span></div>
+                                            <div class="coefficient-item"><label>B:</label><span id="coeff-b-cam2">-</span></div>
+                                            <div class="coefficient-item"><label>C:</label><span id="coeff-c-cam2">-</span></div>
+                                            <div class="coefficient-item"><label>D:</label><span id="coeff-d-cam2">-</span></div>
+                                            <div class="coefficient-item"><label>E:</label><span id="coeff-e-cam2">-</span></div>
+                                            <div class="coefficient-item"><label>F:</label><span id="coeff-f-cam2">-</span></div>
+                                            <div class="coefficient-item"><label>G:</label><span id="coeff-g-cam2">-</span></div>
+                                            <div class="coefficient-item"><label>H:</label><span id="coeff-h-cam2">-</span></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </details>
+
+                            <!-- 誤差詳細（折りたたみ） -->
+                            <details style="margin-top:6px;">
+                                <summary style="cursor:pointer; font-weight:600; font-size:0.9em;">誤差詳細</summary>
+                                <div style="display:flex; gap:16px; flex-wrap:wrap; margin-top:6px;">
+                                    <div>
+                                        <h4 style="margin:0 0 4px; font-size:0.85em;">Cam1</h4>
+                                        <div class="error-grid">
+                                            <div class="error-item"><label>X方向:</label><span id="error-x">-</span></div>
+                                            <div class="error-item"><label>Y方向:</label><span id="error-y">-</span></div>
+                                            <div class="error-item"><label>平均:</label><span id="error-mean">-</span></div>
+                                            <div class="error-item"><label>最大:</label><span id="error-max">-</span></div>
+                                        </div>
+                                    </div>
+                                    <div id="dlt2d-cam2-errors">
+                                        <h4 style="margin:0 0 4px; font-size:0.85em;">Cam2</h4>
+                                        <div class="error-grid">
+                                            <div class="error-item"><label>X方向:</label><span id="error-x-cam2">-</span></div>
+                                            <div class="error-item"><label>Y方向:</label><span id="error-y-cam2">-</span></div>
+                                            <div class="error-item"><label>平均:</label><span id="error-mean-cam2">-</span></div>
+                                            <div class="error-item"><label>最大:</label><span id="error-max-cam2">-</span></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </details>
+                        </div>
+
+                        <!-- 3次元DLT法結果（新規） -->
+                        <div class="dlt-calibration-results" id="dlt3d-results-container" style="display:none;">
+                            <!-- 品質カード（CC法・ChArUco法と統一デザイン） -->
+                            <div id="dlt3d-quality-card" class="calib-quality-card">
+                                <div class="calib-quality-header">
+                                    <button onclick="show3DDLTMethodView()" class="btn btn-secondary" style="padding:2px 10px; font-size:0.85em; margin-right:8px;">
+                                        <span class="material-symbols-outlined" style="font-size:16px; vertical-align:middle;">3d_rotation</span> 3D表示
+                                    </button>
+                                    <span class="material-symbols-outlined calib-quality-icon" id="dlt3d-quality-icon">help_outline</span>
+                                    <div class="calib-quality-title-block">
+                                        <div class="calib-quality-title">3次元DLT法 キャリブレーション品質</div>
+                                        <div id="dlt3d-quality-badge" class="calib-quality-badge">未実行</div>
+                                    </div>
+                                    <div class="calib-quality-metrics">
+                                        <div class="calib-quality-metric">
+                                            <span class="calib-quality-metric-label">誤差</span>
+                                            <span id="dlt3d-reproj-error" class="calib-quality-metric-value" data-px="-" data-mm="-">-</span>
+                                            <span id="dlt3d-reproj-unit" class="calib-quality-metric-unit calib-unit-toggle" onclick="toggleCalibUnit(this)" title="クリックで単位切替">mm</span>
+                                        </div>
+                                        <div class="calib-quality-metric">
+                                            <span class="calib-quality-metric-label">較正点数</span>
+                                            <span id="dlt3d-point-count-metric" class="calib-quality-metric-value">-</span>
+                                            <span class="calib-quality-metric-unit">点</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="calib-quality-bar-wrap">
+                                    <div class="calib-quality-bar-scale">
+                                        <span>0</span><span>5</span><span>10</span><span>20</span><span>30+ mm</span>
+                                    </div>
+                                    <div class="calib-quality-bar-track">
+                                        <div class="calib-quality-bar-fill"></div>
+                                        <div id="dlt3d-quality-marker" class="calib-quality-marker"></div>
+                                    </div>
+                                    <div class="calib-quality-bar-zones">
+                                        <div class="calib-zone calib-zone-excellent">非常に良好</div>
+                                        <div class="calib-zone calib-zone-good">良好</div>
+                                        <div class="calib-zone calib-zone-fair">許容範囲</div>
+                                        <div class="calib-zone calib-zone-poor">要再実行</div>
+                                    </div>
+                                </div>
+                                <div id="dlt3d-quality-desc" class="calib-quality-desc">-</div>
+                            </div>
+
+                            <div class="dlt-results-container">
+                                <!-- camera-coefficients: Cam1/Cam2 × A〜K (折りたたみ) -->
+                                <details>
+                                    <summary style="cursor:pointer; font-weight:600; font-size:0.9em;">DLTパラメータ (A-K)</summary>
+                                    <div style="display:flex; gap:16px; flex-wrap:wrap;">
+                                        <div>
+                                            <div style="font-weight:600;margin-bottom:6px;">Cam1</div>
+                                            <div class="coefficients-grid">
+                                                <div class="coefficient-item"><label>A:</label><span
+                                                        id="d3-cam1-A">-</span>
+                                                </div>
+                                                <div class="coefficient-item"><label>B:</label><span
+                                                        id="d3-cam1-B">-</span>
+                                                </div>
+                                                <div class="coefficient-item"><label>C:</label><span
+                                                        id="d3-cam1-C">-</span>
+                                                </div>
+                                                <div class="coefficient-item"><label>D:</label><span
+                                                        id="d3-cam1-D">-</span>
+                                                </div>
+                                                <div class="coefficient-item"><label>E:</label><span
+                                                        id="d3-cam1-E">-</span>
+                                                </div>
+                                                <div class="coefficient-item"><label>F:</label><span
+                                                        id="d3-cam1-F">-</span>
+                                                </div>
+                                                <div class="coefficient-item"><label>G:</label><span
+                                                        id="d3-cam1-G">-</span>
+                                                </div>
+                                                <div class="coefficient-item"><label>H:</label><span
+                                                        id="d3-cam1-H">-</span>
+                                                </div>
+                                                <div class="coefficient-item"><label>I:</label><span
+                                                        id="d3-cam1-I">-</span>
+                                                </div>
+                                                <div class="coefficient-item"><label>J:</label><span
+                                                        id="d3-cam1-J">-</span>
+                                                </div>
+                                                <div class="coefficient-item"><label>K:</label><span
+                                                        id="d3-cam1-K">-</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <div style="font-weight:600;margin-bottom:6px;">Cam2</div>
+                                            <div class="coefficients-grid">
+                                                <div class="coefficient-item"><label>A:</label><span
+                                                        id="d3-cam2-A">-</span>
+                                                </div>
+                                                <div class="coefficient-item"><label>B:</label><span
+                                                        id="d3-cam2-B">-</span>
+                                                </div>
+                                                <div class="coefficient-item"><label>C:</label><span
+                                                        id="d3-cam2-C">-</span>
+                                                </div>
+                                                <div class="coefficient-item"><label>D:</label><span
+                                                        id="d3-cam2-D">-</span>
+                                                </div>
+                                                <div class="coefficient-item"><label>E:</label><span
+                                                        id="d3-cam2-E">-</span>
+                                                </div>
+                                                <div class="coefficient-item"><label>F:</label><span
+                                                        id="d3-cam2-F">-</span>
+                                                </div>
+                                                <div class="coefficient-item"><label>G:</label><span
+                                                        id="d3-cam2-G">-</span>
+                                                </div>
+                                                <div class="coefficient-item"><label>H:</label><span
+                                                        id="d3-cam2-H">-</span>
+                                                </div>
+                                                <div class="coefficient-item"><label>I:</label><span
+                                                        id="d3-cam2-I">-</span>
+                                                </div>
+                                                <div class="coefficient-item"><label>J:</label><span
+                                                        id="d3-cam2-J">-</span>
+                                                </div>
+                                                <div class="coefficient-item"><label>K:</label><span
+                                                        id="d3-cam2-K">-</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </details>
+
+                                <!-- 誤差詳細（折りたたみ） -->
+                                <details style="margin-top:6px;">
+                                    <summary style="cursor:pointer; font-weight:600; font-size:0.9em;">誤差詳細</summary>
+                                    <div class="error-grid" style="margin-top:6px;">
+                                        <div class="error-item"><label>X方向:</label><span id="d3-se-x">-</span></div>
+                                        <div class="error-item"><label>Y方向:</label><span id="d3-se-y">-</span></div>
+                                        <div class="error-item"><label>Z方向:</label><span id="d3-se-z">-</span></div>
+                                        <div class="error-item"><label>平均:</label><span id="d3-mean">-</span></div>
+                                        <div class="error-item"><label>最大:</label><span id="d3-max">-</span></div>
+                                    </div>
+                                </details>
+                            </div>
+                        </div>
+
+                        <!-- Vicon XCP 三角測量パネル -->
+                        <div id="vicon-xcp-panel" style="display:none; margin-top:12px;">
+                            <h3>Vicon XCP 三角測量</h3>
+                            <div class="action-group"
+                                style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+                                <button id="load-vicon-xcp-btn" class="btn btn-secondary">
+                                    <span class="material-symbols-outlined">folder_open</span>XCPファイルを読み込む
+                                </button>
+                                <span id="vicon-xcp-file-label" class="file-label">未読込</span>
+                            </div>
+                            <div class="action-group"
+                                style="display:flex; gap:12px; flex-wrap:wrap; align-items:center;">
+                                <label>カメラ1</label>
+                                <select id="vicon-camera-a">
+                                    <option value="">-- 選択 --</option>
+                                </select>
+                                <label>カメラ2</label>
+                                <select id="vicon-camera-b">
+                                    <option value="">-- 選択 --</option>
+                                </select>
+                            </div>
+                            <div class="action-group" style="display:flex; gap:12px; align-items:center;">
+                                <button id="run-vicon-triangulation" class="btn btn-primary" disabled>三角測量実行</button>
+                            </div>
+                            <div class="vicon-summary notice-box" id="vicon-xcp-summary" style="margin-top:8px;">
+                                <p>Vicon XCPキャリブレーションの概要がここに表示されます。</p>
+                            </div>
+                            <div class="vicon-error-summary" style="margin-top:12px;">
+                                <h4>再投影誤差サマリ</h4>
+                                <div style="display:flex; gap:20px; flex-wrap:wrap;">
+                                    <div>Cam1 平均: <span id="vicon-error-cam1-mean">-</span> px / 最大: <span
+                                            id="vicon-error-cam1-max">-</span> px</div>
+                                    <div>Cam2 平均: <span id="vicon-error-cam2-mean">-</span> px / 最大: <span
+                                            id="vicon-error-cam2-max">-</span> px</div>
+                                </div>
+                            </div>
+                            <div class="vicon-error-table-container" style="margin-top:12px;">
+                                <h4>フレーム別誤差</h4>
+                                <table class="calibration-table">
+                                    <thead>
+                                        <tr>
+                                            <th>フレーム</th>
+                                            <th>ポイントID</th>
+                                            <th>Cam1 誤差 [px]</th>
+                                            <th>Cam2 誤差 [px]</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="vicon-error-table-body"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- プレビュータブ -->
+                    <div id="preview-tab" class="tab-panel">
+                        <div class="preview-content">
+                            <div class="video-container">
+                                <video id="preview-video" preload="metadata">
+                                    お使いのブラウザは動画タグをサポートしていません。
+                                </video>
+                                <div class="info-overlay">
+                                    <span id="preview-frame-info" class="frame-info">フレーム: 0/0</span>
+                                </div>
+                            </div>
+
+                            <!-- 再生コントロール -->
+                            <div class="preview-controls">
+                                <div class="control-row">
+                                    <button id="preview-frame-back" class="btn btn-small" title="1コマ戻し">❮</button>
+                                    <button id="preview-play-pause" class="btn btn-small" title="再生/一時停止">▶</button>
+                                    <button id="preview-frame-forward" class="btn btn-small" title="1コマ送り">❯</button>
+                                    <button id="preview-stop" class="btn btn-small" title="停止">⏹</button>
+                                    <div class="separator"></div>
+                                    <div class="speed-control">
+                                        <span class="speed-label">速度:</span>
+                                        <button id="preview-speed-down" class="btn btn-small" title="速度ダウン">-</button>
+                                        <span id="preview-speed-display">1.0x</span>
+                                        <button id="preview-speed-up" class="btn btn-small" title="速度アップ">+</button>
+                                        <button id="preview-speed-reset" class="btn btn-small" title="速度リセット">↻</button>
+                                    </div>
+                                </div>
+                                <div class="timeline-row">
+                                    <span id="preview-time-display">00:00.000</span>
+                                    <input type="range" id="preview-timeline-slider" min="0" max="100" value="0"
+                                        step="0.01">
+                                    <span id="preview-duration-display">00:00.000</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+
+
+                    <!-- 分析結果タブ -->
+                    <div id="analysis-tab" class="tab-panel">
+                        <div class="analysis-content">
+                            <h3>分析結果</h3>
+
+                            <!-- 外部パラメーター選択セクション -->
+                            <div class="extrinsic-params-section" id="extrinsic-params-section"
+                                style="margin-bottom: 20px; padding: 16px; background: #f8f9fa; border-radius: 8px; border: 1px solid #dee2e6;">
+                                <h4 style="margin-top: 0; margin-bottom: 12px; font-size: 1.1em; color: #333;">
+                                    外部パラメーター設定</h4>
+                                <div class="extrinsic-params-controls">
+                                    <label for="analysis-board-select"
+                                        style="display: block; margin-bottom: 8px; font-weight: 500; color: #555;">動作平面上に置いたキャリブレーションパターンを選択してください:</label>
+                                    <div class="select-group"
+                                        style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                                        <select id="analysis-board-select" class="form-control"
+                                            style="flex: 1; min-width: 250px;">
+                                            <option value="">-- ボードを選択 --</option>
+                                        </select>
+                                        <button id="show-analysis-board-frame" class="btn btn-secondary"
+                                            style="display: none;">
+                                            <span class="material-symbols-outlined"
+                                                style="font-size: 18px; vertical-align: middle;">visibility</span>
+                                            フレーム表示
+                                        </button>
+                                    </div>
+                                    <div id="selected-extrinsic-info" class="extrinsic-info"
+                                        style="display: none; margin-top: 12px; padding: 12px; background: #fff; border-radius: 4px; border: 1px solid #dee2e6;">
+                                        <p style="margin: 4px 0;"><strong>選択中のボード:</strong> <span
+                                                id="selected-board-name">-</span></p>
+                                        <p style="margin: 4px 0; font-family: monospace; font-size: 0.9em;">rvec: <span
+                                                id="selected-rvec">-</span></p>
+                                        <p style="margin: 4px 0; font-family: monospace; font-size: 0.9em;">tvec: <span
+                                                id="selected-tvec">-</span></p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 実長換算セクション -->
+                            <div class="real-length-section">
+                                <h4>実長換算データ</h4>
+                                <div class="real-length-controls">
+                                    <button id="calculate-real-length" class="btn btn-primary">実長換算実行</button>
+                                    <button id="export-real-length" class="btn btn-secondary">.rdファイル出力</button>
+                                    <button id="export-c3d" class="btn btn-secondary"
+                                        style="margin-left: 8px;">C3Dデータ出力</button>
+                                    <button id="export-trc" class="btn btn-secondary"
+                                        style="margin-left: 8px;">TRC出力 (OpenSim)</button>
+                                </div>
+                                <!-- エラー/メッセージ表示エリア -->
+                                <div id="real-length-message"
+                                    style="display:none; margin-top:10px; padding:12px 16px; border-radius:6px; font-size:0.9em; white-space:pre-line;">
+                                </div>
+
+                                <!-- データミニマップ -->
+                                <div class="data-minimap-container" id="data-minimap-container">
+                                    <h4>
+                                        <span class="material-symbols-outlined"
+                                            style="font-size: 1.2em;">grid_view</span>
+                                        データマップ
+                                    </h4>
+                                    <div class="data-minimap-legend" id="data-minimap-legend">
+                                        <div class="data-minimap-legend-item">
+                                            <div class="data-minimap-legend-color" style="background: #e0e0e0;"></div>
+                                            <span>データなし</span>
+                                        </div>
+                                        <div class="data-minimap-legend-item">
+                                            <div class="data-minimap-legend-color" style="background: #90caf9;"></div>
+                                            <span>Cam1のみ</span>
+                                        </div>
+                                        <div class="data-minimap-legend-item">
+                                            <div class="data-minimap-legend-color" style="background: #ffcc80;"></div>
+                                            <span>Cam2のみ</span>
+                                        </div>
+                                        <div class="data-minimap-legend-item">
+                                            <div class="data-minimap-legend-color" style="background: #81c784;"></div>
+                                            <span id="legend-both-cameras">両カメラあり (3D可)</span>
+                                        </div>
+                                    </div>
+                                    <div class="minimap-canvas-wrapper">
+                                        <canvas id="data-minimap-canvas" class="data-minimap-canvas"
+                                            height="120"></canvas>
+                                    </div>
+                                    <div class="data-minimap-info" id="data-minimap-info">
+                                        フレーム: - / ポイント: -
+                                    </div>
+                                </div>
+
+                                <div class="real-length-table-container">
+                                    <div class="table-scroll-wrapper">
+                                        <table id="real-length-table" class="data-table">
+                                            <thead id="real-length-table-head">
+                                                <!-- ヘッダー行は動的に生成 -->
+                                            </thead>
+                                            <tbody id="real-length-table-body">
+                                                <!-- 実長換算データがここに表示される -->
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 統計情報 -->
+                        <div class="real-length-stats">
+                            <h5>統計情報</h5>
+                            <div class="stats-grid">
+                                <div class="stat-item">
+                                    <span class="stat-label">総フレーム数:</span>
+                                    <span id="total-frames">0</span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-label">総ポイント数:</span>
+                                    <span id="total-points">0</span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-label">平均誤差:</span>
+                                    <span id="average-error">0.00</span> m
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-label">最大誤差:</span>
+                                    <span id="max-error">0.00</span> m
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+    </div>
+    </div>
+    </main>
+    </div>
+
+    <!-- キャリブレーションモーダル -->
+    <div id="calibration-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>ステレオカメラキャリブレーション</h3>
+                <button onclick="closeCalibration()" class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="calibration-instructions">
+                    <p>チェスボード（9×6マス、25mm間隔）を用意し、以下の手順でキャリブレーションを実行してください：</p>
+                    <ol>
+                        <li>チェスボードを画面中央に配置</li>
+                        <li>様々な角度・位置でチェスボードを撮影</li>
+                        <li>最低12パターンの撮影が必要</li>
+                        <li>自動計算による校正パラメータ生成</li>
+                    </ol>
+                </div>
+                <div class="calibration-controls">
+                    <button onclick="startCalibration()" class="btn btn-primary">キャリブレーション開始</button>
+                    <button onclick="loadCalibration()" class="btn btn-secondary">
+                        <span class="material-symbols-outlined">folder_open</span>キャリブレーション読み込み
+                    </button>
+                </div>
+                <div id="calibration-status" class="calibration-status"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 名前編集用モーダル -->
+    <div id="edit-name-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>ポイント名編集</h3>
+                <button class="modal-close" onclick="closeEditNameModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="input-group">
+                    <label for="edit-name-input">新しい名前:</label>
+                    <input type="text" id="edit-name-input" placeholder="名前を入力してください">
+                </div>
+                <div class="modal-actions">
+                    <button onclick="saveEditedName()" class="btn btn-primary">保存</button>
+                    <button onclick="closeEditNameModal()" class="btn btn-secondary">キャンセル</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 設定ダイアログ -->
+    <div id="settingsDialog" class="settings-dialog-overlay" style="display:none;">
+        <div class="settings-dialog">
+            <div class="settings-dialog-header">
+                <h3>設定</h3>
+                <button class="settings-close-btn" onclick="closeSettingsDialog()">×</button>
+            </div>
+            <div class="settings-dialog-content">
+                <div class="settings-group">
+                    <h4>キャッシュ設定</h4>
+                    <div class="settings-item">
+                        <label for="cache-type-select">キャッシュ保存先:</label>
+                        <select id="cache-type-select">
+                            <option value="memory">メモリ（高速・再起動で消去）</option>
+                            <option value="disk">ディスク（SSD/HDD・永続）</option>
+                        </select>
+                    </div>
+                    <div class="settings-item">
+                        <label for="cache-limit-input">フレームキャッシュ上限:</label>
+                        <input type="number" id="cache-limit-input" min="100" max="10000" step="100" value="1000">
+                        <span class="settings-hint">フレーム (100〜10000)</span>
+                    </div>
+                    <p class="settings-description">
+                        <strong>メモリ:</strong> 高速だがアプリ終了で消える。RAM消費大。<br>
+                        <strong>ディスク:</strong> 再起動後も残る。SSDなら十分高速。<br>
+                        推奨: 短い動画はメモリ、長い動画はディスク
+                    </p>
+                </div>
+            </div>
+            <div class="settings-dialog-footer">
+                <button class="btn btn-secondary" onclick="closeSettingsDialog()">キャンセル</button>
+                <button class="btn btn-primary" onclick="applySettings()">適用</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript ライブラリ -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.26.0/plotly.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.11.0/math.min.js"></script>
+
+    <!-- メインアプリケーション -->
+    <script src="src/utils.js"></script>
+    <script src="src/camera-model-projection.js"></script>
+    <script src="src/cc-method-implementation.js"></script>
+    <script src="src/ui-components.js"></script>
+    <script src="src/file-handler.js"></script>
+    <script src="src/data-manager.js"></script>
+    <script src="src/table-operations.js"></script>
+    <script src="src/undo-manager.js"></script>
+    <script src="src/analysis-engine.js"></script>
+    <script src="src/c3d-handler.js"></script>
+    <script src="src/trc-handler.js"></script>
+    <script src="src/renderer.js"></script>
+</body>
+
+</html>

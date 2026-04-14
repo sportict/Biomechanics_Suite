@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VideoSyncLab</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="strobe-motion.css">
+
+    <!-- ダークテーマ設定 -->
+    <meta name="theme-color" content="#2b2b2b">
+    <meta name="color-scheme" content="dark">
+
+    <!-- セキュリティヘッダー -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' file: data:;">
+
+    <!-- ダークテーマCSS（フォールバック） -->
+    <style>
+        /* ダークテーマ確実適用 */
+        html,
+        body {
+            background-color: #2b2b2b !important;
+            color: white !important;
+        }
+
+        /* ロード中の背景 */
+        body:not(.loaded) {
+            background-color: #2b2b2b !important;
+        }
+
+        /* === デュアルビュー時の左右均等レイアウト === */
+        .dual-view #left-player,
+        .dual-view #right-player {
+            flex: 1 1 0;
+            min-width: 0;
+            max-width: 50%;
+            display: flex !important;
+            flex-direction: column;
+        }
+
+        .dual-view .player-section {
+            flex: 1 1 0;
+            min-width: 0;
+            max-width: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+    </style>
+</head>
+
+<body style="background-color: #2b2b2b; color: white;">
+    <div id="app">
+        <!-- 動画コンテナ -->
+        <div id="video-container" class="single-view">
+            <!-- 左プレーヤー -->
+            <div class="player-section" id="left-player">
+                <div class="video-wrapper">
+                    <video id="video-left" preload="metadata">
+                        お使いのブラウザは動画タグをサポートしていません。
+                    </video>
+                    <div class="frame-icon-overlay" id="frame-icon-left"></div>
+                    <div class="info-overlay">
+                        <span id="frame-info-left" class="frame-info">フレーム: 0/0</span>
+                    </div>
+                </div>
+                <div class="controls">
+                    <!-- 1段目: 従来のコントロールパネル（速度制御以外はそのまま） -->
+                    <button id="open-left" class="open-btn" title="ファイルを開く">📁</button>
+                    <button id="frame-back-left" class="frame-back-btn" title="1コマ戻し">❮</button>
+                    <button id="play-pause-left" class="play-pause-btn" title="再生/一時停止">▶️</button>
+                    <button id="frame-forward-left" class="frame-forward-btn" title="1コマ送り">❯</button>
+                    <button id="stop-left" class="stop-btn" title="停止">⏹</button>
+                    <div class="separator"></div>
+                    <button id="trim-in-left" class="trim-in-btn trim-button trim-in" title="トリミング開始点">|→</button>
+                    <button id="trim-out-left" class="trim-out-btn trim-button trim-out" title="トリミング終了点">→|</button>
+                    <button id="smart-cut-left" class="smart-cut-btn trim-button smart-cut" title="スマートカット">✂️</button>
+                    <button id="trim-encode-left" class="trim-encode-btn trim-button trim-encode"
+                        title="再エンコード（高品質）">🎥</button>
+                    <div class="separator"></div>
+                    <button id="frame-save-left" class="frame-save-btn frame-save" title="フレーム保存">📷</button>
+                    <button id="frame-sequence-left" class="frame-sequence-btn frame-sequence"
+                        title="連番フレーム出力">🎞️</button>
+                    <div class="separator"></div>
+                    <button id="sync-point-left" class="sync-point-btn sync-point-button" title="同期ポイント設定">⏱️</button>
+                    <button id="dual-output-left" class="dual-output-btn dual-output-button" title="二画面動画出力"
+                        disabled>🎬</button>
+                    <div class="separator"></div>
+                    <button id="strobe-motion-left" class="strobe-motion-btn strobe-motion-button"
+                        title="ストロボモーション">🏀</button>
+
+                </div>
+                <!-- 新設：再生速度UI 横並び -->
+                <div class="speed-controls-row">
+                    <span class="speed-label">速度:</span>
+                    <select id="speed-select-left" class="speed-select">
+                        <option value="0.1">0.1x</option>
+                        <option value="0.25">0.25x</option>
+                        <option value="0.5">0.5x</option>
+                        <option value="1.0" selected>1.0x</option>
+                        <option value="1.5">1.5x</option>
+                        <option value="2.0">2.0x</option>
+                        <option value="4.0">4.0x</option>
+                    </select>
+                    <button id="zoom-reset-left" class="zoom-reset-btn" title="表示位置・サイズをリセット">↻</button>
+                    <div style="flex-grow: 1;"></div>
+                </div>
+                <div class="slider-container">
+                    <input type="range" id="position-left" class="position-slider" min="0" max="100" value="0">
+                    <div id="trim-markers-left" class="trim-markers"></div>
+                </div>
+            </div>
+
+            <!-- 右プレーヤー（初期は非表示） -->
+            <div class="player-section" id="right-player" style="display: none;">
+                <div class="video-wrapper">
+                    <video id="video-right" preload="auto">
+                        お使いのブラウザは動画タグをサポートしていません。
+                    </video>
+                    <div class="frame-icon-overlay" id="frame-icon-right"></div>
+                    <div class="info-overlay">
+                        <span id="frame-info-right" class="frame-info">フレーム: 0/0</span>
+                    </div>
+                </div>
+                <div class="controls">
+                    <!-- 1段目: 従来のコントロールパネル（速度制御以外はそのまま） -->
+                    <button id="open-right" class="open-btn" title="ファイルを開く">📁</button>
+                    <button id="frame-back-right" class="frame-back-btn" title="1コマ戻し">❮</button>
+                    <button id="play-pause-right" class="play-pause-btn" title="再生/一時停止">▶️</button>
+                    <button id="frame-forward-right" class="frame-forward-btn" title="1コマ送り">❯</button>
+                    <button id="stop-right" class="stop-btn" title="停止">⏹</button>
+                    <div class="separator"></div>
+                    <button id="trim-in-right" class="trim-in-btn trim-button trim-in" title="トリミング開始点">|→</button>
+                    <button id="trim-out-right" class="trim-out-btn trim-button trim-out" title="トリミング終了点">→|</button>
+                    <button id="smart-cut-right" class="smart-cut-btn trim-button smart-cut" title="スマートカット">✂️</button>
+                    <button id="trim-encode-right" class="trim-encode-btn trim-button trim-encode"
+                        title="再エンコード（高品質）">🎥</button>
+                    <div class="separator"></div>
+                    <button id="frame-save-right" class="frame-save-btn frame-save" title="フレーム保存">📷</button>
+                    <button id="frame-sequence-right" class="frame-sequence-btn frame-sequence"
+                        title="連番フレーム出力">🎞️</button>
+                    <div class="separator"></div>
+                    <button id="sync-point-right" class="sync-point-btn sync-point-button" title="同期ポイント設定">⏱️</button>
+                    <button id="dual-output-right" class="dual-output-btn dual-output-button" title="二画面動画出力"
+                        disabled>🎬</button>
+                    <div class="separator"></div>
+                    <button id="strobe-motion-right" class="strobe-motion-btn strobe-motion-button"
+                        title="ストロボモーション">🏀</button>
+                </div>
+                <!-- 新設：再生速度UI 横並び -->
+                <div class="speed-controls-row">
+                    <span class="speed-label">速度:</span>
+                    <select id="speed-select-right" class="speed-select">
+                        <option value="0.1">0.1x</option>
+                        <option value="0.25">0.25x</option>
+                        <option value="0.5">0.5x</option>
+                        <option value="1.0" selected>1.0x</option>
+                        <option value="1.5">1.5x</option>
+                        <option value="2.0">2.0x</option>
+                        <option value="4.0">4.0x</option>
+                    </select>
+                    <button id="zoom-reset-right" class="zoom-reset-btn" title="表示位置・サイズをリセット">↻</button>
+                    <div style="flex-grow: 1;"></div>
+                </div>
+                <div class="slider-container">
+                    <input type="range" id="position-right" class="position-slider" min="0" max="100" value="0">
+                    <div id="trim-markers-right" class="trim-markers"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ステータスバー -->
+        <div id="status-bar">
+            <span id="status-message">準備完了</span>
+            <span id="sync-status-message" style="display: none;"></span>
+
+            <!-- 進捗表示 -->
+            <div id="progress-info" style="display: none;">
+                <div class="progress-bar">
+                    <div id="progress-fill"></div>
+                </div>
+                <span id="progress-text">0%</span>
+            </div>
+
+            <!-- 速度情報 -->
+            <div id="speed-sync-info" style="display: none;">
+                <span>同期速度制御有効</span>
+            </div>
+
+            <!-- フレーム情報表示 -->
+            <div id="frame-status-info">
+                <span id="frame-status-text">フレーム情報: 未読み込み</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // === 初期化とエラーハンドリング ===
+        document.addEventListener('DOMContentLoaded', () => {
+            // console.log('VideoSyncLab DOM読み込み完了 - 全要素準備完了');
+            document.body.classList.add('loaded');
+        });
+
+        // === エラーハンドリング ===
+        window.addEventListener('error', (event) => {
+            // console.error('VideoSyncLab エラー:', event.error);
+        });
+
+        window.addEventListener('unhandledrejection', (event) => {
+            // console.error('VideoSyncLab 未処理のPromise拒否:', event.reason);
+        });
+
+        // === パフォーマンス監視 ===
+        if ('performance' in window) {
+            window.addEventListener('load', () => {
+                setTimeout(() => {
+                    const perfData = performance.timing;
+                    const loadTime = perfData.loadEventEnd - perfData.navigationStart;
+                    // console.log(`VideoSyncLab ページ読み込み時間: ${loadTime}ms`);
+                }, 0);
+            });
+        }
+    </script>
+
+    <!-- ストロボモーション機能を読み込み -->
+    <script src="strobe-motion.js"></script>
+
+    <!-- renderer.jsを最後に読み込み（DOM要素が準備完了後） -->
+    <script src="renderer.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Default|x64">
+      <Configuration>Default</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{F472362C-8192-0CBA-4426-EF8CC8F9CCA3}</ProjectGuid>
+    <Keyword>x64Proj</Keyword>
+    <RootNamespace>opencv_module</RootNamespace>
+    <IgnoreWarnCompileDuplicatedFilename>true</IgnoreWarnCompileDuplicatedFilename>
+    <PreferredToolArchitecture>x64</PreferredToolArchitecture>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props"/>
+  <PropertyGroup Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+  </PropertyGroup>
+  <PropertyGroup Label="Locals">
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props"/>
+  <Import Project="$(VCTargetsPath)\BuildCustomizations\masm.props"/>
+  <ImportGroup Label="ExtensionSettings"/>
+  <ImportGroup Label="PropertySheets">
+    <Import Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props"/>
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros"/>
+  <PropertyGroup>
+    <ExecutablePath>$(ExecutablePath);$(MSBuildProjectDirectory)\.\bin\;$(MSBuildProjectDirectory)\.\bin\</ExecutablePath>
+    <IgnoreImportLibrary>true</IgnoreImportLibrary>
+    <IntDir>$(Configuration)\obj\$(ProjectName)\</IntDir>
+    <OutDir>$(SolutionDir)$(Configuration)\</OutDir>
+    <TargetExt Condition="'$(Configuration)|$(Platform)'=='Default|x64'">.node</TargetExt>
+    <TargetExt Condition="'$(Configuration)|$(Platform)'=='Default|x64'">.node</TargetExt>
+    <TargetName>$(ProjectName)</TargetName>
+    <TargetPath>$(OutDir)\$(ProjectName).node</TargetPath>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Default|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>e:\GoogleDrive\pro\Electoron\Biomechanics_Suite\MotionDigitizer\node_modules\node-addon-api;C:\vcpkg\installed\x64-windows\include\opencv4;C:\Users\user\AppData\Local\node-gyp\Cache\20.20.0\include\node;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <PreprocessorDefinitions>NAPI_DISABLE_CPP_EXCEPTIONS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>C:\vcpkg\installed\x64-windows\lib\opencv_core4.lib;C:\vcpkg\installed\x64-windows\lib\opencv_imgproc4.lib;C:\vcpkg\installed\x64-windows\lib\opencv_imgcodecs4.lib;C:\vcpkg\installed\x64-windows\lib\opencv_highgui4.lib;C:\vcpkg\installed\x64-windows\lib\opencv_videoio4.lib;C:\vcpkg\installed\x64-windows\lib\opencv_calib3d4.lib;C:\vcpkg\installed\x64-windows\lib\opencv_objdetect4.lib;C:\vcpkg\installed\x64-windows\lib\opencv_features2d4.lib;C:\Users\user\AppData\Local\node-gyp\Cache\20.20.0\x64\node.lib</AdditionalDependencies>
+      <OutputFile>$(OutDir)$(ProjectName).node</OutputFile>
+      <TargetExt>.node</TargetExt>
+    </Link>
+    <ResourceCompile>
+      <AdditionalIncludeDirectories>e:\GoogleDrive\pro\Electoron\Biomechanics_Suite\MotionDigitizer\node_modules\node-addon-api;C:\vcpkg\installed\x64-windows\include\opencv4;C:\Users\user\AppData\Local\node-gyp\Cache\20.20.0\include\node;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>NAPI_DISABLE_CPP_EXCEPTIONS;%(PreprocessorDefinitions);%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ResourceCompile>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <None Include="binding.gyp"/>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="opencv_module.cpp">
+      <ObjectFileName>$(IntDir)\opencv_module.obj</ObjectFileName>
+    </ClCompile>
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets"/>
+  <Import Project="$(VCTargetsPath)\BuildCustomizations\masm.targets"/>
+  <ImportGroup Label="ExtensionTargets"/>
+</Project>

@@ -1,0 +1,1041 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MotionViewer</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body class="no-file">
+  <!-- 動画出力ローディング画面 -->
+  <div id="videoExportLoading" class="video-export-loading" style="display: none;">
+    <div class="loading-content">
+      <div class="loading-spinner"></div>
+      <h2>動画を出力中...</h2>
+      <p id="exportProgress">フレームを処理しています...</p>
+    </div>
+  </div>
+
+  <div id="app">
+    <!-- ヘッダー（ツールバー統合） -->
+    <header class="app-header">
+      <div class="header-left">
+        <div class="file-info" id="fileInfo">
+          <span class="file-name" id="fileName">ファイル未選択</span>
+          <span class="file-details" id="fileDetails"></span>
+        </div>
+      </div>
+
+      <!-- メインツールバー -->
+      <div class="toolbar" id="mainToolbar">
+        <!-- ファイル操作 -->
+        <div class="toolbar-group">
+          <button class="toolbar-btn" id="btnOpenMotion" title="モーションデータを開く (Ctrl+O)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+              <polyline points="14,2 14,8 20,8" />
+              <path d="M9 15l3-3 3 3" />
+            </svg>
+            <span class="toolbar-label">データ</span>
+          </button>
+          <button class="toolbar-btn" id="btnOpenProject" title="プロジェクトを開く">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M5 19a2 2 0 01-2-2V7a2 2 0 012-2h4l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5z" />
+              <path d="M12 11v6M9 14h6" />
+            </svg>
+            <span class="toolbar-label">プロジェクト</span>
+          </button>
+          <button class="toolbar-btn" id="btnSaveProject" title="プロジェクトを保存 (Ctrl+S)" disabled>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z" />
+              <polyline points="17,21 17,13 7,13 7,21" />
+              <polyline points="7,3 7,8 15,8" />
+            </svg>
+          </button>
+        </div>
+
+        <div class="toolbar-divider"></div>
+
+        <!-- 設定 -->
+        <div class="toolbar-group">
+          <button class="toolbar-btn" id="btnPointSettings" title="ポイント設定" disabled>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="3" />
+              <circle cx="6" cy="6" r="2" />
+              <circle cx="18" cy="6" r="2" />
+              <circle cx="6" cy="18" r="2" />
+              <circle cx="18" cy="18" r="2" />
+            </svg>
+          </button>
+          <button class="toolbar-btn" id="btnLineSettings" title="ライン設定" disabled>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="4" y1="4" x2="20" y2="20" />
+              <line x1="4" y1="12" x2="20" y2="12" />
+              <line x1="4" y1="20" x2="20" y2="4" />
+            </svg>
+          </button>
+          <button class="toolbar-btn icon-only-small" id="btnSegmentDef" title="セグメント定義 (LCS/重心)" disabled
+            style="width: 20px; min-width: 20px; padding: 0;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="1" />
+              <circle cx="12" cy="5" r="1" />
+              <circle cx="12" cy="19" r="1" />
+            </svg>
+          </button>
+          <button class="toolbar-btn" id="btnFloorSettings" title="床面設定" disabled>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M3 21h18" />
+              <path d="M3 17h18" />
+              <path d="M7 21v-4" />
+              <path d="M12 21v-4" />
+              <path d="M17 21v-4" />
+              <rect x="5" y="8" width="14" height="5" rx="1" />
+            </svg>
+          </button>
+        </div>
+
+        <div class="toolbar-divider"></div>
+
+        <!-- 設定 -->
+        <div class="toolbar-group">
+          <button class="toolbar-btn" id="btnFilter" title="Butterworthフィルタ" disabled>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M2 12 Q6 6, 8 12 T14 12 T20 12 T22 12" stroke-linecap="round" />
+            </svg>
+            <span class="toolbar-label">フィルタ</span>
+          </button>
+          <button class="toolbar-btn" id="btnBodyCOM" title="身体重心を算出" disabled>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="5" r="3" />
+              <path d="M12 8v8" />
+              <path d="M8 12h8" />
+              <circle cx="12" cy="19" r="2" />
+            </svg>
+            <span class="toolbar-label">重心</span>
+          </button>
+        </div>
+
+        <div class="toolbar-divider"></div>
+
+        <!-- 表示 -->
+        <div class="toolbar-group">
+          <button class="toolbar-btn" id="btnSequenceDraw" title="図形描写ウインドウ" disabled>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="18" height="18" rx="2" />
+              <circle cx="8" cy="8" r="1.5" />
+              <path d="M8 10v4" />
+              <path d="M6 12h4" />
+              <path d="M8 14l-2 4" />
+              <path d="M8 14l2 4" />
+              <circle cx="16" cy="8" r="1.5" />
+              <path d="M16 10v4" />
+              <path d="M14 12h4" />
+              <path d="M16 14l-2 4" />
+              <path d="M16 14l2 4" />
+            </svg>
+            <span class="toolbar-label">図形描写</span>
+          </button>
+          <button class="toolbar-btn toggle-btn" id="btnGraph" title="グラフ表示 (Ctrl+G)" disabled>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M3 3v18h18" />
+              <path d="M7 16l4-8 4 4 4-6" />
+            </svg>
+            <span class="toolbar-label">グラフ</span>
+          </button>
+        </div>
+
+        <div class="toolbar-divider"></div>
+
+        <!-- カメラビュー -->
+        <div class="toolbar-group camera-view-group">
+          <button class="toolbar-btn text-only" id="btnViewXY" title="x-y平面ビュー" disabled>XY</button>
+          <button class="toolbar-btn text-only" id="btnViewYZ" title="y-z平面ビュー" disabled>YZ</button>
+          <button class="toolbar-btn text-only" id="btnViewXZ" title="x-z平面ビュー" disabled>XZ</button>
+        </div>
+
+        <div class="toolbar-divider"></div>
+
+        <!-- 出力機能 -->
+        <div class="toolbar-group">
+          <button class="toolbar-btn" id="btnExportImage" title="画像出力" disabled>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="18" height="18" rx="2" />
+              <circle cx="8.5" cy="8.5" r="1.5" />
+              <polyline points="21,15 16,10 5,21" />
+            </svg>
+          </button>
+          <button class="toolbar-btn" id="btnExportVideo" title="動画出力" disabled>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="2" y="4" width="20" height="16" rx="2" />
+              <polygon points="10,8 16,12 10,16" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="header-right">
+        <button class="toolbar-btn icon-only" id="btnHelp" title="ヘルプ">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10" />
+            <path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3" />
+            <line x1="12" y1="17" x2="12.01" y2="17" />
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- メインコンテンツ -->
+    <main class="main-content">
+      <!-- ファイルドロップエリア -->
+      <div class="drop-zone" id="dropZone">
+        <div class="drop-zone-content">
+          <div class="drop-icon">📁</div>
+          <h2>モーションファイルをここにドラッグ&ドロップ</h2>
+          <p>または「ファイル」メニューから「ファイルを開く」を選択</p>
+          <div class="supported-formats">
+            <span>対応形式: .sd, .rd, .2d, .3d, .c3d</span>
+          </div>
+        </div>
+        <div class="drop-overlay" id="dropOverlay">
+          <div class="drop-overlay-content">
+            <div class="drop-overlay-icon">⬇️</div>
+            <h3>ファイルをドロップしてください</h3>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3Dビューア -->
+      <div class="viewer-container" id="viewerContainer">
+        <canvas id="threeCanvas"></canvas>
+        <div class="viewer-overlay">
+          <div class="loading-indicator" id="loadingIndicator">
+            <div class="spinner"></div>
+            <span>読み込み中...</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- リサイズハンドル -->
+      <div class="resize-handle" id="resizeHandle"></div>
+
+      <!-- グラフ表示モード用の右側コンテナ -->
+      <div class="graph-container" id="graphContainer" style="display: none;">
+        <div class="scatter-viewer" id="scatterViewer">
+          <div class="scatter-header">
+            <div class="graph-mode-selector">
+              <label for="graphModeSelect">表示モード：</label>
+              <select id="graphModeSelect">
+                <option value="velocity">速度</option>
+                <option value="position">位置</option>
+                <option value="jointAngle">関節角度</option>
+                <option value="segmentAngle">セグメント角度</option>
+              </select>
+            </div>
+            <div class="header-actions">
+              <button id="toggleJointPanel" class="control-btn">ポイント選択</button>
+              <button id="resetGraphZoom" class="control-btn" title="ズームをリセット">リセット</button>
+              <button id="openGraphSettings" class="control-btn" title="グラフ設定">⚙</button>
+            </div>
+          </div>
+          <!-- モード固有のオプション行 -->
+          <div id="jointAngleOptions" class="joint-angle-options"
+            style="display: none; margin-bottom: 12px; padding: 10px; background-color: #f8f9fa; border-radius: 4px; border: 1px solid #e0e0e0; text-align: center;">
+            <label class="stick-arc-inline" style="font-size: 13px; cursor: pointer;">
+              <input type="checkbox" id="toggleStickArcJoint" checked style="cursor: pointer;">
+              スティックピクチャーに表示
+            </label>
+          </div>
+          <div class="velocity-axis-selector">
+            <label style="margin-right: 10px; font-weight: bold;">速度軸：</label>
+            <label><input type="radio" name="velocityAxis" value="composite" checked> 合成</label>
+            <label><input type="radio" name="velocityAxis" value="x"> X軸</label>
+            <label><input type="radio" name="velocityAxis" value="y"> Y軸</label>
+            <label><input type="radio" name="velocityAxis" value="z"> Z軸</label>
+          </div>
+          <div class="position-axis-selector" id="positionAxisSelector" style="display: none;">
+            <label style="margin-right: 10px; font-weight: bold;">位置軸：</label>
+            <label><input type="radio" name="positionAxis" value="x" checked> X軸</label>
+            <label><input type="radio" name="positionAxis" value="y"> Y軸</label>
+            <label><input type="radio" name="positionAxis" value="z"> Z軸</label>
+          </div>
+          <div class="segment-plane-selector" id="segmentPlaneSelector" style="display: none;">
+            <label style="margin-right: 10px; font-weight: bold;">セグメント平面：</label>
+            <label><input type="radio" name="segmentPlane" value="xy"> X-Y平面</label>
+            <label><input type="radio" name="segmentPlane" value="yz" checked> Y-Z平面</label>
+            <label><input type="radio" name="segmentPlane" value="xz"> X-Z平面</label>
+          </div>
+          <div class="segment-reference-selector" id="segmentReferenceSelector"
+            style="display: none; margin-bottom: 12px; padding: 10px; background-color: #f8f9fa; border-radius: 4px; border: 1px solid #e0e0e0; text-align: center;">
+            <label style="margin-right: 10px; font-weight: bold;">座標系：</label>
+            <label><input type="radio" name="segmentReference" value="global" checked> グローバル (GCS)</label>
+            <label><input type="radio" name="segmentReference" value="pelvis"> 骨盤基準 (LCS)</label>
+            <label id="stickArcLabelSegment" class="stick-arc-inline"
+              style="margin-left: 20px; font-size: 13px; cursor: pointer;">
+              <input type="checkbox" id="toggleStickArcSegment" checked style="cursor: pointer;">
+              スティックピクチャーに表示
+            </label>
+          </div>
+          <div class="graph-range-selector" id="graphRangeSelector">
+            <span style="font-weight: bold; margin-right: 8px;">X軸範囲：</span>
+            <input type="number" id="graphTimeMinValue" placeholder="自動" step="any"
+              style="width: 60px; padding: 2px 4px; font-size: 12px;">
+            <span style="margin: 0 4px;">～</span>
+            <input type="number" id="graphTimeMaxValue" placeholder="自動" step="any"
+              style="width: 60px; padding: 2px 4px; font-size: 12px;">
+            <span style="margin-left: 4px; color: #666;">秒</span>
+            <span style="font-weight: bold; margin: 0 8px 0 16px;">Y軸範囲：</span>
+            <input type="number" id="graphMinValue" placeholder="自動" step="any"
+              style="width: 60px; padding: 2px 4px; font-size: 12px;">
+            <span style="margin: 0 4px;">～</span>
+            <input type="number" id="graphMaxValue" placeholder="自動" step="any"
+              style="width: 60px; padding: 2px 4px; font-size: 12px;">
+          </div>
+          <div class="canvas-container">
+            <canvas id="scatterCanvas" width="800" height="600"></canvas>
+          </div>
+        </div>
+        <!-- フローティングパネル -->
+        <div id="jointFloatPanel" class="joint-float-panel" style="display: none;">
+          <div class="joint-float-header" id="jointFloatHeader">ポイント選択</div>
+          <div class="joint-float-body" id="jointFloatBody"></div>
+          <button id="jointFloatClose" class="control-btn" style="margin:8px;">閉じる</button>
+        </div>
+      </div>
+    </main>
+
+    <!-- コントロールパネル -->
+    <footer class="control-panel" id="controlPanel">
+      <!-- アニメーション制御 -->
+      <div class="animation-controls">
+        <button class="playback-btn" id="frameBackBtn" title="コマ戻し (←)">
+          <span class="playback-icon">&lt;</span>
+        </button>
+        <button class="playback-btn primary" id="playBtn" title="再生/一時停止 (Space)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" id="playIcon">
+            <polygon points="6,4 20,12 6,20" fill="currentColor" />
+          </svg>
+        </button>
+        <button class="playback-btn" id="resetBtn" title="停止">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="6" y="6" width="12" height="12" fill="currentColor" />
+          </svg>
+        </button>
+        <button class="playback-btn" id="frameForwardBtn" title="コマ送り (→)">
+          <span class="playback-icon">&gt;</span>
+        </button>
+      </div>
+
+      <!-- フレーム制御 -->
+      <div class="frame-controls">
+        <div class="frame-slider-container">
+          <span class="control-label">フレーム</span>
+          <input type="range" id="frameSlider" min="0" max="0" value="0" class="frame-slider">
+          <div class="frame-info">
+            <span id="currentFrame">0</span> / <span id="totalFrames">0</span>
+          </div>
+        </div>
+        <div class="frame-input-container">
+          <input type="number" id="frameInput" step="0.001" value="0.000" class="frame-input">
+          <span class="unit-label">秒</span>
+        </div>
+      </div>
+
+      <!-- 速度制御 -->
+      <div class="speed-controls">
+        <span class="control-label">速度</span>
+        <input type="range" id="speedSlider" min="0.1" max="3.0" step="0.1" value="1.0" class="speed-slider">
+        <span id="speedValue" class="speed-value">1.0x</span>
+      </div>
+
+      <!-- データ情報 -->
+      <div class="data-info" id="dataInfo">
+        <div class="info-item">
+          <span class="info-label">ポイント</span>
+          <span class="info-value" id="pointCount">-</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">FPS</span>
+          <span class="info-value" id="frameInterval">-</span>
+        </div>
+      </div>
+    </footer>
+
+  </div>
+
+  <!-- 画像出力形式選択ダイアログ -->
+  <div id="imageFormatDialog" class="dialog">
+    <div class="dialog-content dialog-compact" style="max-width: 320px;">
+      <h3>画像出力形式を選択</h3>
+      <div class="export-buttons">
+        <button id="exportPngBtn" class="export-btn">
+          <span class="export-icon">🖼️</span>
+          <span class="export-label">PNG形式で保存</span>
+          <span class="export-hint">高画質ビットマップ</span>
+        </button>
+        <button id="exportSvgBtn" class="export-btn">
+          <span class="export-icon">📐</span>
+          <span class="export-label">SVG形式で保存</span>
+          <span class="export-hint">ベクター形式</span>
+        </button>
+      </div>
+      <div class="dialog-buttons">
+        <button id="imageFormatCancel">キャンセル</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ポイント設定ダイアログ -->
+  <div id="pointSettingsDialog" class="dialog">
+    <div class="dialog-content">
+      <h3>ポイント設定</h3>
+      <div id="pointSettingsList"></div>
+      <div class="dialog-buttons">
+        <button id="pointSettingsCancel">キャンセル</button>
+        <button id="pointSettingsOk" class="primary-btn">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ライン設定ダイアログ -->
+  <div id="lineSettingsDialog" class="dialog">
+    <div class="dialog-content" style="max-width: 1200px; width: 95%;">
+      <h3>ライン設定</h3>
+      <div id="lineSettingsListContainer">
+        <!-- ここにJavaScriptによってテーブルが生成されます -->
+      </div>
+      <div class="dialog-buttons">
+        <button id="lineSettingsAddLine" class="secondary-btn">ライン追加</button>
+        <button id="lineSettingsCancel">キャンセル</button>
+        <button id="lineSettingsOk" class="primary-btn">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 図形描写設定ダイアログ -->
+  <div id="sequenceDrawDialog" class="dialog">
+    <div class="dialog-content dialog-compact">
+      <h3>図形描写設定（連続写真）</h3>
+      <div class="sequence-form">
+        <div class="form-row">
+          <label for="seqStartFrame">開始フレーム</label>
+          <input type="text" id="seqStartFrame" inputmode="numeric" pattern="[0-9]*" value="1" class="frame-input">
+        </div>
+        <div class="form-row">
+          <label for="seqEndFrame">終了フレーム</label>
+          <input type="text" id="seqEndFrame" inputmode="numeric" pattern="[0-9]*" value="10" class="frame-input">
+        </div>
+        <div class="form-row">
+          <label for="seqInterval">表示間隔</label>
+          <div class="input-with-suffix">
+            <input type="text" id="seqInterval" inputmode="numeric" pattern="[0-9]*" value="1" class="frame-input">
+            <span class="suffix">フレームごと</span>
+          </div>
+        </div>
+      </div>
+      <div class="dialog-buttons">
+        <button id="seqDrawCancel">キャンセル</button>
+        <button id="seqDrawClear" class="secondary-btn">クリア</button>
+        <button id="seqDrawOk" class="primary-btn">描画</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 背景色設定ダイアログ -->
+  <div id="backgroundColorDialog" class="dialog">
+    <div class="dialog-content dialog-compact" style="max-width: 300px;">
+      <h3>背景色設定</h3>
+      <div class="color-picker-form">
+        <div class="color-picker-row">
+          <label for="bgColorInput">背景色:</label>
+          <input type="color" id="bgColorInput" class="color-input-large">
+        </div>
+      </div>
+      <div class="dialog-buttons">
+        <button id="bgColorCancel">キャンセル</button>
+        <button id="bgColorOk" class="primary-btn">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 床面設定ダイアログ -->
+  <div id="floorSettingsDialog" class="dialog">
+    <div class="dialog-content dialog-compact" style="max-width: 320px;">
+      <h3>床面設定</h3>
+      <div class="color-picker-form">
+        <div class="color-picker-row">
+          <label for="gridColorInput">主線色:</label>
+          <input type="color" id="gridColorInput" class="color-input">
+        </div>
+        <div class="color-picker-row">
+          <label for="gridColor2Input">副線色:</label>
+          <input type="color" id="gridColor2Input" class="color-input">
+        </div>
+        <div class="color-picker-row">
+          <label for="gridBgColorInput">床面背景色:</label>
+          <input type="color" id="gridBgColorInput" class="color-input">
+        </div>
+      </div>
+      <div class="dialog-buttons">
+        <button id="floorSettingsCancel">キャンセル</button>
+        <button id="floorSettingsOk" class="primary-btn">OK</button>
+      </div>
+    </div>
+  </div>
+
+
+
+  <!-- フィルタリング設定ダイアログ -->
+  <div id="filterDialog" class="dialog">
+    <div class="dialog-content dialog-compact" style="max-width: 560px;">
+      <h3>Butterworthフィルタ設定</h3>
+      <div class="filter-form">
+        <div class="filter-section">
+          <div class="filter-option">
+            <label class="radio-label">
+              <input type="radio" name="filterMode" id="autoFcMode" value="auto" checked>
+              <span>自動遮断周波数（Wells and Winter, 1980）</span>
+            </label>
+          </div>
+          <div class="filter-option">
+            <label class="radio-label">
+              <input type="radio" name="filterMode" id="manualFcMode" value="manual">
+              <span>手動遮断周波数</span>
+            </label>
+            <div class="input-with-suffix">
+              <input type="text" id="manualFcInput" inputmode="decimal" value="6" class="freq-input">
+              <span class="suffix">Hz</span>
+            </div>
+          </div>
+          <div class="filter-option">
+            <label class="checkbox-label">
+              <input type="checkbox" id="correctPadding" checked>
+              <span>両端補正（パディング）</span>
+            </label>
+            <div class="input-with-suffix">
+              <input type="text" id="padLengthInput" inputmode="numeric" value="20" class="freq-input">
+              <span class="suffix">フレーム</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+      <div class="dialog-buttons" style="justify-content: space-between;">
+        <button id="showResidualAnalysis" class="secondary-btn">残差分析グラフ</button>
+        <div>
+          <button id="filterCancel">キャンセル</button>
+          <button id="filterOk" class="primary-btn">適用</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- グラフ設定ダイアログ -->
+  <div id="graphSettingsDialog" class="dialog">
+    <div class="dialog-content dialog-compact" style="max-width: 520px;">
+      <h3>グラフ設定</h3>
+      <div class="filter-form">
+        <div class="filter-section-header">凡例設定</div>
+        <div class="filter-section">
+          <div class="filter-option">
+            <label>レイアウト:</label>
+            <div style="display: flex; gap: 16px;">
+              <label><input type="radio" name="legendDirection" id="legendDirectionVertical" value="vertical" checked>
+                縦並び</label>
+              <label><input type="radio" name="legendDirection" id="legendDirectionHorizontal" value="horizontal">
+                横並び</label>
+            </div>
+          </div>
+          <div class="filter-option">
+            <label>フォントサイズ:</label>
+            <div class="input-with-suffix">
+              <input type="range" id="legendFontSize" min="8" max="20" value="12" style="width: 120px;">
+              <span id="legendFontSizeValue" class="suffix">12px</span>
+            </div>
+          </div>
+          <div class="filter-option" id="legendMaxWidthOption" style="display: none;">
+            <label>最大幅:</label>
+            <div class="input-with-suffix">
+              <input type="range" id="legendMaxWidth" min="150" max="600" value="300" style="width: 120px;">
+              <span id="legendMaxWidthValue" class="suffix">300px</span>
+            </div>
+          </div>
+          <div class="filter-option">
+            <label>サイズ:</label>
+            <button id="legendSizeReset" type="button" style="padding: 4px 12px; font-size: 12px;">自動サイズに戻す</button>
+            <span id="legendSizeStatus" style="font-size: 11px; color: #666; margin-left: 8px;"></span>
+          </div>
+        </div>
+
+        <div class="filter-section-header">系列の色（クリックで変更）</div>
+        <div class="filter-section" id="graphColorList"
+          style="display: flex; flex-wrap: wrap; gap: 8px; padding: 10px;">
+          <!-- 色設定は動的に生成 -->
+        </div>
+
+        <div class="filter-section-header">線の設定</div>
+        <div class="filter-section">
+          <div class="filter-option">
+            <label>線の太さ:</label>
+            <div class="input-with-suffix">
+              <input type="range" id="graphLineWidth" min="1" max="5" value="2" style="width: 120px;">
+              <span id="graphLineWidthValue" class="suffix">2px</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="dialog-buttons">
+        <button id="graphSettingsCancel">キャンセル</button>
+        <button id="graphSettingsOk" class="primary-btn">適用</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 身体重心算出ダイアログ -->
+  <div id="bodyCOMDialog" class="dialog">
+    <div class="dialog-content dialog-compact" style="max-width: 420px;">
+      <h3>身体重心算出</h3>
+
+      <div class="com-form">
+        <div class="com-section">
+          <div class="com-section-label">年代</div>
+          <div class="com-radio-group">
+            <label class="com-radio-label">
+              <input type="radio" name="ageGroup" id="ageGroupAdult" value="adult" checked>
+              <span>大人</span>
+            </label>
+            <label class="com-radio-label">
+              <input type="radio" name="ageGroup" id="ageGroupChild" value="child">
+              <span>子ども</span>
+            </label>
+            <label class="com-radio-label">
+              <input type="radio" name="ageGroup" id="ageGroupElderly" value="elderly">
+              <span>高齢者</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="com-section com-child-settings" id="childSettings" style="display: none;">
+          <div class="com-section-label">子どもの場合の設定</div>
+          <div class="com-child-row">
+            <label for="childAge">年齢:</label>
+            <input type="number" id="childAge" min="1" max="17" value="6" class="com-age-input">
+            <span>歳</span>
+          </div>
+          <div class="com-subsection-label">体型:</div>
+          <div class="com-radio-group">
+            <label class="com-radio-label">
+              <input type="radio" name="bodyType" id="bodyTypeThin" value="thin">
+              <span>痩身</span>
+            </label>
+            <label class="com-radio-label">
+              <input type="radio" name="bodyType" id="bodyTypeNormal" value="normal" checked>
+              <span>標準</span>
+            </label>
+            <label class="com-radio-label">
+              <input type="radio" name="bodyType" id="bodyTypeObese" value="obese">
+              <span>肥満</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="com-section">
+          <div class="com-section-label">性別</div>
+          <div class="com-radio-group">
+            <label class="com-radio-label">
+              <input type="radio" name="sex" id="sexMale" value="male" checked>
+              <span>男性</span>
+            </label>
+            <label class="com-radio-label">
+              <input type="radio" name="sex" id="sexFemale" value="female">
+              <span>女性</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="com-section">
+          <div class="com-section-label">身体デジタイズポイント数</div>
+          <div class="com-radio-group">
+            <label class="com-radio-label">
+              <input type="radio" name="pointCount" id="points23" value="23" checked>
+              <span>23点</span>
+            </label>
+            <label class="com-radio-label">
+              <input type="radio" name="pointCount" id="points25" value="25">
+              <span>25点</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="dialog-buttons">
+        <button id="bodyCOMCancel">キャンセル</button>
+        <button id="bodyCOMOk" class="primary-btn">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- フォースプレート設定ダイアログ -->
+  <div id="forcePlateDialog" class="dialog">
+    <div class="dialog-content dialog-compact" style="max-width: 420px;">
+      <h3>フォースプレート設定</h3>
+
+      <div class="com-form">
+        <div class="com-section">
+          <div class="com-section-label">表示設定</div>
+          <div class="filter-option">
+            <label class="checkbox-label">
+              <input type="checkbox" id="forcePlateEnabled" checked>
+              <span>フォースプレートを表示</span>
+            </label>
+          </div>
+          <div class="filter-option">
+            <label class="checkbox-label">
+              <input type="checkbox" id="forceVectorEnabled" checked>
+              <span>力ベクトルを表示</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="com-section">
+          <div class="com-section-label">力ベクトル設定</div>
+          <div class="color-picker-row" style="margin-bottom: 8px;">
+            <label for="forceVectorColorInput">ベクトル色:</label>
+            <input type="color" id="forceVectorColorInput" value="#ff0000" class="color-input">
+          </div>
+          <div class="filter-option">
+            <label style="font-size: 13px; color: #555;">スケール:</label>
+            <div class="input-with-suffix">
+              <input type="text" id="forceVectorScaleInput" inputmode="decimal" value="0.001" class="freq-input"
+                style="width: 80px;">
+              <span class="suffix">m/N</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="com-section">
+          <div class="com-section-label">プレート透明度</div>
+          <div class="filter-option">
+            <input type="range" id="forcePlateOpacity" min="0" max="1" step="0.1" value="0.3" style="width: 150px;">
+            <span id="forcePlateOpacityValue" style="margin-left: 8px;">0.3</span>
+          </div>
+        </div>
+
+        <div id="forcePlateInfo" class="com-section" style="display: none;">
+          <div class="com-section-label">検出されたプレート</div>
+          <div id="forcePlateList" style="font-size: 13px; color: #666;"></div>
+        </div>
+      </div>
+
+      <div class="dialog-buttons">
+        <button id="forcePlateCancel">キャンセル</button>
+        <button id="forcePlateOk" class="primary-btn">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 逆動力学設定ダイアログ -->
+  <div id="inverseDynamicsDialog" class="dialog">
+    <div class="dialog-content dialog-compact" style="max-width: 480px;">
+      <h3>逆動力学計算</h3>
+
+      <div class="com-form">
+        <div class="com-section">
+          <div class="com-section-label">基本設定</div>
+          <div class="filter-option">
+            <label style="font-size: 13px; color: #555;">体重:</label>
+            <div class="input-with-suffix">
+              <input type="number" id="idBodyMass" value="70" min="30" max="200" step="0.1" class="freq-input"
+                style="width: 80px;">
+              <span class="suffix">kg</span>
+            </div>
+          </div>
+          <div class="com-radio-group" style="margin-top: 8px;">
+            <label class="com-radio-label">
+              <input type="radio" name="idSex" id="idSexMale" value="male" checked>
+              <span>男性</span>
+            </label>
+            <label class="com-radio-label">
+              <input type="radio" name="idSex" id="idSexFemale" value="female">
+              <span>女性</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="com-section">
+          <div class="com-section-label">フィルタ設定</div>
+          <div class="filter-option">
+            <label style="font-size: 13px; color: #555;">カットオフ周波数:</label>
+            <div class="input-with-suffix">
+              <input type="number" id="idFilterCutoff" value="6" min="1" max="50" step="0.5" class="freq-input"
+                style="width: 60px;">
+              <span class="suffix">Hz</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="com-section">
+          <div class="com-section-label">フォースプレート</div>
+          <div id="idForcePlateStatus" style="font-size: 13px; color: #666;">
+            フォースプレートデータなし
+          </div>
+        </div>
+
+      </div>
+
+      <div class="dialog-buttons">
+        <button id="inverseDynamicsCancel">キャンセル</button>
+        <button id="inverseDynamicsOk" class="primary-btn">計算実行</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 逆動力学結果ダイアログ -->
+  <div id="inverseDynamicsResultDialog" class="dialog">
+    <div class="dialog-content" style="max-width: 600px;">
+      <h3>逆動力学計算結果</h3>
+
+      <div id="idResultContent" style="max-height: 400px; overflow-y: auto;">
+        <!-- 結果がここに表示される -->
+      </div>
+
+      <div class="dialog-buttons">
+        <button id="idResultShowGraph" class="secondary-btn">グラフ表示</button>
+        <button id="idResultClose" class="primary-btn">閉じる</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- セグメント定義ダイアログ -->
+  <div id="segmentDefinitionDialog" class="dialog">
+    <div class="dialog-content" style="max-width: 700px; width: 90%;">
+      <h3>セグメント定義</h3>
+
+      <div class="segment-def-container">
+        <!-- テンプレート選択 -->
+        <div class="segment-def-section">
+          <div class="segment-def-header">
+            <span>テンプレート</span>
+            <select id="segmentDefTemplate" class="segment-template-select">
+              <option value="custom">カスタム</option>
+              <option value="hpe23">HPE 23点モデル</option>
+              <option value="hpe25">HPE 25点モデル</option>
+              <option value="plugingait">Plug-in Gait</option>
+              <option value="c3d_auto">C3D自動検出</option>
+            </select>
+            <button id="segmentDefApplyTemplate" class="secondary-btn" style="margin-left: 8px;">適用</button>
+          </div>
+        </div>
+
+        <!-- 右脚セグメント -->
+        <div class="segment-def-section">
+          <div class="segment-def-section-title">右脚</div>
+          <div class="segment-def-grid">
+            <div class="segment-def-row">
+              <label class="segment-label">大腿:</label>
+              <select id="segDefRightThighProx" class="segment-point-select"></select>
+              <span class="segment-arrow">→</span>
+              <select id="segDefRightThighDist" class="segment-point-select"></select>
+            </div>
+            <div class="segment-def-row">
+              <label class="segment-label">下腿:</label>
+              <select id="segDefRightShankProx" class="segment-point-select"></select>
+              <span class="segment-arrow">→</span>
+              <select id="segDefRightShankDist" class="segment-point-select"></select>
+            </div>
+            <div class="segment-def-row">
+              <label class="segment-label">足部:</label>
+              <select id="segDefRightFootProx" class="segment-point-select"></select>
+              <span class="segment-arrow">→</span>
+              <select id="segDefRightFootDist" class="segment-point-select"></select>
+            </div>
+          </div>
+        </div>
+
+        <!-- 左脚セグメント -->
+        <div class="segment-def-section">
+          <div class="segment-def-section-title">左脚</div>
+          <div class="segment-def-grid">
+            <div class="segment-def-row">
+              <label class="segment-label">大腿:</label>
+              <select id="segDefLeftThighProx" class="segment-point-select"></select>
+              <span class="segment-arrow">→</span>
+              <select id="segDefLeftThighDist" class="segment-point-select"></select>
+            </div>
+            <div class="segment-def-row">
+              <label class="segment-label">下腿:</label>
+              <select id="segDefLeftShankProx" class="segment-point-select"></select>
+              <span class="segment-arrow">→</span>
+              <select id="segDefLeftShankDist" class="segment-point-select"></select>
+            </div>
+            <div class="segment-def-row">
+              <label class="segment-label">足部:</label>
+              <select id="segDefLeftFootProx" class="segment-point-select"></select>
+              <span class="segment-arrow">→</span>
+              <select id="segDefLeftFootDist" class="segment-point-select"></select>
+            </div>
+          </div>
+        </div>
+
+        <!-- 上肢セグメント -->
+        <div class="segment-def-section">
+          <div class="segment-def-section-title">上肢</div>
+          <div class="segment-def-grid" id="segDefUpperBodyContent">
+            <div class="segment-def-row">
+              <label class="segment-label">右上腕:</label>
+              <select id="segDefRightUpperArmProx" class="segment-point-select"></select>
+              <span class="segment-arrow">→</span>
+              <select id="segDefRightUpperArmDist" class="segment-point-select"></select>
+            </div>
+            <div class="segment-def-row">
+              <label class="segment-label">右前腕:</label>
+              <select id="segDefRightForearmProx" class="segment-point-select"></select>
+              <span class="segment-arrow">→</span>
+              <select id="segDefRightForearmDist" class="segment-point-select"></select>
+            </div>
+            <div class="segment-def-row">
+              <label class="segment-label">右手部:</label>
+              <select id="segDefRightHandProx" class="segment-point-select"></select>
+              <span class="segment-arrow">→</span>
+              <select id="segDefRightHandDist" class="segment-point-select"></select>
+            </div>
+            <div class="segment-def-row">
+              <label class="segment-label">左上腕:</label>
+              <select id="segDefLeftUpperArmProx" class="segment-point-select"></select>
+              <span class="segment-arrow">→</span>
+              <select id="segDefLeftUpperArmDist" class="segment-point-select"></select>
+            </div>
+            <div class="segment-def-row">
+              <label class="segment-label">左前腕:</label>
+              <select id="segDefLeftForearmProx" class="segment-point-select"></select>
+              <span class="segment-arrow">→</span>
+              <select id="segDefLeftForearmDist" class="segment-point-select"></select>
+            </div>
+            <div class="segment-def-row">
+              <label class="segment-label">左手部:</label>
+              <select id="segDefLeftHandProx" class="segment-point-select"></select>
+              <span class="segment-arrow">→</span>
+              <select id="segDefLeftHandDist" class="segment-point-select"></select>
+            </div>
+          </div>
+        </div>
+
+        <!-- 体幹セグメント -->
+        <div class="segment-def-section">
+          <div class="segment-def-section-title">体幹</div>
+          <div class="segment-def-grid" id="segDefTrunkContent">
+            <!-- 23p用: 体幹（1セグメント） -->
+            <div class="segment-def-row" id="segDefTrunkRow">
+              <label class="segment-label">体幹:</label>
+              <select id="segDefTrunkProx" class="segment-point-select"></select>
+              <span class="segment-arrow">→</span>
+              <select id="segDefTrunkDist" class="segment-point-select"></select>
+            </div>
+            <!-- 25p用: 上胴・下胴（2セグメント） -->
+            <div class="segment-def-row" id="segDefUpperTrunkRow" style="display: none;">
+              <label class="segment-label">上胴:</label>
+              <select id="segDefUpperTrunkProx" class="segment-point-select"></select>
+              <span class="segment-arrow">→</span>
+              <select id="segDefUpperTrunkDist" class="segment-point-select"></select>
+            </div>
+            <div class="segment-def-row" id="segDefLowerTrunkRow" style="display: none;">
+              <label class="segment-label">下胴:</label>
+              <select id="segDefLowerTrunkProx" class="segment-point-select"></select>
+              <span class="segment-arrow">→</span>
+              <select id="segDefLowerTrunkDist" class="segment-point-select"></select>
+            </div>
+            <div class="segment-def-row">
+              <label class="segment-label">骨盤:</label>
+              <select id="segDefPelvisProx" class="segment-point-select"></select>
+              <span class="segment-arrow">→</span>
+              <select id="segDefPelvisDist" class="segment-point-select"></select>
+            </div>
+          </div>
+        </div>
+
+        <!-- ライン設定との連携 -->
+        <div class="segment-def-section">
+          <div class="segment-def-sync-option">
+            <input type="checkbox" id="segDefSyncToLineSettings" checked>
+            <label for="segDefSyncToLineSettings">ライン設定に反映する</label>
+          </div>
+        </div>
+      </div>
+
+      <div class="dialog-buttons">
+        <button id="segmentDefCancel">キャンセル</button>
+        <button id="segmentDefOk" class="primary-btn">適用</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ヘルプダイアログ -->
+  <div id="helpDialog" class="dialog">
+    <div class="dialog-content" style="max-width: 500px;">
+      <h3>操作方法</h3>
+      <div style="padding: 24px;">
+        <div class="com-section">
+          <div class="com-section-label">3Dビューアの操作</div>
+          <div style="font-size: 14px; line-height: 1.8;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+              <span>回転:</span>
+              <span style="font-weight: bold; color: #555;">左クリック + ドラッグ</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+              <span>パン (平行移動):</span>
+              <span style="font-weight: bold; color: #555;">右クリック + ドラッグ</span>
+            </div>
+            <div style="display: flex; justify-content: space-between;">
+              <span>ズーム:</span>
+              <span style="font-weight: bold; color: #555;">マウスホイール</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="com-section" style="margin-top: 24px;">
+          <div class="com-section-label">ショートカットキー</div>
+          <div style="font-size: 14px; line-height: 1.8;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+              <span>再生 / 停止:</span>
+              <kbd style="border: 1px solid #ccc; border-radius: 3px; padding: 1px 6px; background: #eee;">Space</kbd>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+              <span>フレーム移動 (±1):</span>
+              <kbd style="border: 1px solid #ccc; border-radius: 3px; padding: 1px 6px; background: #eee;">←</kbd> /
+              <kbd style="border: 1px solid #ccc; border-radius: 3px; padding: 1px 6px; background: #eee;">→</kbd>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+              <span>グラフ表示切替:</span>
+              <kbd style="border: 1px solid #ccc; border-radius: 3px; padding: 1px 6px; background: #eee;">Ctrl</kbd> +
+              <kbd style="border: 1px solid #ccc; border-radius: 3px; padding: 1px 6px; background: #eee;">G</kbd>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+              <span>ファイルを開く:</span>
+              <kbd style="border: 1px solid #ccc; border-radius: 3px; padding: 1px 6px; background: #eee;">Ctrl</kbd> +
+              <kbd style="border: 1px solid #ccc; border-radius: 3px; padding: 1px 6px; background: #eee;">O</kbd>
+            </div>
+            <div style="display: flex; justify-content: space-between;">
+              <span>プロジェクト保存:</span>
+              <kbd style="border: 1px solid #ccc; border-radius: 3px; padding: 1px 6px; background: #eee;">Ctrl</kbd> +
+              <kbd style="border: 1px solid #ccc; border-radius: 3px; padding: 1px 6px; background: #eee;">S</kbd>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="dialog-buttons">
+        <button id="helpClose" class="primary-btn">閉じる</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Three.js + アプリケーション -->
+  <script type="module">
+    import * as THREE from './lib/three.module.js';
+    window.THREE = THREE;
+  </script>
+  <script src="inverse-dynamics.js"></script>
+  <script type="module" src="app.js"></script>
+</body>
+
+</html>

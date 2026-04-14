@@ -1,0 +1,907 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy"
+    content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' http://127.0.0.1:8000; img-src 'self' data: blob: file:; media-src 'self' blob: file:;">
+  <title>HPE - Human Pose Estimation</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+  <div id="app">
+    <!-- ステップガイドバー（トップバー） -->
+    <div id="stepGuide" class="step-guide">
+      <div class="step-item active" id="stepItem1">
+        <span class="step-num">1</span>
+        <span class="step-label">ファイル選択</span>
+      </div>
+      <span class="step-sep">›</span>
+      <div class="step-item pending" id="stepItem2">
+        <span class="step-num">2</span>
+        <span class="step-label">推定実行</span>
+      </div>
+      <span class="step-sep">›</span>
+      <div class="step-item pending" id="stepItem3">
+        <span class="step-num">3</span>
+        <span class="step-label">フィルタ</span>
+      </div>
+      <span class="step-sep">›</span>
+      <div class="step-item pending" id="stepItem4">
+        <span class="step-num">4</span>
+        <span class="step-label">エクスポート</span>
+      </div>
+      <div id="stepHint" class="step-hint">動画または画像ファイルをドロップ</div>
+      <div id="headerMessage" class="header-message" style="display: none;"></div>
+      <div class="server-status">
+        <div id="statusIndicator" class="status-indicator offline"></div>
+        <span id="statusText">Offline</span>
+      </div>
+    </div>
+
+    <div class="main-container">
+      <!-- サイドバートグルボタン -->
+      <button id="toggleSidebar" class="sidebar-toggle" title="サイドバーを隠す/表示">
+        <svg class="icon" viewBox="0 0 24 24">
+          <line x1="3" y1="12" x2="21" y2="12"></line>
+          <line x1="3" y1="6" x2="21" y2="6"></line>
+          <line x1="3" y1="18" x2="21" y2="18"></line>
+        </svg>
+      </button>
+      <!-- サイドバー -->
+      <aside id="sidebar" class="sidebar">
+        <!-- ファイル選択 -->
+        <div id="dropZone" class="drop-zone">
+          <div class="drop-icon"><svg class="icon" style="width: 2em; height: 2em;" viewBox="0 0 24 24">
+              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+            </svg></div>
+          <p>クリックまたはドロップ</p>
+          <p class="drop-hint">画像・動画ファイル</p>
+        </div>
+
+        <!-- 選択ファイル情報 -->
+        <div id="fileInfo" class="panel" style="display: none;">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+            <div style="flex: 1; min-width: 0; margin-right: 0.5rem;">
+              <p id="fileName" class="file-name"></p>
+              <p id="fileType" class="file-type"></p>
+            </div>
+            <button id="reselectVideoButton" class="btn btn-small" style="padding: 2px 6px; min-height: 24px;"
+              title="動画ファイルを選択し直す（リンク切れ対策）">
+              <svg class="icon" style="width: 1.25em; height: 1.25em; margin: 0;" viewBox="0 0 24 24">
+                <path d="M12 5v14M5 12h14"></path>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- 推定モード選択 -->
+        <div id="estimationModePanel" class="panel" style="display: none;">
+          <h3><svg class="icon" viewBox="0 0 24 24">
+              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+            </svg> 推定モード</h3>
+          <div class="form-group">
+            <label>推定モード</label>
+            <select id="estimationMode">
+              <option value="full">全フレーム推定（高精度）</option>
+              <option value="quick">簡易推定（4フレームごと、高速）</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>計測プリセット</label>
+            <select id="presetSelect">
+              <option value="fast">23点（RTMPose-M・高速）</option>
+              <option value="hq">23点（RTMPose-X・高精度）</option>
+              <option value="52pts">52点（SynthPose-Huge）</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>デバイス</label>
+            <select id="deviceSelect" disabled>
+              <option value="detecting">検出中...</option>
+            </select>
+          </div>
+
+          <div id="modelInfo" class="model-info" style="font-size: 0.7rem; color: #9ca3af; margin-top: 0.25rem;">
+            現在: 読み込み中...
+          </div>
+        </div>
+
+        <!-- 使用モデル情報（推定完了後に表示） -->
+        <div id="usedModelInfo" class="panel"
+          style="display: none; background-color: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3);">
+          <h4 style="margin: 0 0 0.5rem 0; font-size: 0.9rem; color: #10b981;">
+            <svg class="icon" viewBox="0 0 24 24" style="width: 1em; height: 1em; vertical-align: text-bottom;">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+              <polyline points="22 4 12 14.01 9 11.01"></polyline>
+            </svg> 推定に使用したモデル
+          </h4>
+          <div style="font-size: 0.8rem; line-height: 1.4;">
+            <div>検出: <span id="usedYoloModel" style="font-weight: bold;">-</span></div>
+            <div>ポーズ: <span id="usedPoseModel" style="font-weight: bold;">-</span></div>
+          </div>
+        </div>
+
+        <!-- 動画情報 -->
+        <div id="videoInfoPanel" class="panel" style="display: none;">
+          <h3><svg class="icon" viewBox="0 0 24 24">
+              <path d="M23 7l-7 5 7 5V7z"></path>
+              <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
+            </svg> 動画情報</h3>
+          <div class="form-group">
+            <label>カメラタイプ</label>
+            <select id="cameraType">
+              <option value="normal">通常カメラ</option>
+              <option value="highspeed">ハイスピードカメラ</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>撮影FPS</label>
+            <input type="number" id="videoFps" value="60" min="1" max="1000" step="1">
+          </div>
+        </div>
+
+        <!-- 実行ボタン -->
+        <button id="runButton" class="btn btn-primary" disabled>
+          <svg class="icon" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="10"></circle>
+            <polygon points="10 8 16 12 10 16 10 8"></polygon>
+          </svg> ポーズ推定を実行
+        </button>
+
+        <!-- プログレスバー -->
+        <div id="progressPanel" class="panel" style="display: none;">
+          <h3><svg class="icon" viewBox="0 0 24 24">
+              <path d="M12 2v4"></path>
+              <path d="m16.2 7.8 2.9-2.9"></path>
+              <path d="M18 12h4"></path>
+              <path d="m16.2 16.2 2.9 2.9"></path>
+              <path d="M12 18v4"></path>
+              <path d="m4.9 19.1 2.9-2.9"></path>
+              <path d="M2 12h4"></path>
+              <path d="m4.9 4.9 2.9 2.9"></path>
+            </svg> 処理中</h3>
+          <div class="progress-bar">
+            <div id="progressFill" class="progress-fill"></div>
+          </div>
+          <p id="progressText" class="progress-text">0 / 0 フレーム (0%)</p>
+        </div>
+
+        <!-- エラー -->
+        <div id="errorPanel" class="panel error-panel" style="display: none;">
+          <span id="errorText"></span>
+        </div>
+
+        <!-- 表示モード -->
+        <div id="viewModePanel" class="panel" style="display: none;">
+          <h3><svg class="icon" viewBox="0 0 24 24">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+              <circle cx="12" cy="12" r="3"></circle>
+            </svg> 表示モード</h3>
+          <div class="view-mode-buttons">
+            <button id="viewVideo" class="btn btn-small view-btn active"><svg class="icon" viewBox="0 0 24 24">
+                <rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"></rect>
+                <line x1="7" y1="2" x2="7" y2="22"></line>
+                <line x1="17" y1="2" x2="17" y2="22"></line>
+                <line x1="2" y1="12" x2="22" y2="12"></line>
+                <line x1="2" y1="7" x2="7" y2="7"></line>
+                <line x1="2" y1="17" x2="7" y2="17"></line>
+                <line x1="17" y1="17" x2="22" y2="17"></line>
+                <line x1="17" y1="7" x2="22" y2="7"></line>
+              </svg> 動画</button>
+            <button id="viewSkeleton" class="btn btn-small view-btn"><svg class="icon" viewBox="0 0 24 24">
+                <circle cx="12" cy="5" r="1"></circle>
+                <path d="m9 20 3-6 3 6"></path>
+                <path d="m6 8 6 2 6-2"></path>
+                <path d="M12 10v4"></path>
+              </svg> 骨格</button>
+            <button id="viewGraph" class="btn btn-small view-btn"><svg class="icon" viewBox="0 0 24 24">
+                <line x1="18" y1="20" x2="18" y2="10"></line>
+                <line x1="12" y1="20" x2="12" y2="4"></line>
+                <line x1="6" y1="20" x2="6" y2="14"></line>
+              </svg> グラフ</button>
+          </div>
+          <div class="form-group" style="margin-top: 0.5rem;">
+            <label><input type="checkbox" id="showSkeletonCheckbox" checked> <svg class="icon" viewBox="0 0 24 24">
+                <circle cx="12" cy="5" r="1"></circle>
+                <path d="m9 20 3-6 3 6"></path>
+                <path d="m6 8 6 2 6-2"></path>
+                <path d="M12 10v4"></path>
+              </svg> スケルトン表示</label>
+          </div>
+          <!-- ポイント設定スライダー -->
+          <div id="skeletonSettingsPanel" class="form-group" style="margin-top: 0.5rem; padding-left: 0.5rem;">
+            <div style="margin-bottom: 0.5rem;">
+              <label style="font-size: 0.75rem; display: block; margin-bottom: 0.25rem;">サイズ: <span
+                  id="pointSizeValue">5</span></label>
+              <input type="range" id="pointSizeSlider" min="1" max="12" value="5" step="1" style="width: 100%;">
+            </div>
+            <div style="margin-bottom: 0.5rem;">
+              <label style="font-size: 0.75rem; display: block; margin-bottom: 0.25rem;">透過度: <span
+                  id="pointAlphaValue">0.7</span></label>
+              <input type="range" id="pointAlphaSlider" min="0.1" max="1.0" value="0.7" step="0.1" style="width: 100%;">
+            </div>
+            <div style="margin-bottom: 0.5rem;">
+              <label style="font-size: 0.75rem; display: block; margin-bottom: 0.25rem;">線の太さ: <span
+                  id="lineWidthValue">2</span></label>
+              <input type="range" id="lineWidthSlider" min="1" max="10" value="2" step="1" style="width: 100%;">
+            </div>
+          </div>
+        </div>
+
+        <!-- データクレンジング -->
+        <div id="cleansingPanel" class="panel" style="display: none;">
+          <h3><svg class="icon" viewBox="0 0 24 24">
+              <path
+                d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z">
+              </path>
+            </svg> データクレンジング</h3>
+          <!-- 対象人物（セクション共通） -->
+          <div class="form-group">
+            <label>対象人物</label>
+            <select id="cleansingTargetPerson">
+            </select>
+          </div>
+          <!-- ID入替 -->
+          <div style="margin-top: 0.5rem;">
+            <div class="id-swap-row" style="display: flex; align-items: center; gap: 0.5rem;">
+              <select id="swapPersonB" class="person-select-small" style="flex: 1; min-width: 80px;">
+              </select>
+              <span style="color: #9ca3af;">と</span>
+              <button id="manualIdSwap" class="btn btn-small btn-warning"><svg class="icon" viewBox="0 0 24 24">
+                  <polyline points="17 1 21 5 17 9"></polyline>
+                  <path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
+                  <polyline points="7 23 3 19 7 15"></polyline>
+                  <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
+                </svg> 入替</button>
+            </div>
+          </div>
+          <!-- 脚/腕入替 -->
+          <div class="limb-swap-buttons" style="margin-top: 0.5rem; display: flex; gap: 0.25rem;">
+            <button id="swapLegs" class="btn btn-small btn-purple"><svg class="icon" viewBox="0 0 24 24">
+                <path d="M6 20L9 12L6 4"></path>
+                <path d="M18 20L15 12L18 4"></path>
+                <path d="M9 12H15"></path>
+              </svg> 脚入替</button>
+            <button id="swapArms" class="btn btn-small btn-purple"><svg class="icon" viewBox="0 0 24 24">
+                <path d="M4 8L8 12L4 16"></path>
+                <path d="M20 8L16 12L20 16"></path>
+                <path d="M8 12H16"></path>
+              </svg> 腕入替</button>
+          </div>
+          <!-- 手動デジタイズ -->
+          <div class="form-group" style="margin-top: 0.5rem;">
+            <label><input type="checkbox" id="enableDigitize" checked> <svg class="icon" viewBox="0 0 24 24">
+                <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path>
+              </svg> 手動デジタイズ</label>
+          </div>
+          <div id="digitizeOptions" style="margin-top: 0.5rem;">
+            <div class="form-group">
+              <label>デジタイズモード</label>
+              <select id="digitizeMode">
+                <option value="frame">フレームデジタイズ</option>
+                <option value="move">ポイント移動</option>
+              </select>
+            </div>
+            <div id="frameDigitizeOptions">
+              <div class="form-group">
+                <label>対象キーポイント</label>
+                <select id="digitizeKeypoint">
+                  <option value="">キーポイントを選択</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- フレーム再推定 -->
+          <div style="margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid #374151;">
+            <div class="form-group" style="margin-bottom: 0.5rem;">
+              <label style="font-weight: 600; color: #60a5fa;">
+                <svg class="icon" viewBox="0 0 24 24" style="width: 14px; height: 14px;">
+                  <polyline points="23 4 23 10 17 10"></polyline>
+                  <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+                </svg>
+                フレーム再推定
+              </label>
+            </div>
+            <div class="form-group" style="margin-bottom: 0.5rem;">
+              <label style="font-size: 0.8rem;">検出信頼度閾値</label>
+              <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <input type="range" id="redetectConfThreshold" min="0.05" max="0.8" step="0.05" value="0.25" style="flex: 1;">
+                <span id="redetectConfValue" style="font-size: 0.8rem; min-width: 2.5rem;">0.25</span>
+              </div>
+            </div>
+            <button id="redetectCurrentFrame" class="btn btn-small btn-info" style="width: 100%;">
+              <svg class="icon" viewBox="0 0 24 24" style="width: 14px; height: 14px;">
+                <polyline points="23 4 23 10 17 10"></polyline>
+                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+              </svg>
+              現在フレームを再推定
+            </button>
+          </div>
+        </div>
+
+        <!-- フィルタリング設定 -->
+        <div id="filterPanel" class="panel" style="display: none;">
+          <h3><svg class="icon" viewBox="0 0 24 24">
+              <line x1="4" y1="21" x2="4" y2="14"></line>
+              <line x1="4" y1="10" x2="4" y2="3"></line>
+              <line x1="12" y1="21" x2="12" y2="12"></line>
+              <line x1="12" y1="8" x2="12" y2="3"></line>
+              <line x1="20" y1="21" x2="20" y2="16"></line>
+              <line x1="20" y1="12" x2="20" y2="3"></line>
+              <line x1="1" y1="14" x2="7" y2="14"></line>
+              <line x1="9" y1="8" x2="15" y2="8"></line>
+              <line x1="17" y1="16" x2="23" y2="16"></line>
+            </svg> フィルタリング</h3>
+
+          <div class="form-group">
+            <label><input type="checkbox" id="autoFixLimbSwaps" checked> 左右脚・腕自動修正</label>
+          </div>
+          <div class="form-group">
+            <label><input type="checkbox" id="enableOutlier" checked> 外れ値除去</label>
+          </div>
+          <div class="form-group">
+            <label><input type="checkbox" id="enableInterpolation" checked> 補間</label>
+          </div>
+          <div class="form-group">
+            <label><input type="checkbox" id="enableButterworth" checked> Butterworth</label>
+          </div>
+          <div class="form-group">
+            <label><input type="checkbox" id="enableKalman"> Kalman Smoother</label>
+          </div>
+          <button id="applyFilter" class="btn btn-info"><svg class="icon" viewBox="0 0 24 24">
+              <polyline points="23 4 23 10 17 10"></polyline>
+              <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+            </svg> フィルタ適用</button>
+        </div>
+
+        <!-- エクスポート -->
+        <div id="exportPanel" class="panel" style="display: none;">
+          <h3><svg class="icon" viewBox="0 0 24 24">
+              <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+              <polyline points="17 21 17 13 7 13 7 21"></polyline>
+              <polyline points="7 3 7 8 15 8"></polyline>
+            </svg> エクスポート</h3>
+
+          <!-- MotionDigitizer 誘導 -->
+          <div class="motion-digitizer-guide">
+            <div class="mdg-title">
+              <svg class="icon" viewBox="0 0 24 24" style="color:#60a5fa">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="8" x2="12" y2="12"></line>
+                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+              </svg>
+              MotionDigitizer で利用できます
+            </div>
+            <ol class="mdg-steps">
+              <li><strong>HPEファイルを保存</strong>（ファイル → 保存）</li>
+              <li>MotionDigitizer を起動</li>
+              <li><strong>モーションデータ</strong> タブ（📊）を開く</li>
+              <li><strong>HPEインポート</strong> でファイルを選択</li>
+            </ol>
+            <div class="mdg-divider">または CSV を使う場合</div>
+            <ol class="mdg-steps">
+              <li><strong>CSV形式で保存</strong>（下のボタン）</li>
+              <li>MotionDigitizer → モーションデータタブ → <strong>CSVインポート</strong></li>
+            </ol>
+          </div>
+
+          <div class="form-group">
+            <label>対象人物</label>
+            <select id="personSelect">
+              <option value="all">全員</option>
+            </select>
+          </div>
+          <div class="btn-group">
+            <button id="exportCSV" class="btn btn-success"><svg class="icon" viewBox="0 0 24 24">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+                <line x1="12" y1="18" x2="12" y2="12"></line>
+                <line x1="9" y1="15" x2="15" y2="15"></line>
+              </svg> CSV形式で保存</button>
+            <button id="exportDataset" class="btn btn-warning"><svg class="icon" viewBox="0 0 24 24">
+                <path
+                  d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z">
+                </path>
+              </svg> YOLO学習データ作成</button>
+            <!-- JSON形式エクスポートは現在無効化（CSV形式で十分）
+            <button id="exportJSON" class="btn btn-warning"><svg class="icon" viewBox="0 0 24 24">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+                <line x1="16" y1="13" x2="8" y2="13"></line>
+                <line x1="16" y1="17" x2="8" y2="17"></line>
+                <line x1="10" y1="9" x2="8" y2="9"></line>
+              </svg> JSON形式で保存</button>
+            -->
+            <button id="exportVideo" class="btn btn-purple" style="display: none;"><svg class="icon"
+                viewBox="0 0 24 24">
+                <rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"></rect>
+                <line x1="7" y1="2" x2="7" y2="22"></line>
+                <line x1="17" y1="2" x2="17" y2="22"></line>
+                <line x1="2" y1="12" x2="22" y2="12"></line>
+                <line x1="2" y1="7" x2="7" y2="7"></line>
+                <line x1="2" y1="17" x2="7" y2="17"></line>
+                <line x1="17" y1="17" x2="22" y2="17"></line>
+                <line x1="17" y1="7" x2="22" y2="7"></line>
+              </svg> オーバーレイ動画を保存</button>
+          </div>
+        </div>
+
+
+      </aside>
+
+      <!-- メインエリア -->
+      <main class="main-area">
+        <div id="placeholder" class="placeholder">
+          <div class="placeholder-icon"><svg class="icon" style="width: 4em; height: 4em;" viewBox="0 0 24 24">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+              <circle cx="8.5" cy="8.5" r="1.5"></circle>
+              <polyline points="21 15 16 10 5 21"></polyline>
+            </svg></div>
+          <p>ファイルを選択してください</p>
+        </div>
+        <div id="previewContainer" class="preview-container" style="display: none;">
+          <img id="previewImage" style="display: none;">
+          <video id="previewVideo" controls style="display: none;"></video>
+          <canvas id="resultCanvas" style="display: none;"></canvas>
+          <canvas id="skeletonOverlayCanvas"
+            style="display: none; position: absolute; top: 0; left: 0; pointer-events: none;"></canvas>
+          <canvas id="skeletonCanvas" style="display: none;"></canvas>
+        </div>
+        <!-- グラフ表示エリア -->
+        <div id="graphContainer" class="graph-container" style="display: none;">
+          <div class="graph-header">
+            <div class="graph-mode-toggle">
+              <button id="graphModeList" class="btn btn-small graph-mode-btn active"><svg class="icon"
+                  viewBox="0 0 24 24">
+                  <line x1="18" y1="20" x2="18" y2="10"></line>
+                  <line x1="12" y1="20" x2="12" y2="4"></line>
+                  <line x1="6" y1="20" x2="6" y2="14"></line>
+                </svg> 一覧</button>
+              <button id="graphModeDetail" class="btn btn-small graph-mode-btn"><svg class="icon" viewBox="0 0 24 24">
+                  <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                </svg> 詳細</button>
+            </div>
+            <div class="graph-controls">
+              <select id="graphPerson" class="graph-select">
+                <option value="">人物を選択</option>
+              </select>
+            </div>
+            <div class="graph-detail-controls" id="graphDetailControls" style="display: none;">
+              <select id="graphKeypoint" class="graph-select">
+                <option value="">キーポイントを選択</option>
+              </select>
+            </div>
+            <div class="graph-actions">
+              <button id="deleteBefore" class="btn btn-small btn-danger" title="このフレーム以前を全て削除（現在含む）">
+                <svg class="icon" viewBox="0 0 24 24">
+                  <polyline points="11 17 6 12 11 7"></polyline>
+                  <polyline points="18 17 13 12 18 7"></polyline>
+                </svg> 以前削除
+              </button>
+              <button id="deleteAfter" class="btn btn-small btn-danger" title="このフレーム以降を全て削除（現在含む）">
+                <svg class="icon" viewBox="0 0 24 24">
+                  <polyline points="13 17 18 12 13 7"></polyline>
+                  <polyline points="6 17 11 12 6 7"></polyline>
+                </svg> 以降削除
+              </button>
+              <button id="deleteFrameData" class="btn btn-small btn-danger" title="現在フレームの選択人物のスケルトンを削除"><svg
+                  class="icon" viewBox="0 0 24 24">
+                  <polyline points="3 6 5 6 21 6"></polyline>
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                  <line x1="10" y1="11" x2="10" y2="17"></line>
+                  <line x1="14" y1="11" x2="14" y2="17"></line>
+                </svg>
+                フレーム削除</button>
+              <button id="bulkDeletePersonsBtn" class="btn btn-small btn-danger" title="複数人物を一括削除"><svg class="icon"
+                  viewBox="0 0 24 24">
+                  <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                  <circle cx="8.5" cy="7" r="4"></circle>
+                  <line x1="18" y1="8" x2="23" y2="13"></line>
+                  <line x1="23" y1="8" x2="18" y2="13"></line>
+                </svg> 人物削除</button>
+              <button id="undoEdit" class="btn btn-small" disabled><svg class="icon" viewBox="0 0 24 24">
+                  <path d="M9 14 4 9 9 4"></path>
+                  <path d="M20 20v-7a4 4 0 0 0-4-4H4"></path>
+                </svg> 元に戻す</button>
+              <button id="redoEdit" class="btn btn-small" disabled><svg class="icon" viewBox="0 0 24 24">
+                  <path d="M15 14l5-5-5-5"></path>
+                  <path d="M4 20v-7a4 4 0 0 1 4-4h12"></path>
+                </svg> やり直し</button>
+              <button id="resetEdit" class="btn btn-small btn-warning"><svg class="icon" viewBox="0 0 24 24">
+                  <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+                  <path d="M3 3v5h5"></path>
+                  <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"></path>
+                  <path d="M16 16h5v5"></path>
+                </svg> 編集リセット</button>
+            </div>
+          </div>
+          <div class="graph-main-content">
+            <!-- 一覧表示エリア -->
+            <div id="graphListView" class="graph-list-view">
+              <!-- JSで動的に生成 -->
+            </div>
+            <!-- 詳細表示エリア -->
+            <div id="graphDetailView" class="graph-detail-view" style="display: none;">
+              <div class="graph-detail-header">
+                <button id="backToList" class="btn btn-small"><svg class="icon" viewBox="0 0 24 24">
+                    <line x1="19" y1="12" x2="5" y2="12"></line>
+                    <polyline points="12 19 5 12 12 5"></polyline>
+                  </svg> 一覧に戻る</button>
+                <span id="graphDetailTitle" class="graph-detail-title"></span>
+              </div>
+              <div class="graph-dual-view">
+                <div class="graph-single-wrapper">
+                  <div class="graph-single-header">X座標</div>
+                  <div class="graph-canvas-wrapper">
+                    <canvas id="graphCanvasX"></canvas>
+                  </div>
+                </div>
+                <div class="graph-single-wrapper">
+                  <div class="graph-single-header">Y座標</div>
+                  <div class="graph-canvas-wrapper">
+                    <canvas id="graphCanvasY"></canvas>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <!-- リサイズハンドル -->
+            <div id="graphResizeHandle" class="graph-resize-handle"></div>
+            <!-- スケルトンプレビュー -->
+            <div id="skeletonPreview" class="skeleton-preview">
+              <div class="skeleton-preview-header">
+                <div class="preview-controls">
+                  <button id="zoomIn" class="btn-icon" title="拡大"><svg class="icon" viewBox="0 0 24 24">
+                      <circle cx="11" cy="11" r="8"></circle>
+                      <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                      <line x1="11" y1="8" x2="11" y2="14"></line>
+                      <line x1="8" y1="11" x2="14" y2="11"></line>
+                    </svg></button>
+                  <button id="zoomOut" class="btn-icon" title="縮小"><svg class="icon" viewBox="0 0 24 24">
+                      <circle cx="11" cy="11" r="8"></circle>
+                      <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                      <line x1="8" y1="11" x2="14" y2="11"></line>
+                    </svg></button>
+                  <button id="zoomReset" class="btn-icon" title="中央にリセット"><svg class="icon" viewBox="0 0 24 24">
+                      <path d="M2.5 2v6h6"></path>
+                      <path d="M21.5 22v-6h-6"></path>
+                      <path d="M22 11.5A10 10 0 0 0 3.2 7.2M2 12.5a10 10 0 0 0 18.8 4.3"></path>
+                    </svg></button>
+                  <label class="preview-toggle" style="margin-left: 0.5rem;">
+                    <input type="checkbox" id="alwaysCenter" checked>
+                    常に中央
+                  </label>
+                </div>
+              </div>
+              <div class="skeleton-preview-canvas-wrapper" id="skeletonPreviewWrapper">
+                <canvas id="skeletonPreviewCanvas"></canvas>
+              </div>
+            </div>
+            <!-- リサイザー -->
+            <div class="resizer" id="graphResizer"></div>
+          </div>
+          <div class="graph-info">
+            <span id="graphFrameInfo">フレーム: - / -</span>
+            <span id="graphValueInfo">値: -</span>
+            <span id="graphEditMode" class="edit-mode-badge">編集モード: OFF</span>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <!-- 再生コントロールフッター -->
+    <footer id="playbackFooter" class="playback-footer" style="display: none;">
+      <div class="playback-footer-content">
+        <div class="playback-buttons">
+          <button id="btnFirst" class="btn btn-small"><svg class="icon" viewBox="0 0 24 24">
+              <polygon points="19 20 9 12 19 4 19 20"></polygon>
+              <line x1="5" y1="19" x2="5" y2="5"></line>
+            </svg></button>
+          <button id="btnPrev" class="btn btn-small"><svg class="icon" viewBox="0 0 24 24">
+              <polygon points="19 20 9 12 19 4 19 20"></polygon>
+            </svg></button>
+          <button id="btnPlay" class="btn btn-primary btn-small"
+            style="min-width: 2.5em; text-align: center;">▶️</button>
+          <button id="btnNext" class="btn btn-small"><svg class="icon" viewBox="0 0 24 24">
+              <polygon points="5 4 15 12 5 20 5 4"></polygon>
+            </svg></button>
+          <button id="btnLast" class="btn btn-small"><svg class="icon" viewBox="0 0 24 24">
+              <polygon points="5 4 15 12 5 20 5 4"></polygon>
+              <line x1="19" y1="5" x2="19" y2="19"></line>
+            </svg></button>
+        </div>
+        <div class="playback-slider">
+          <input type="range" id="frameSlider" min="1" max="1" value="1">
+        </div>
+        <div class="playback-info">
+          <span id="frameInfo">フレーム: 1 / 1</span>
+          <span id="timeInfo">0.00秒</span>
+        </div>
+        <div class="playback-settings">
+          <label>速度:
+            <select id="speedSelect" class="speed-select">
+              <option value="0.25">0.25x</option>
+              <option value="0.5">0.5x</option>
+              <option value="1" selected>1x</option>
+              <option value="2">2x</option>
+              <option value="4">4x</option>
+              <option value="8">8x</option>
+              <option value="16">16x</option>
+            </select>
+          </label>
+        </div>
+        <button id="videoZoomReset" class="btn btn-small" title="表示をリセット"><svg class="icon" viewBox="0 0 24 24">
+            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+            <path d="M3 3v5h5"></path>
+          </svg></button>
+        <div class="cache-progress" id="cacheProgressContainer" style="display: none;">
+          <span class="cache-label" id="cacheLabel">キャッシュ中...</span>
+          <div class="cache-progress-bar">
+            <div class="cache-progress-fill" id="cacheProgressFill"></div>
+          </div>
+          <span class="cache-percent" id="cachePercent">0%</span>
+        </div>
+      </div>
+    </footer>
+  </div>
+
+  <script src="skeleton-renderer.js"></script>
+
+  <!-- グラフ右クリックコンテキストメニュー -->
+  <div id="graphContextMenu" class="graph-context-menu" style="display: none;">
+    <div class="graph-context-menu-item graph-context-menu-danger" id="graphContextMenuDelete">削除</div>
+  </div>
+
+  <!-- 設定モーダル -->
+  <div id="settingsModal" class="modal-overlay">
+    <div class="modal-container" style="max-width: 550px; max-height: 85vh;">
+      <div class="modal-header">
+        <h3>設定</h3>
+        <button id="closeSettingsBtn" class="close-modal">
+          <svg class="icon" viewBox="0 0 24 24">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body" style="max-height: 65vh; overflow-y: auto;">
+        <!-- YOLO設定セクション -->
+        <div class="settings-section" style="margin-bottom: 1.5rem;">
+          <h4 style="color: #60a5fa; font-size: 0.95rem; margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid #374151;">
+            🎯 YOLO設定（人物検出）
+          </h4>
+          <div class="form-group" style="display: block; margin-bottom: 1rem;">
+            <label style="display: block; width: 100%; margin-bottom: 0.5rem; font-size: 0.9rem;">入力解像度</label>
+            <select id="yoloSizeSelect" style="width: 100%;">
+              <option value="320">320 (高速・低精度)</option>
+              <option value="640">640 (推奨・高精度)</option>
+              <option value="1280">1280 (最高精度・低速)</option>
+            </select>
+            <div class="setting-description" style="font-size: 0.8rem; color: #9ca3af; margin-top: 0.25rem;">
+              解像度を上げると小さい人物の検出精度が向上しますが、処理速度が低下します。
+            </div>
+          </div>
+
+          <div class="form-group" style="display: block; margin-bottom: 1rem;">
+            <label style="display: block; width: 100%; margin-bottom: 0.5rem; font-size: 0.9rem;">検出信頼度閾値</label>
+            <div class="slider-container">
+              <input type="range" id="confThresholdSlider" min="0.1" max="1.0" step="0.05" value="0.3">
+              <span id="confThresholdValue" class="slider-value">0.30</span>
+            </div>
+            <div class="setting-description" style="font-size: 0.8rem; color: #9ca3af; margin-top: 0.25rem;">
+              この値より確信度が低い検出結果を除外します。
+            </div>
+          </div>
+
+          <div class="form-group" style="display: block; margin-bottom: 0.5rem;">
+            <label style="display: block; width: 100%; margin-bottom: 0.5rem; font-size: 0.9rem;">NMS閾値</label>
+            <div class="slider-container">
+              <input type="range" id="nmsThresholdSlider" min="0.1" max="1.0" step="0.05" value="0.45">
+              <span id="nmsThresholdValue" class="slider-value">0.45</span>
+            </div>
+            <div class="setting-description" style="font-size: 0.8rem; color: #9ca3af; margin-top: 0.25rem;">
+              重複検出を排除するための閾値です。通常は変更不要です。
+            </div>
+          </div>
+        </div>
+
+        <!-- モデル設定セクション -->
+        <div class="settings-section" style="margin-bottom: 1.5rem;">
+          <h4 style="color: #34d399; font-size: 0.95rem; margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid #374151;">
+            🦴 モデル設定（骨格推定）
+          </h4>
+          <div class="form-group" style="display: block; margin-bottom: 0.5rem;">
+            <label style="display: block; width: 100%; margin-bottom: 0.5rem; font-size: 0.9rem;">骨格描画 信頼度閾値</label>
+            <div class="slider-container">
+              <input type="range" id="settingsDrawThreshold" min="0.0" max="1.0" step="0.05" value="0.3">
+              <span id="drawThresholdValue" class="slider-value">0.30</span>
+            </div>
+            <div class="setting-description" style="font-size: 0.8rem; color: #9ca3af; margin-top: 0.25rem;">
+              この値より低い信頼度のキーポイントは描画されません。
+            </div>
+          </div>
+        </div>
+
+        <!-- フィルタ設定セクション -->
+        <div class="settings-section" style="margin-bottom: 0.5rem;">
+          <h4 style="color: #f472b6; font-size: 0.95rem; margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid #374151;">
+            🔧 フィルタ設定（データ処理）
+          </h4>
+          <div class="form-group" style="display: block; margin-bottom: 1rem;">
+            <label style="display: block; width: 100%; margin-bottom: 0.5rem; font-size: 0.9rem;">補間手法</label>
+            <select id="settingsInterpolationMethod" style="width: 100%;">
+              <option value="pchip">PCHIP（推奨）</option>
+              <option value="cubic">Cubic Spline</option>
+              <option value="akima">Akima</option>
+              <option value="linear">Linear</option>
+            </select>
+            <div class="setting-description" style="font-size: 0.8rem; color: #9ca3af; margin-top: 0.25rem;">
+              欠損キーポイントの補間に使用するアルゴリズムです。
+            </div>
+          </div>
+
+          <div class="form-group" style="display: block; margin-bottom: 1rem;">
+            <label style="display: block; width: 100%; margin-bottom: 0.5rem; font-size: 0.9rem;">補間最大ギャップ（フレーム）</label>
+            <input type="number" id="settingsMaxGap" value="50" min="1" max="500" step="10" style="width: 100%;">
+            <div class="setting-description" style="font-size: 0.8rem; color: #9ca3af; margin-top: 0.25rem;">
+              この値を超える連続した欠損フレームは補間されません。
+            </div>
+          </div>
+
+          <div class="form-group" style="display: block; margin-bottom: 1rem;">
+            <label style="display: block; width: 100%; margin-bottom: 0.5rem; font-size: 0.9rem;">エッジパディング（フレーム）</label>
+            <input type="number" id="settingsEdgePadding" value="20" min="0" max="120" step="5" style="width: 100%;">
+            <div class="setting-description" style="font-size: 0.8rem; color: #9ca3af; margin-top: 0.25rem;">
+              フィルタリング時に両端に追加するパディングフレーム数です。
+            </div>
+          </div>
+
+          <div class="form-group" style="display: block; margin-bottom: 0.5rem;">
+            <label style="display: block; width: 100%; margin-bottom: 0.5rem; font-size: 0.9rem;">Butterworthカットオフ周波数 (Hz)</label>
+            <input type="number" id="settingsButterworthCutoff" value="6.0" min="1.0" max="30.0" step="0.5" style="width: 100%;">
+            <div class="setting-description" style="font-size: 0.8rem; color: #9ca3af; margin-top: 0.25rem;">
+              低域通過フィルタのカットオフ周波数。低いほど滑らかになります。
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="cancelSettingsBtn" class="btn btn-secondary">キャンセル</button>
+        <button id="saveSettingsBtn" class="btn btn-primary">適用</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- バッチ処理モーダル -->
+  <div id="batchModal" class="modal-overlay">
+    <div class="modal-container" style="max-width: 700px; max-height: 90vh;">
+      <div class="modal-header">
+        <h3>バッチ処理</h3>
+        <button id="closeBatchBtn" class="close-modal">
+          <svg class="icon" viewBox="0 0 24 24">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
+        <div class="form-group" style="display: block; margin-bottom: 1rem;">
+          <p style="color: #9ca3af; font-size: 0.85rem; margin-bottom: 0.75rem;">
+            複数のファイルを一括で処理し、各ファイルに対して.hpeファイルを自動保存します。
+          </p>
+          <button id="batchSelectFilesBtn" class="btn btn-primary" style="width: 100%;">
+            <svg class="icon" viewBox="0 0 24 24" style="width: 1.2em; height: 1.2em;">
+              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+            </svg>
+            ファイルを選択...
+          </button>
+        </div>
+
+        <!-- バッチ処理設定 -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1rem; padding: 0.75rem; background: rgba(55, 65, 81, 0.3); border-radius: 6px;">
+          <div class="form-group" style="margin: 0;">
+            <label style="font-size: 0.8rem; margin-bottom: 0.25rem; display: block;">カメラタイプ</label>
+            <select id="batchCameraType" style="width: 100%; padding: 0.4rem; font-size: 0.85rem;">
+              <option value="normal">通常カメラ</option>
+              <option value="highspeed">ハイスピードカメラ</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin: 0;">
+            <label style="font-size: 0.8rem; margin-bottom: 0.25rem; display: block;">撮影FPS</label>
+            <input type="number" id="batchFps" value="60" min="1" max="1000" step="1" style="width: 100%; padding: 0.4rem; font-size: 0.85rem;">
+          </div>
+          <div class="form-group" style="margin: 0;">
+            <label style="font-size: 0.8rem; margin-bottom: 0.25rem; display: block;">ポーズモデル</label>
+            <select id="batchPoseModel" style="width: 100%; padding: 0.4rem; font-size: 0.85rem;">
+              <option value="rtmpose-m">RTMPose-M (軽量・高速)</option>
+              <option value="rtmpose-x" selected>RTMPose-X (高精度)</option>
+              <option value="synthpose-huge-onnx">SynthPose-Huge (52点)</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin: 0;">
+            <label style="font-size: 0.8rem; margin-bottom: 0.25rem; display: block;">推定モード</label>
+            <select id="batchEstimationMode" style="width: 100%; padding: 0.4rem; font-size: 0.85rem;">
+              <option value="full">全フレーム推定</option>
+              <option value="quick">簡易推定（4フレームごと）</option>
+            </select>
+          </div>
+        </div>
+
+        <div id="batchFileList" style="display: none;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+            <label style="font-weight: 600;">選択ファイル (<span id="batchFileCount">0</span>件)</label>
+            <button id="batchClearFilesBtn" class="btn btn-small btn-secondary" style="padding: 2px 8px; font-size: 0.75rem;">クリア</button>
+          </div>
+          <div id="batchFileItems" style="max-height: 200px; overflow-y: auto; border: 1px solid #374151; border-radius: 4px; padding: 0.5rem;"></div>
+        </div>
+
+        <div id="batchProgressSection" style="display: none; margin-top: 1rem;">
+          <!-- 進捗（全ファイル合計フレーム数ベース） -->
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
+            <label style="font-weight: 600; font-size: 0.85rem;">進捗</label>
+            <span id="batchProgressLabel" style="font-size: 0.85rem;">0%</span>
+          </div>
+          <div class="progress-bar" style="height: 8px; background: #374151; border-radius: 4px; overflow: hidden; margin-bottom: 0.5rem;">
+            <div id="batchProgressFill" style="height: 100%; width: 0%; background: linear-gradient(90deg, #3b82f6, #8b5cf6); transition: width 0.1s;"></div>
+          </div>
+
+          <!-- ファイル進捗 -->
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
+            <span id="batchFileProgress" style="font-size: 0.8rem; color: #9ca3af;">ファイル: 0 / 0</span>
+            <span id="batchFrameProgress" style="font-size: 0.8rem; color: #9ca3af;"></span>
+          </div>
+
+          <!-- 現在のファイル -->
+          <div id="batchCurrentFile" style="font-size: 0.8rem; color: #d1d5db; word-break: break-all;"></div>
+        </div>
+
+        <div id="batchResults" style="display: none; margin-top: 1rem;">
+          <label style="font-weight: 600; display: block; margin-bottom: 0.5rem;">処理結果</label>
+          <div id="batchResultItems" style="max-height: 150px; overflow-y: auto; border: 1px solid #374151; border-radius: 4px; padding: 0.5rem; font-size: 0.85rem;"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="cancelBatchBtn" class="btn btn-secondary">閉じる</button>
+        <button id="startBatchBtn" class="btn btn-primary" disabled>処理開始</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 一括削除モーダル -->
+  <div id="bulkDeleteModal" class="modal-overlay">
+    <div class="modal-container" style="max-width: 400px; max-height: 70vh;">
+      <div class="modal-header">
+        <h3>人物を一括削除</h3>
+        <button id="closeBulkDeleteBtn" class="close-modal">
+          <svg class="icon" viewBox="0 0 24 24">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body" style="padding: 1rem;">
+        <div style="margin-bottom: 1rem; display: flex; gap: 0.5rem;">
+          <button id="bulkDeleteSelectAll" class="btn btn-small btn-secondary">全選択</button>
+          <button id="bulkDeleteDeselectAll" class="btn btn-small btn-secondary">全解除</button>
+        </div>
+        <div id="bulkDeletePersonList" style="max-height: 300px; overflow-y: auto; border: 1px solid #374151; border-radius: 4px; padding: 0.5rem;">
+          <!-- 人物リストがここに動的に生成される -->
+        </div>
+        <div style="margin-top: 1rem; color: #9ca3af; font-size: 0.85rem;">
+          選択した人物のデータが全フレームから削除されます。
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="cancelBulkDeleteBtn" class="btn btn-secondary">キャンセル</button>
+        <button id="confirmBulkDeleteBtn" class="btn btn-danger">削除</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+
+</html>

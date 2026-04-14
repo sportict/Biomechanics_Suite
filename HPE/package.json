@@ -1,0 +1,115 @@
+{
+  "name": "hpe",
+  "version": "1.1.0",
+  "description": "Human Pose Estimation Desktop App using easy-ViTPose",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "cross-env NODE_ENV=development electron .",
+    "build": "cross-env NODE_OPTIONS=--max-old-space-size=8192 electron-builder --win --x64",
+    "build:dir": "cross-env NODE_OPTIONS=--max-old-space-size=8192 electron-builder --win --x64 --dir",
+    "build:portable": "cross-env NODE_OPTIONS=--max-old-space-size=8192 electron-builder --win --x64 -c.win.target=portable",
+    "build:mac": "cross-env NODE_OPTIONS=--max-old-space-size=8192 electron-builder --mac --arm64"
+  },
+  "keywords": [
+    "pose-estimation",
+    "vitpose",
+    "electron"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "cross-env": "^7.0.3",
+    "electron": "^33.0.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.hpe.pose-estimation",
+    "productName": "HPE",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "renderer/**/*",
+      "HPE.ico",
+      "HPE.png",
+      "HPE.icns"
+    ],
+    "extraResources": [
+      {
+        "from": "server",
+        "to": "server",
+        "filter": [
+          "**/*",
+          "!**/*.pyc",
+          "!**/__pycache__",
+          "!**/*.spec",
+          "!**/debug_*",
+          "!**/*_backup*",
+          "!**/*_fixed.py",
+          "!**/*_hybrid.py",
+          "!requirements.txt"
+        ]
+      },
+      {
+        "from": "Models",
+        "to": "Models",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": ".venv",
+        "to": ".venv",
+        "filter": [
+          "**/*",
+          "!**/*.pyc",
+          "!**/__pycache__",
+          "!**/pip*",
+          "!**/setuptools*",
+          "!**/wheel*",
+          "!**/*.whl",
+          "!**/tests"
+        ]
+      }
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "./HPE.ico"
+    },
+    "mac": {
+      "target": [
+        {"target": "dmg", "arch": ["arm64"]},
+        {"target": "zip", "arch": ["arm64"]}
+      ],
+      "icon": "./HPE.icns",
+      "category": "public.app-category.utilities"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "deleteAppDataOnUninstall": false,
+      "differentialPackage": false,
+      "warningsAsErrors": false,
+      "customNsisBinary": {
+        "url": "https://github.com/SoundSafari/NSISBI-ElectronBuilder/releases/download/1.0.0/nsisbi-electronbuilder-3.10.3.7z",
+        "checksum": "WRmZUsACjIc2s7bvsFGFRofK31hfS7riPlcfI1V9uFB2Q8s7tidgI/9U16+X0I9X2ZhNxi8N7Z3gKvm6ojvLvg=="
+      }
+    },
+    "fileAssociations": [
+      {
+        "ext": "hpe",
+        "name": "HPE Project File",
+        "description": "Human Pose Estimation Project File",
+        "role": "Editor",
+        "icon": "./HPE.png"
+      }
+    ],
+    "executableName": "HPE"
+  }
+}

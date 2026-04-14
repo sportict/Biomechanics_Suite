@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run build:native:*)",
+      "Bash(npx electron-builder:*)",
+      "Bash(dir:*)"
+    ]
+  }
+}

@@ -1,0 +1,2475 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SBM User Manual | 操作ガイド</title>
+    <link rel="stylesheet" href="premium_style.css">
+    <link rel="stylesheet" href="premium_style_append.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        /* Manual-specific styles */
+        .kbd {
+            display: inline-block;
+            padding: 2px 8px;
+            font-family: 'Fira Code', 'Consolas', monospace;
+            font-size: 0.85em;
+            color: #e2e8f0;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 4px;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+            line-height: 1.6;
+            white-space: nowrap;
+        }
+
+        .btn-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 2em;
+            height: 2em;
+            font-size: 1em;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 6px;
+            vertical-align: middle;
+            margin: 0 2px;
+        }
+
+        .shortcut-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1.5rem 0;
+            font-size: 0.95rem;
+        }
+
+        .shortcut-table th {
+            background: rgba(6, 182, 212, 0.12);
+            color: var(--accent-cyan);
+            padding: 0.8rem 1rem;
+            text-align: left;
+            border-bottom: 2px solid rgba(6, 182, 212, 0.3);
+            font-weight: 600;
+        }
+
+        .shortcut-table td {
+            padding: 0.7rem 1rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            vertical-align: middle;
+        }
+
+        .shortcut-table tr:hover td {
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .shortcut-table td:first-child {
+            white-space: nowrap;
+        }
+
+        .btn-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1.5rem 0;
+        }
+
+        .btn-table th {
+            background: rgba(139, 92, 246, 0.12);
+            color: var(--accent-purple);
+            padding: 0.8rem 1rem;
+            text-align: left;
+            border-bottom: 2px solid rgba(139, 92, 246, 0.3);
+            font-weight: 600;
+        }
+
+        .btn-table td {
+            padding: 0.6rem 1rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            vertical-align: top;
+        }
+
+        .btn-table tr:hover td {
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .tip-box {
+            background: rgba(16, 185, 129, 0.08);
+            border-left: 4px solid var(--accent-success);
+            padding: 1rem 1.5rem;
+            margin: 1.5rem 0;
+            border-radius: 0 8px 8px 0;
+        }
+
+        .tip-box strong {
+            color: var(--accent-success);
+        }
+
+        .warn-box {
+            background: rgba(245, 158, 11, 0.08);
+            border-left: 4px solid #f59e0b;
+            padding: 1rem 1.5rem;
+            margin: 1.5rem 0;
+            border-radius: 0 8px 8px 0;
+        }
+
+        .warn-box strong {
+            color: #f59e0b;
+        }
+
+        .menu-path {
+            color: var(--accent-cyan);
+            font-weight: 500;
+        }
+
+        .menu-path i {
+            opacity: 0.5;
+            margin: 0 4px;
+            font-size: 0.8em;
+        }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.2rem;
+            margin: 1.5rem 0;
+        }
+
+        .feature-item {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 10px;
+            padding: 1.2rem;
+        }
+
+        .feature-item h4 {
+            color: var(--accent-cyan);
+            margin-bottom: 0.5rem;
+            font-size: 1rem;
+        }
+
+        .feature-item p {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            margin: 0;
+        }
+
+        .toc {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        .toc li {
+            margin-bottom: 0.3rem;
+        }
+
+        .toc li a {
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+            padding: 0.6rem 1rem;
+            border-radius: 8px;
+            transition: background 0.2s;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .toc li a:hover {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-primary);
+        }
+
+        .toc li a .toc-num {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 2rem;
+            height: 2rem;
+            background: var(--accent-blue);
+            color: white;
+            border-radius: 50%;
+            font-size: 0.85rem;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+
+        .sub-section {
+            background: rgba(0, 0, 0, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+        }
+
+        .sub-section h4 {
+            color: var(--accent-purple);
+            font-size: 1.05rem;
+            margin-bottom: 1rem;
+        }
+
+        /* Smooth scroll */
+        html {
+            scroll-behavior: smooth;
+        }
+
+        /* Step list nested ul */
+        .step-list li ul {
+            margin-top: 0.5rem;
+            margin-left: 1rem;
+            list-style-type: disc;
+        }
+
+        .step-list li ul li {
+            padding-left: 0;
+            margin-bottom: 0.3rem;
+            font-size: 0.95em;
+            color: var(--text-secondary);
+        }
+
+        .step-list li ul li::before {
+            display: none;
+        }
+
+        .step-list li ul li strong {
+            color: var(--accent-cyan);
+        }
+
+        /* Anchor offset for sticky header */
+        [id] {
+            scroll-margin-top: 80px;
+        }
+
+        /* Image Gallery Styles */
+        .img-gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+            margin: 2rem 0;
+        }
+
+        .img-gallery-item {
+            position: relative;
+            border-radius: 12px;
+            overflow: hidden;
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .img-gallery-item:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        .img-gallery-item img {
+            width: 100%;
+            height: auto;
+            display: block;
+            cursor: zoom-in;
+        }
+
+        .img-gallery-caption {
+            padding: 0.8rem 1rem;
+            background: rgba(0, 0, 0, 0.6);
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            text-align: center;
+        }
+
+        .img-gallery-caption strong {
+            color: var(--accent-cyan);
+            display: block;
+            margin-bottom: 0.3rem;
+        }
+
+        .img-container-full {
+            margin: 2rem 0;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        .img-container-full img {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        .img-container-full .caption {
+            padding: 1rem 1.5rem;
+            background: rgba(0, 0, 0, 0.4);
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .img-container-full .caption strong {
+            color: var(--accent-cyan);
+        }
+
+        /* Numbered Step Images */
+        .step-with-image {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            align-items: start;
+            margin: 1.5rem 0;
+        }
+
+        @media (max-width: 900px) {
+            .step-with-image {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .step-with-image .step-content {
+            padding: 0;
+        }
+
+        .step-with-image .step-image {
+            border-radius: 10px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .step-with-image .step-image img {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        /* Image modal for zoom */
+        .img-modal {
+            display: none;
+            position: fixed;
+            z-index: 9999;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            cursor: zoom-out;
+        }
+
+        .img-modal img {
+            max-width: 95%;
+            max-height: 95%;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            border-radius: 8px;
+            box-shadow: 0 0 60px rgba(0, 0, 0, 0.8);
+        }
+    </style>
+    <script>
+        // Simple image modal
+        document.addEventListener('DOMContentLoaded', function () {
+            const modal = document.createElement('div');
+            modal.className = 'img-modal';
+            modal.innerHTML = '<img src="" alt="">';
+            document.body.appendChild(modal);
+
+            document.querySelectorAll('.img-gallery-item img, .img-container-full img').forEach(img => {
+                img.addEventListener('click', function () {
+                    modal.querySelector('img').src = this.src;
+                    modal.style.display = 'block';
+                });
+            });
+
+            modal.addEventListener('click', function () {
+                this.style.display = 'none';
+            });
+        });
+    </script>
+</head>
+
+<body>
+
+    <header>
+        <div class="brand">
+            <i class="fa-solid fa-gamepad"></i> SBM System <span style="font-size:0.8em; opacity:0.7;">User
+                Manual</span>
+        </div>
+        <nav class="nav-links">
+            <a href="SBM_User_Manual.html" class="active">User Manual</a>
+            <a href="SBM_Integration_Map.html">Integration Map</a>
+            <a href="SBM_Technical_Bible.html">Technical Bible</a>
+        </nav>
+    </header>
+
+    <section class="hero" style="background: radial-gradient(circle at 50% 50%, #064e3b 0%, #0f172a 100%);">
+        <h1>Operational <br><span class="text-gradient">Guide</span></h1>
+        <p>
+            SBM Systemの全機能を引き出すための包括的操作手順書。<br>
+            全ボタン・全ショートカットキー・全メニュー項目を網羅した完全版。
+        </p>
+    </section>
+
+    <div class="container">
+
+        <!-- ============================================ -->
+        <!-- Table of Contents                            -->
+        <!-- ============================================ -->
+        <div class="card" id="toc">
+            <h2><i class="fa-solid fa-list"></i> 目次</h2>
+            <p>SBM Systemは4つの専門アプリケーションが連携して動作します。各アプリの詳細操作を順に解説します。</p>
+
+            <div class="workflow-grid" style="margin: 2rem 0;">
+                <div class="workflow-step" onclick="location.href='#videosynclab'" style="cursor: pointer;">
+                    <span class="step-icon"><img src="picture/icons/vsl_icon.png" alt="VideoSyncLab Icon"
+                            style="width: 100%; height: 100%; object-fit: contain;"></span>
+                    <div class="step-title">1. VideoSyncLab</div>
+                    <div class="step-desc">動画同期・トリミング</div>
+                </div>
+                <div class="workflow-step" onclick="location.href='#hpe'" style="cursor: pointer;">
+                    <span class="step-icon"><img src="picture/icons/hpe_icon.png" alt="HPE Icon"
+                            style="width: 100%; height: 100%; object-fit: contain;"></span>
+                    <div class="step-title">2. HPE</div>
+                    <div class="step-desc">AI骨格推定</div>
+                </div>
+                <div class="workflow-step" onclick="location.href='#motiondigitizer'" style="cursor: pointer;">
+                    <span class="step-icon"><img src="picture/icons/md_icon.png" alt="MotionDigitizer Icon"
+                            style="width: 100%; height: 100%; object-fit: contain;"></span>
+                    <div class="step-title">3. MotionDigitizer</div>
+                    <div class="step-desc">精密デジタイズ<br>キャリブレーション</div>
+                </div>
+                <div class="workflow-step" onclick="location.href='#motionviewer'" style="cursor: pointer;">
+                    <span class="step-icon"><img src="picture/icons/mv_icon.png" alt="MotionViewer Icon"
+                            style="width: 100%; height: 100%; object-fit: contain;"></span>
+                    <div class="step-title">4. MotionViewer</div>
+                    <div class="step-desc">動作分析・可視化</div>
+                </div>
+            </div>
+
+            <ul class="toc">
+                <li><a href="#videosynclab"><span class="toc-num">1</span> VideoSyncLab &mdash; 動画同期・編集</a></li>
+                <li><a href="#hpe"><span class="toc-num">2</span> HPE &mdash; AI骨格推定</a></li>
+                <li><a href="#motiondigitizer"><span class="toc-num">3</span> MotionDigitizer &mdash; 精密デジタイズ</a></li>
+                <li><a href="#motionviewer"><span class="toc-num">4</span> MotionViewer &mdash; 動作分析</a></li>
+                <li><a href="#shortcut-ref"><span class="toc-num">5</span> ショートカットキー一覧</a></li>
+                <li><a href="#file-format-ref"><span class="toc-num">6</span> ファイル形式リファレンス</a></li>
+                <li><a href="#troubleshooting"><span class="toc-num">7</span> トラブルシューティング</a></li>
+                <li><a href="#changelog"><span class="toc-num">8</span> バージョン変遷</a></li>
+            </ul>
+        </div>
+
+        <!-- ============================================ -->
+        <!-- STEP 1: VideoSyncLab                         -->
+        <!-- ============================================ -->
+        <div class="card" id="videosynclab">
+            <h2><i class="fa-solid fa-film"></i> STEP 1: VideoSyncLab <span
+                    style="font-size:0.6em; opacity:0.7;">動画同期・編集</span></h2>
+
+            <div class="highlight-box">
+                <strong>目的:</strong>
+                複数台のカメラで撮影した動画の時間軸を完全に一致させ、分析に必要な区間だけを切り出します。ストロボモーション合成機能も搭載。
+            </div>
+
+            <!-- メインインターフェース画像ギャラリー -->
+            <div class="img-gallery">
+                <div class="img-gallery-item">
+                    <img src="picture/VideoSyncLab/スクリーンショット 2026-02-05 162840.png" alt="VideoSyncLab シングル画面">
+                    <div class="img-gallery-caption">
+                        <strong>シングルスクリーン</strong>
+                        1台のカメラ映像を表示するモード
+                    </div>
+                </div>
+                <div class="img-gallery-item">
+                    <img src="picture/VideoSyncLab/スクリーンショット 2026-02-05 163045.png" alt="VideoSyncLab デュアル画面">
+                    <div class="img-gallery-caption">
+                        <strong>デュアルスクリーン</strong>
+                        2台のカメラ映像を並べて同期
+                    </div>
+                </div>
+            </div>
+
+            <!-- 1.1 動画の読み込み -->
+            <h3><i class="fa-solid fa-folder-open"></i> 1.1 動画の読み込み</h3>
+            <ol class="step-list">
+                <li>メニューバーの <span class="menu-path">ファイル <i class="fa-solid fa-chevron-right"></i> 動画1を開く</span>（<kbd
+                        class="kbd">Ctrl+1</kbd>）を選択し、1台目の動画（例：正面カメラ）を読み込みます。</li>
+                <li>2台目を読み込むには <span class="menu-path">ファイル <i class="fa-solid fa-chevron-right"></i> 動画2を開く</span>（<kbd
+                        class="kbd">Ctrl+2</kbd>）を選択します。読み込み後、自動的にデュアルビュー（左右分割）に切り替わります。</li>
+                <li>または、動画ファイルを左右いずれかのエリアに直接 <strong>ドラッグ＆ドロップ</strong> して読み込むこともできます。</li>
+            </ol>
+
+            <div class="tip-box">
+                <strong><i class="fa-solid fa-lightbulb"></i> Tip:</strong>
+                対応形式は MP4, MOV, AVI, MKV, WebM など FFmpeg 対応の全動画形式です。動画の動きがカクつく場合は、メニューの
+                <span class="menu-path">ファイル <i class="fa-solid fa-chevron-right"></i> 動画1を最適化して再読み込み</span>
+                を使うとスムーズに再生できます。
+            </div>
+
+            <!-- 1.2 画面表示の操作 -->
+            <h3><i class="fa-solid fa-display"></i> 1.2 画面表示モード</h3>
+            <p>メニューバーの <span class="menu-path">表示</span> メニューから切り替えます。</p>
+            <div class="feature-grid">
+                <div class="feature-item">
+                    <h4>シングルスクリーン</h4>
+                    <p>動画1のみをフル画面で表示します。1台のカメラのみ使う場合に最適。</p>
+                </div>
+                <div class="feature-item">
+                    <h4>デュアルスクリーン</h4>
+                    <p>左右に2つの動画を並べて表示。同期作業には必須のモードです。</p>
+                </div>
+            </div>
+
+            <!-- 1.3 再生と操作 -->
+            <h3><i class="fa-solid fa-play"></i> 1.3 再生操作</h3>
+            <p>各プレーヤーの下部にあるコントロールバーで操作します。</p>
+
+            <table class="btn-table">
+                <thead>
+                    <tr>
+                        <th>ボタン</th>
+                        <th>名称</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><span class="btn-icon">📁</span></td>
+                        <td>ファイルを開く</td>
+                        <td>ファイル選択ダイアログを開いて動画を読み込みます。</td>
+                    </tr>
+                    <tr>
+                        <td><span class="btn-icon">❮</span></td>
+                        <td>1コマ戻し</td>
+                        <td>1フレーム前に戻ります。長押しで連続コマ戻し。</td>
+                    </tr>
+                    <tr>
+                        <td><span class="btn-icon">▶️</span></td>
+                        <td>再生 / 一時停止</td>
+                        <td>動画を再生または一時停止します。</td>
+                    </tr>
+                    <tr>
+                        <td><span class="btn-icon">❯</span></td>
+                        <td>1コマ送り</td>
+                        <td>1フレーム先に進みます。長押しで連続コマ送り。</td>
+                    </tr>
+                    <tr>
+                        <td><span class="btn-icon">⏹</span></td>
+                        <td>停止</td>
+                        <td>再生を停止し、先頭フレーム（フレーム0）に戻ります。</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="sub-section">
+                <h4><i class="fa-solid fa-gauge-high"></i> 再生速度の変更</h4>
+                <p>コントロールバー下の <strong>速度ドロップダウン</strong> から選択できます。</p>
+                <p>選択可能: <code>0.1x</code> / <code>0.25x</code> / <code>0.5x</code> / <code>1.0x</code>（標準）/
+                    <code>1.5x</code> / <code>2.0x</code> / <code>4.0x</code>
+                </p>
+                <p>キーボードの <kbd class="kbd">↑</kbd> <kbd class="kbd">↓</kbd> でもリアルタイムに速度変更可能です。</p>
+            </div>
+
+            <div class="sub-section">
+                <h4><i class="fa-solid fa-magnifying-glass-plus"></i> ズーム＆パン</h4>
+                <p><strong>マウスホイール</strong> で動画を拡大縮小（10%〜500%）。拡大中は <strong>マウスドラッグ</strong> でパン操作ができます。</p>
+                <p>コントロールバーの <span class="btn-icon">↻</span>（ズームリセット）ボタンで初期表示に戻ります。</p>
+            </div>
+
+            <!-- 1.4 同期 -->
+            <h3><i class="fa-solid fa-link"></i> 1.4 2台のカメラ同期</h3>
+            <p>これがVideoSyncLabの核心機能です。左右の動画の「同じ瞬間」を1フレーム単位で合わせます。</p>
+
+            <ol class="step-list">
+                <li><strong>左動画</strong> を操作し、同期の基準となる瞬間（例：ボールリリース、クラップ音のフレーム）を探し出します。<kbd class="kbd">←</kbd> <kbd
+                        class="kbd">→</kbd> キーで1コマずつ確認してください。</li>
+                <li>基準フレームが決まったら、左プレーヤーの <span class="btn-icon">⏱️</span> <strong>同期ポイント設定</strong> ボタンをクリックします。</li>
+                <li>同様に、<strong>右動画</strong> で同じ瞬間のフレームを探し、右プレーヤーの <span class="btn-icon">⏱️</span> をクリックします。</li>
+                <li>両方の同期ポイントが設定されると、<strong>自動的に同期モード</strong> が有効になります。
+                    <ul>
+                        <li>左プレーヤーが「親」、右プレーヤーが「子」になります。</li>
+                        <li>左側の再生・コマ送り操作に右側が自動追従します。</li>
+                        <li>右側のコントロールは自動的に無効化されます。</li>
+                        <li>タイムラインに緑色の <strong>同期再生可能範囲</strong> が表示されます。</li>
+                    </ul>
+                </li>
+            </ol>
+
+            <div class="tip-box">
+                <strong><i class="fa-solid fa-lightbulb"></i> Tip:</strong>
+                同期を解除するには、どちらかの <span class="btn-icon">⏱️</span> ボタンをもう一度クリックします。右側のコントロールが再び有効になります。
+            </div>
+
+            <!-- 1.5 トリミング -->
+            <h3><i class="fa-solid fa-scissors"></i> 1.5 トリミング（動画の切り出し）</h3>
+            <p>分析に必要な区間だけを切り出して保存します。</p>
+
+            <ol class="step-list">
+                <li>開始点にしたいフレームに移動し、<span class="btn-icon">|→</span> <strong>トリミング開始点</strong>
+                    ボタンをクリックします。タイムライン上にマーカーが表示されます。</li>
+                <li>終了点にしたいフレームに移動し、<span class="btn-icon">→|</span> <strong>トリミング終了点</strong>
+                    ボタンをクリックします。開始〜終了の範囲がタイムラインに色で示されます。</li>
+                <li>出力方法を選択します。
+
+                    <table class="btn-table" style="margin-top: 0.8rem;">
+                        <tr>
+                            <td><span class="btn-icon">✂️</span></td>
+                            <td><strong>スマートカット</strong></td>
+                            <td>再エンコードなし。画質劣化ゼロで高速に切り出し。<strong>通常はこちらを推奨。</strong></td>
+                        </tr>
+                        <tr>
+                            <td><span class="btn-icon">🎥</span></td>
+                            <td><strong>再エンコード</strong></td>
+                            <td>H.264で再エンコード。ファイルサイズを小さくしたい場合やコーデック変換が必要な場合に使用。</td>
+                        </tr>
+                    </table>
+                </li>
+                <li>出力ファイルは元動画と同じフォルダに <code>*_cut.mp4</code> または <code>*_encoded.mp4</code> として保存されます。</li>
+            </ol>
+
+            <!-- 1.6 フレーム書き出し -->
+            <h3><i class="fa-solid fa-camera"></i> 1.6 フレーム書き出し</h3>
+
+            <table class="btn-table">
+                <tr>
+                    <td><span class="btn-icon">📷</span></td>
+                    <td><strong>フレーム保存</strong></td>
+                    <td>現在表示中のフレームをPNG画像として保存します。プレゼン資料作成やフォーム確認に。</td>
+                </tr>
+                <tr>
+                    <td><span class="btn-icon">🎞️</span></td>
+                    <td><strong>連番フレーム出力</strong></td>
+                    <td>トリミング範囲のフレームを連番PNGとして一括出力します。ストロボモーション素材としても使えます。</td>
+                </tr>
+            </table>
+
+            <!-- 1.7 デュアル出力 -->
+            <h3><i class="fa-solid fa-clone"></i> 1.7 二画面動画出力</h3>
+            <p>同期モード有効時に使用可能になります。</p>
+            <ol class="step-list">
+                <li>同期モードを有効にします（1.4参照）。</li>
+                <li>左右両方でトリミング範囲を設定します。</li>
+                <li><span class="btn-icon">🎬</span> <strong>二画面動画出力</strong>
+                    ボタン（同期モード時のみ有効化）をクリックすると、左右の動画を横並びにした1本の動画が <code>*_dual.mp4</code> として出力されます。</li>
+            </ol>
+
+            <!-- 1.8 ストロボモーション -->
+            <h3><i class="fa-solid fa-person-running"></i> 1.8 ストロボモーション</h3>
+            <p>複数フレームの動きを1枚の画像に合成する、スポーツ分析で定番のビジュアライゼーションです。</p>
+
+            <ol class="step-list">
+                <li><span class="btn-icon">🏀</span> <strong>ストロボモーション</strong> ボタンをクリックすると、フローティングコントロールパネルが表示されます。
+                </li>
+                <li><strong>選択ツール</strong> を使って、動画上でキャプチャ範囲を指定します。
+                    <ul>
+                        <li><strong>矩形ツール:</strong> ドラッグで矩形選択。<kbd class="kbd">Shift</kbd> 押しながらで正方形。<kbd
+                                class="kbd">Ctrl</kbd> で中心基準。</li>
+                        <li><strong>楕円ツール:</strong> ドラッグで楕円選択。<kbd class="kbd">Shift</kbd> で正円。</li>
+                        <li><strong>投げ縄ツール:</strong> フリーハンドでクリックして任意形状を作成。ダブルクリックで確定。</li>
+                    </ul>
+                </li>
+                <li>キャプチャ方法を選択します。
+                    <ul>
+                        <li><strong>手動キャプチャ:</strong> 範囲を選択してから「キャプチャ」で1フレーム取得。コマ送りして繰り返し。</li>
+                        <li><strong>AIキャプチャ:</strong> AI（ONNX セグメンテーション）で人物を自動切り抜き。</li>
+                    </ul>
+                </li>
+                <li><strong>設定パネル</strong> で合成パラメータを調整します。
+                    <ul>
+                        <li><strong>不透明度</strong> (0〜100%): 各フレーム画像の透過率。</li>
+                        <li><strong>フェードモード:</strong> 全フレーム均一 or 古いフレームほど薄く（フェードアウト）。</li>
+                        <li><strong>ブレンドモード:</strong> source-over / multiply / screen など。</li>
+                        <li><strong>背景:</strong> 元映像 / 透明 / 黒 / 白。</li>
+                        <li><strong>背景差分:</strong> 動いている人物だけを抽出（閾値調整可能）。</li>
+                    </ul>
+                </li>
+                <li><strong>「生成」</strong> ボタンで合成画像をプレビュー。結果は <strong>画像保存</strong>（PNG）または
+                    <strong>動画保存</strong>（MP4）で出力できます。
+                </li>
+            </ol>
+
+            <!-- 1.9 プロジェクト管理 -->
+            <h3><i class="fa-solid fa-floppy-disk"></i> 1.9 プロジェクト管理</h3>
+            <p>作業状態を保存して後から再開できます。</p>
+            <ul style="margin-left: 1.5rem; color: var(--text-secondary); line-height: 2;">
+                <li><span class="menu-path">ファイル <i class="fa-solid fa-chevron-right"></i> プロジェクトを保存</span>（<kbd
+                        class="kbd">Ctrl+S</kbd>）: 現在の状態を <code>.vsl</code> ファイルに保存。</li>
+                <li><span class="menu-path">ファイル <i class="fa-solid fa-chevron-right"></i> プロジェクトを開く</span>（<kbd
+                        class="kbd">Ctrl+O</kbd>）: 保存済みプロジェクトを復元。動画パス・トリミング・同期点がすべて復元されます。</li>
+            </ul>
+
+            <!-- 1.10 ショートカット -->
+            <h3><i class="fa-solid fa-keyboard"></i> 1.10 キーボードショートカット</h3>
+            <table class="shortcut-table">
+                <thead>
+                    <tr>
+                        <th>キー</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><kbd class="kbd">Space</kbd></td>
+                        <td>再生 / 一時停止</td>
+                    </tr>
+                    <tr>
+                        <td><kbd class="kbd">←</kbd></td>
+                        <td>1コマ戻し（長押しで連続）</td>
+                    </tr>
+                    <tr>
+                        <td><kbd class="kbd">→</kbd></td>
+                        <td>1コマ送り（長押しで連続）</td>
+                    </tr>
+                    <tr>
+                        <td><kbd class="kbd">↑</kbd></td>
+                        <td>再生速度を上げる</td>
+                    </tr>
+                    <tr>
+                        <td><kbd class="kbd">↓</kbd></td>
+                        <td>再生速度を下げる</td>
+                    </tr>
+                    <tr>
+                        <td><kbd class="kbd">Ctrl+1</kbd></td>
+                        <td>動画1を開く</td>
+                    </tr>
+                    <tr>
+                        <td><kbd class="kbd">Ctrl+2</kbd></td>
+                        <td>動画2を開く</td>
+                    </tr>
+                    <tr>
+                        <td><kbd class="kbd">Ctrl+O</kbd></td>
+                        <td>プロジェクトを開く</td>
+                    </tr>
+                    <tr>
+                        <td><kbd class="kbd">Ctrl+S</kbd></td>
+                        <td>プロジェクトを保存</td>
+                    </tr>
+                    <tr>
+                        <td><kbd class="kbd">Ctrl+W</kbd></td>
+                        <td>動画を閉じる</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- ============================================ -->
+        <!-- STEP 2: HPE                                  -->
+        <!-- ============================================ -->
+        <div class="card" id="hpe">
+            <h2><i class="fa-solid fa-brain"></i> STEP 2: HPE <span style="font-size:0.6em; opacity:0.7;">AI骨格推定</span>
+            </h2>
+
+            <div class="highlight-box">
+                <strong>目的:</strong>
+                YOLO（人物検出）+ rtmlib（骨格推定：RTMPose / SynthPose）の2段AIパイプラインで、マーカーレスで身体の関節ポイントを自動追尾し、座標データを生成します。
+                計測プリセットにより <strong>23点（高速・高精度）</strong> または <strong>52点（バイオメカニクス精密）</strong> を選択できます。
+            </div>
+
+            <!-- HPE ワークフロー画像ギャラリー -->
+            <div class="img-gallery">
+                <div class="img-gallery-item">
+                    <img src="picture/HPE/スクリーンショット 2026-02-05 224356.png" alt="HPE モデルロード完了">
+                    <div class="img-gallery-caption">
+                        <strong>モデルロード完了</strong>
+                        YOLO + RTMPose/SynthPose準備完了状態
+                    </div>
+                </div>
+                <div class="img-gallery-item">
+                    <img src="picture/HPE/スクリーンショット 2026-02-05 224506.png" alt="HPE 骨格推定結果">
+                    <div class="img-gallery-caption">
+                        <strong>推定結果 - 動画モード</strong>
+                        骨格オーバーレイ表示
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2.1 ファイル読み込み -->
+            <h3><i class="fa-solid fa-folder-open"></i> 2.1 ファイルの読み込み</h3>
+            <ol class="step-list">
+                <li>画面中央の <strong>ドロップゾーン</strong> にファイルをドラッグ＆ドロップ、またはクリックしてファイル選択ダイアログを開きます。</li>
+                <li>メニューの <span class="menu-path">ファイル <i class="fa-solid fa-chevron-right"></i> 動画読み込み</span>（<kbd
+                        class="kbd">Ctrl+O</kbd>）でも読み込めます。</li>
+            </ol>
+
+            <div class="sub-section">
+                <h4>対応ファイル形式</h4>
+                <div class="feature-grid">
+                    <div class="feature-item">
+                        <h4><i class="fa-solid fa-video"></i> 動画</h4>
+                        <p>MP4, AVI, MOV, MKV, WebM, FLV, WMV, M4V, 3GP, MPEG</p>
+                    </div>
+                    <div class="feature-item">
+                        <h4><i class="fa-solid fa-image"></i> 画像</h4>
+                        <p>JPG, JPEG, PNG, GIF, BMP, WebP</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2.2 推定設定 -->
+            <h3><i class="fa-solid fa-sliders"></i> 2.2 推定設定</h3>
+            <p>右サイドバーで推定パラメータを設定します。</p>
+
+            <div class="sub-section">
+                <h4><i class="fa-solid fa-microchip"></i> 推定モード</h4>
+                <table class="btn-table">
+                    <tr>
+                        <td><strong>全フレーム推定（高精度）</strong></td>
+                        <td>全フレームに対してAI処理を実行。時間はかかるが最も精度が高い。<strong>推奨。</strong></td>
+                    </tr>
+                    <tr>
+                        <td><strong>簡易推定（4フレームごと）</strong></td>
+                        <td>4フレームに1回だけ推定。プレビュー確認や試行用。約4倍高速。</td>
+                    </tr>
+                </table>
+            </div>
+
+            <div class="sub-section">
+                <h4><i class="fa-solid fa-server"></i> デバイス選択</h4>
+                <table class="btn-table">
+                    <tr>
+                        <td><strong>GPU (CUDA)</strong></td>
+                        <td>NVIDIA GPU搭載機で自動検出されます。処理速度が大幅に向上。</td>
+                    </tr>
+                    <tr>
+                        <td><strong>CPU</strong></td>
+                        <td>全てのPCで利用可能。GPU非搭載時はこちらで動作します。</td>
+                    </tr>
+                </table>
+            </div>
+
+            <div class="sub-section">
+                <h4><i class="fa-solid fa-cube"></i> 計測プリセット</h4>
+                <p>用途に合わせてプリセットを選択します。プリセットはモデルと出力形式を一括で設定します。</p>
+                <table class="btn-table">
+                    <tr>
+                        <th>プリセット</th>
+                        <th>ポーズモデル</th>
+                        <th>出力点数</th>
+                        <th>特徴</th>
+                    </tr>
+                    <tr>
+                        <td><strong>23点（RTMPose-M・高速）</strong></td>
+                        <td>RTMPose-M</td>
+                        <td>23点</td>
+                        <td>高速処理。大量ファイルのバッチ処理向け。</td>
+                    </tr>
+                    <tr>
+                        <td><strong>23点（RTMPose-X・高精度）</strong></td>
+                        <td>RTMPose-X</td>
+                        <td>23点</td>
+                        <td>標準精度。通常分析の推奨設定。</td>
+                    </tr>
+                    <tr>
+                        <td><strong>52点（SynthPose-Huge）</strong></td>
+                        <td>SynthPose-Huge ONNX</td>
+                        <td>52点</td>
+                        <td>OpenCapBench形式。OpenSim連携・精密バイオメカニクス解析向け。</td>
+                    </tr>
+                </table>
+                <p><strong>検出モデル (YOLO)</strong> はプリセットに応じて自動選択されます（高速：<code>yolo11s.onnx</code> / 高精度・52点：<code>yolo11x.onnx</code>）。</p>
+            </div>
+
+            <div class="sub-section">
+                <h4><i class="fa-solid fa-video"></i> 動画情報設定</h4>
+                <p>サイドバーでカメラ種別と録画FPSを指定できます。ハイスピードカメラ使用時は正しいFPSの入力が重要です。</p>
+            </div>
+
+            <!-- 2.3 推定実行 -->
+            <h3><i class="fa-solid fa-bolt"></i> 2.3 推定の実行</h3>
+            <ol class="step-list">
+                <li>上記の設定を確認し、<strong>「ポーズ推定を実行」</strong> ボタンをクリックします。</li>
+                <li>プログレスバーがリアルタイムで進行状況を表示します（フレーム数とパーセンテージ）。</li>
+                <li>処理完了後、動画上に骨格がオーバーレイ表示されます。</li>
+            </ol>
+
+            <div class="warn-box">
+                <strong><i class="fa-solid fa-triangle-exclamation"></i> 注意:</strong>
+                GPU (CUDA) 使用時でも、初回実行はモデルのロードに時間がかかります。2回目以降はキャッシュにより高速化されます。
+            </div>
+
+            <!-- 2.4 表示モード -->
+            <h3><i class="fa-solid fa-eye"></i> 2.4 表示モードの切り替え</h3>
+            <p>推定完了後、3つの表示モードを切り替えて結果を確認できます。</p>
+
+            <div class="feature-grid">
+                <div class="feature-item">
+                    <h4><i class="fa-solid fa-video"></i> 動画モード</h4>
+                    <p>元の動画に骨格をオーバーレイ表示。トラッキングの正確さを直感的に確認。</p>
+                </div>
+                <div class="feature-item">
+                    <h4><i class="fa-solid fa-bone"></i> 骨格モード</h4>
+                    <p>スケルトンのみを表示。背景なしで骨格の動きだけに集中できます。</p>
+                </div>
+                <div class="feature-item">
+                    <h4><i class="fa-solid fa-chart-line"></i> グラフモード</h4>
+                    <p>各キーポイントのX/Y座標を時系列グラフで表示。外れ値やジャンプの発見に有効。</p>
+                </div>
+            </div>
+
+            <div class="sub-section">
+                <h4>骨格の表示設定</h4>
+                <p>サイドバーで以下を調整できます。</p>
+                <ul style="margin-left: 1.5rem; color: var(--text-secondary); line-height: 2;">
+                    <li><strong>スケルトン表示:</strong> ON/OFF チェックボックス</li>
+                    <li><strong>ポイントサイズ:</strong> 1〜12ピクセル</li>
+                    <li><strong>透過度:</strong> 0.1〜1.0</li>
+                    <li><strong>線の太さ:</strong> 1〜10ピクセル</li>
+                </ul>
+            </div>
+
+            <!-- 2.5 データクレンジング -->
+            <h3><i class="fa-solid fa-broom"></i> 2.5 データクレンジング（修正）</h3>
+            <p>AIは完璧ではありません。オクルージョン（隠れ）やID入れ替わりが発生した場合、ここで修正します。</p>
+
+            <div class="sub-section">
+                <h4><i class="fa-solid fa-users"></i> ID操作</h4>
+                <p>複数人物が交差した際にIDが入れ替わることがあります。以下のボタンで修正します。</p>
+                <table class="btn-table">
+                    <tr>
+                        <td><strong>ID入替</strong></td>
+                        <td>2人の人物のIDを手動で入れ替えます。交差後の追跡ミスの修正に。</td>
+                    </tr>
+                    <tr>
+                        <td><strong>脚入替</strong></td>
+                        <td>左右の脚のキーポイントを入れ替えます。AIが左右を誤認した場合に。</td>
+                    </tr>
+                    <tr>
+                        <td><strong>腕入替</strong></td>
+                        <td>左右の腕のキーポイントを入れ替えます。</td>
+                    </tr>
+                </table>
+            </div>
+
+            <div class="sub-section">
+                <h4><i class="fa-solid fa-hand-pointer"></i> 手動デジタイズ</h4>
+                <p>AIが明らかに誤検出しているフレームでは、手動で正しい位置をクリックして修正できます。</p>
+                <ol class="step-list">
+                    <li>「デジタイズ有効」をONにします。</li>
+                    <li>モードを選択: <strong>フレームデジタイズ</strong>（各フレームのキーポイントを打つ）または <strong>ポイント移動</strong>（既存のポイントをドラッグ移動）。
+                    </li>
+                    <li>修正したいキーポイントをドロップダウンから選択します。</li>
+                    <li>動画上で正しい位置をクリックします。</li>
+                </ol>
+            </div>
+
+            <!-- 2.6 グラフ編集 -->
+            <h3><i class="fa-solid fa-chart-area"></i> 2.6 グラフモードでの編集</h3>
+            <p>グラフ表示モードでは、データの視覚的な確認と直接編集が可能です。</p>
+
+            <div class="feature-grid">
+                <div class="feature-item">
+                    <h4>一覧モード</h4>
+                    <p>全キーポイントの座標グラフを一覧で表示。異常なジャンプを発見できます。</p>
+                </div>
+                <div class="feature-item">
+                    <h4>詳細モード</h4>
+                    <p>選択したキーポイントのX/Y座標グラフを拡大表示。</p>
+                </div>
+            </div>
+
+            <table class="btn-table">
+                <tr>
+                    <td><strong>以前削除</strong></td>
+                    <td>現在フレームより前のデータをすべて削除。</td>
+                </tr>
+                <tr>
+                    <td><strong>以降削除</strong></td>
+                    <td>現在フレームより後のデータをすべて削除。</td>
+                </tr>
+                <tr>
+                    <td><strong>フレーム削除</strong></td>
+                    <td>現在フレームの選択人物データを削除。</td>
+                </tr>
+                <tr>
+                    <td><strong>人物削除</strong></td>
+                    <td>選択した人物を全フレームから削除。</td>
+                </tr>
+                <tr>
+                    <td><strong>元に戻す / やり直し</strong></td>
+                    <td>編集操作を取り消しまたはやり直し。</td>
+                </tr>
+                <tr>
+                    <td><strong>編集リセット</strong></td>
+                    <td>全編集を破棄し、AI推定直後の状態に戻します。</td>
+                </tr>
+            </table>
+
+            <!-- 2.7 フィルタリング -->
+            <h3><i class="fa-solid fa-filter"></i> 2.7 フィルタリング</h3>
+            <p>データの品質を向上させるための信号処理フィルタ群です。サイドバーのフィルタリングパネルで設定します。</p>
+
+            <table class="btn-table">
+                <thead>
+                    <tr>
+                        <th>フィルタ</th>
+                        <th>説明</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>外れ値除去</strong></td>
+                        <td>異常に大きく飛んだデータポイントを自動検出・除去。</td>
+                    </tr>
+                    <tr>
+                        <td><strong>補間</strong></td>
+                        <td>欠損データを補間で埋めます。方式選択: <code>PCHIP</code>（推奨）/ <code>Cubic Spline</code> / <code>Akima</code> /
+                            <code>Linear</code>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><strong>左右脚・腕自動修正</strong></td>
+                        <td>AIの左右誤認を統計的に自動修正。</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Butterworth Filter</strong></td>
+                        <td>ローパスフィルタでノイズ除去。カットオフ周波数: 0.1〜30 Hz で調整。</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Kalman Smoother</strong></td>
+                        <td>カルマンフィルタによる高度な平滑化。</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <p>設定後、<strong>「フィルタ適用」</strong> ボタンで一括処理されます。</p>
+
+            <!-- 2.8 エクスポート -->
+            <h3><i class="fa-solid fa-file-export"></i> 2.8 エクスポート</h3>
+            <p>サイドバーのエクスポートパネルから、対象人物と形式を選んで出力します。</p>
+
+            <table class="btn-table">
+                <thead>
+                    <tr>
+                        <th>形式</th>
+                        <th>用途</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>CSV形式で保存</strong></td>
+                        <td>フレームごとの関節座標データ。<strong>MotionDigitizerへの入力データ</strong>として使用。精度は設定で0〜6桁。</td>
+                    </tr>
+                    <tr>
+                        <td><strong>YOLO学習データ作成</strong></td>
+                        <td>切り出し画像＋アノテーションをYOLO形式で出力。検出モデルの追加学習用。</td>
+                    </tr>
+                    <tr>
+                        <td><strong>オーバーレイ動画を保存</strong></td>
+                        <td>骨格を描画した動画（MP4）または画像（PNG）を出力。プレゼンテーションや報告書に。</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <!-- 2.9 バッチ処理 -->
+            <h3><i class="fa-solid fa-layer-group"></i> 2.9 バッチ処理</h3>
+            <p>複数の動画ファイルを連続して自動処理し、各ファイルに対して <code>.hpe</code> プロジェクトファイルを自動保存します。大量データの一括処理に使用します。</p>
+            <ol class="step-list">
+                <li>メニューの <span class="menu-path">ファイル <i class="fa-solid fa-chevron-right"></i> バッチ処理</span> を選択します。</li>
+                <li><strong>「ファイルを選択…」</strong> ボタンをクリックし、処理する動画ファイルを複数選択します。</li>
+                <li>以下の設定を行います。
+                    <table class="btn-table" style="margin-top:0.8rem;">
+                        <tr><th>設定項目</th><th>説明</th></tr>
+                        <tr><td><strong>カメラタイプ</strong></td><td>通常カメラ / ハイスピードカメラを選択</td></tr>
+                        <tr><td><strong>撮影FPS</strong></td><td>録画フレームレートを入力（ハイスピード時に重要）</td></tr>
+                        <tr><td><strong>ポーズモデル</strong></td><td>RTMPose-M（高速）/ RTMPose-X（高精度）/ SynthPose-Huge（52点）から選択</td></tr>
+                        <tr><td><strong>推定モード</strong></td><td>全フレーム推定（推奨）/ 簡易推定（4フレームごと）</td></tr>
+                    </table>
+                </li>
+                <li><strong>「処理開始」</strong> ボタンをクリックします。各ファイルの処理完了後、動画と同じフォルダに <code>.hpe</code> ファイルが自動保存されます。</li>
+            </ol>
+            <div class="tip-box">
+                <strong><i class="fa-solid fa-lightbulb"></i> Tip:</strong>
+                52点（SynthPose-Huge）選択時は左右腕・下肢のスワップ修正も自動適用されます。処理後にフィルタリングパネルから追加調整も可能です。
+            </div>
+
+            <!-- 2.10 プロジェクト管理 -->
+            <h3><i class="fa-solid fa-floppy-disk"></i> 2.10 プロジェクト管理</h3>
+            <ul style="margin-left: 1.5rem; color: var(--text-secondary); line-height: 2;">
+                <li><kbd class="kbd">Ctrl+S</kbd>: 上書き保存（<code>.hpe</code> プロジェクトファイル）</li>
+                <li><kbd class="kbd">Ctrl+Shift+S</kbd>: 名前を付けて保存</li>
+                <li><kbd class="kbd">Ctrl+Shift+O</kbd>: プロジェクトを読み込み（<code>.hpe</code> / <code>.json</code>）</li>
+                <li><kbd class="kbd">Ctrl+W</kbd>: プロジェクトを閉じる</li>
+            </ul>
+
+            <div class="tip-box">
+                <strong><i class="fa-solid fa-lightbulb"></i> Tip:</strong>
+                <code>.hpe</code>
+                ファイルには推定結果・フィルタ設定・編集履歴がすべて含まれます。動画パスは相対/絶対パスが自動判別されるため、フォルダ移動後もプロジェクトを開くことができます（動画が見つからない場合は再リンクダイアログが表示されます）。
+            </div>
+
+            <!-- 2.11 再生コントロール -->
+            <h3><i class="fa-solid fa-play-circle"></i> 2.11 再生コントロール</h3>
+            <p>画面下部のフッターバーに配置されています。</p>
+
+            <table class="btn-table">
+                <tr>
+                    <td><span class="btn-icon">⏮</span></td>
+                    <td>先頭フレームへジャンプ</td>
+                </tr>
+                <tr>
+                    <td><span class="btn-icon">⏪</span></td>
+                    <td>前のフレーム</td>
+                </tr>
+                <tr>
+                    <td><span class="btn-icon">▶️</span></td>
+                    <td>再生 / 一時停止</td>
+                </tr>
+                <tr>
+                    <td><span class="btn-icon">⏩</span></td>
+                    <td>次のフレーム</td>
+                </tr>
+                <tr>
+                    <td><span class="btn-icon">⏭</span></td>
+                    <td>最終フレームへジャンプ</td>
+                </tr>
+            </table>
+            <p>再生速度: <code>0.25x</code> / <code>0.5x</code> / <code>1x</code> / <code>2x</code> / <code>4x</code> /
+                <code>8x</code> / <code>16x</code>
+            </p>
+
+            <!-- 2.11 ショートカット -->
+            <h3><i class="fa-solid fa-keyboard"></i> 2.11 キーボードショートカット</h3>
+            <table class="shortcut-table">
+                <thead>
+                    <tr>
+                        <th>キー</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><kbd class="kbd">Space</kbd></td>
+                        <td>再生 / 一時停止</td>
+                    </tr>
+                    <tr>
+                        <td><kbd class="kbd">←</kbd></td>
+                        <td>前のフレーム</td>
+                    </tr>
+                    <tr>
+                        <td><kbd class="kbd">→</kbd></td>
+                        <td>次のフレーム</td>
+                    </tr>
+                    <tr>
+                        <td><kbd class="kbd">Ctrl+O</kbd></td>
+                        <td>動画読み込み</td>
+                    </tr>
+                    <tr>
+                        <td><kbd class="kbd">Ctrl+Shift+O</kbd></td>
+                        <td>プロジェクト読み込み</td>
+                    </tr>
+                    <tr>
+                        <td><kbd class="kbd">Ctrl+S</kbd></td>
+                        <td>上書き保存</td>
+                    </tr>
+                    <tr>
+                        <td><kbd class="kbd">Ctrl+Shift+S</kbd></td>
+                        <td>名前を付けて保存</td>
+                    </tr>
+                    <tr>
+                        <td><kbd class="kbd">Ctrl+W</kbd></td>
+                        <td>プロジェクトを閉じる</td>
+                    </tr>
+                    <tr>
+                        <td><kbd class="kbd">Ctrl+Z</kbd></td>
+                        <td>元に戻す（Undo）</td>
+                    </tr>
+                    <tr>
+                        <td><kbd class="kbd">Ctrl+Y</kbd></td>
+                        <td>やり直し（Redo）</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- ============================================ -->
+        <!-- STEP 3: MotionDigitizer                      -->
+        <!-- ============================================ -->
+        <div class="card" id="motiondigitizer">
+            <h2><i class="fa-solid fa-crosshairs"></i> STEP 3: MotionDigitizer <span
+                    style="font-size:0.6em; opacity:0.7;">精密デジタイズ</span></h2>
+
+            <div class="highlight-box">
+                <strong>目的:</strong>
+                AIの推定データを人間が確認・補正し、キャリブレーション（空間定義）を適用して2D座標を現実世界の3D座標（メートル単位）に変換します。8種類のキャリブレーション手法を搭載。
+            </div>
+
+            <!-- MotionDigitizer ワークフロー画像ギャラリー -->
+            <div class="img-gallery">
+                <div class="img-gallery-item">
+                    <img src="picture/MotionDigitizer/スクリーンショット 2026-02-05 224639.png" alt="MotionDigitizer キャリブレーション">
+                    <div class="img-gallery-caption">
+                        <strong>キャリブレーションモード</strong>
+                        制御点を設定して空間を定義
+                    </div>
+                </div>
+                <div class="img-gallery-item">
+                    <img src="picture/MotionDigitizer/スクリーンショット 2026-02-05 224701.png" alt="MotionDigitizer デジタイズ">
+                    <div class="img-gallery-caption">
+                        <strong>モーションデジタイズ</strong>
+                        骨格ポイントを手動/自動で追跡
+                    </div>
+                </div>
+                <div class="img-gallery-item">
+                    <img src="picture/MotionDigitizer/スクリーンショット 2026-02-05 224900.png" alt="MotionDigitizer 分析結果">
+                    <div class="img-gallery-caption">
+                        <strong>分析結果タブ</strong>
+                        実長換算データとエクスポート
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3.1 画面構成 -->
+            <h3><i class="fa-solid fa-table-columns"></i> 3.1 画面構成（6つのタブ）</h3>
+            <p>MotionDigitizerは6つのタブで構成されています。左から順に作業を進めます。</p>
+
+            <div class="feature-grid">
+                <div class="feature-item">
+                    <h4><i class="fa-solid fa-pencil"></i> デジタイズ</h4>
+                    <p>動画を再生しながらポイントをクリックしてデジタイズ。メインの作業画面。</p>
+                </div>
+                <div class="feature-item">
+                    <h4><i class="fa-solid fa-gear"></i> ポイント設定</h4>
+                    <p>関節名（ランドマーク名）の定義と管理。</p>
+                </div>
+                <div class="feature-item">
+                    <h4><i class="fa-solid fa-ruler-combined"></i> キャリブレーション</h4>
+                    <p>カメラパラメータの算出。DLT法、CC法、ChArUco法など。</p>
+                </div>
+                <div class="feature-item">
+                    <h4><i class="fa-solid fa-table"></i> モーションデータ</h4>
+                    <p>数値テーブルの閲覧・編集・インポート。</p>
+                </div>
+                <div class="feature-item">
+                    <h4><i class="fa-solid fa-eye"></i> プレビュー</h4>
+                    <p>マルチカメラ映像の同時プレビュー。</p>
+                </div>
+                <div class="feature-item">
+                    <h4><i class="fa-solid fa-clipboard-list"></i> 分析結果</h4>
+                    <p>キャリブレーション結果・実長換算結果の表示。</p>
+                </div>
+            </div>
+
+            <!-- 3.2 プロジェクト作成 -->
+            <h3><i class="fa-solid fa-folder-plus"></i> 3.2 プロジェクトの作成</h3>
+            <ol class="step-list">
+                <li><span class="menu-path">ファイル <i class="fa-solid fa-chevron-right"></i> 新規プロジェクト</span>（<kbd
+                        class="kbd">Ctrl+N</kbd>）を選択し、プロジェクトファイル名と保存場所を指定します。</li>
+                <li>プロジェクトは <code>.mdp</code> 形式で保存されます。動画のパスは相対パスで管理されるため、プロジェクトフォルダごと移動しても動作します。</li>
+            </ol>
+
+            <!-- 3.3 キャリブレーション -->
+            <h3><i class="fa-solid fa-ruler-combined"></i> 3.3 キャリブレーション（空間定義）</h3>
+            <p>映像のピクセル座標を現実世界のメートル座標に変換するための数学的基盤を作ります。</p>
+
+            <div class="sub-section">
+                <h4>利用可能な手法（8種類）</h4>
+                <table class="btn-table">
+                    <thead>
+                        <tr>
+                            <th>手法</th>
+                            <th>用途</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>4点実長換算</strong></td>
+                            <td>最も簡単。既知の4点の距離から2Dスケールを算出。</td>
+                        </tr>
+                        <tr>
+                            <td><strong>2次元DLT法（シングル）</strong></td>
+                            <td>1台のカメラで2D平面内の座標を高精度に変換。</td>
+                        </tr>
+                        <tr>
+                            <td><strong>3次元DLT法</strong></td>
+                            <td>2台以上のカメラで3D空間座標を算出。古典的かつ信頼性の高い手法。</td>
+                        </tr>
+                        <tr>
+                            <td><strong>3次元CC法（競技場特徴点）</strong></td>
+                            <td>競技場のラインや特徴点を利用。屋外・試合映像向け。</td>
+                        </tr>
+                        <tr>
+                            <td><strong>ChArUcoボード法（ステレオ）</strong></td>
+                            <td>ChArUcoボードを使った高精度ステレオキャリブレーション。</td>
+                        </tr>
+                        <tr>
+                            <td><strong>2次元DLT法（ステレオ）</strong></td>
+                            <td>2台のカメラでDLTステレオキャリブレーション。</td>
+                        </tr>
+                        <tr>
+                            <td><strong>ChArUcoボード法（シングル）</strong></td>
+                            <td>1台のカメラのレンズ歪み補正に。</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Vicon XCP（三角測量）</strong></td>
+                            <td>Viconシステムのキャリブレーションファイルを読み込み、三角測量で3D化。</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="sub-section">
+                <h4><i class="fa-solid fa-shoe-prints"></i> DLT法の基本ワークフロー</h4>
+                <ol class="step-list">
+                    <li>「キャリブレーション」タブを開き、手法ドロップダウンから目的の手法を選択します。</li>
+                    <li>キャリブレーション映像（既知の長さを含む映像）を読み込みます。</li>
+                    <li>画面上で制御点（コントロールポイント）をクリックしてデジタイズします。</li>
+                    <li>右パネルの実空間座標テーブルに、各制御点の実距離（X, Y, Z メートル）を入力します。</li>
+                    <li><strong>「カメラ定数」</strong> ボタンをクリックして計算を実行します。</li>
+                </ol>
+            </div>
+
+            <div class="sub-section">
+                <h4><i class="fa-solid fa-chess-board"></i> ChArUcoボードキャリブレーション</h4>
+                <ol class="step-list">
+                    <li>ボードの仕様を設定: 縦数、横数、チェッカーサイズ(mm)、マーカーサイズ(mm)。</li>
+                    <li><strong>「セッション開始」</strong> をクリック。</li>
+                    <li>ボードが映ったフレームで <strong>「現在フレームを追加」</strong> をクリックしてサンプルを追加します（または <strong>「自動開始」</strong>
+                        でAIが最適なフレームを自動選択）。</li>
+                    <li>十分なサンプル数が集まったら <strong>「キャリブレーション実行」</strong> をクリック。RMS誤差が表示されます。</li>
+                </ol>
+            </div>
+
+            <div class="sub-section">
+                <h4><i class="fa-solid fa-futbol"></i> CC法（競技場特徴点法）</h4>
+                <ol class="step-list">
+                    <li>手法ドロップダウンで「3次元CC法（競技場特徴点）」を選択。</li>
+                    <li>2台のカメラの映像を読み込み。</li>
+                    <li>競技場の既知の特徴点（ラインの交点、コーナーなど）をデジタイズ。</li>
+                    <li>初期カメラ位置 (X0, Y0, Z0) を設定。</li>
+                    <li>最適化モード（Auto / P3P / GA）を選択。</li>
+                    <li>必要に応じて内部パラメータ（レンズ歪み）JSONを読み込み。</li>
+                    <li><strong>「CC法キャリブレーション実行」</strong> をクリック。</li>
+                </ol>
+            </div>
+
+            <!-- 3.4 データインポート -->
+            <h3><i class="fa-solid fa-file-import"></i> 3.4 HPEデータのインポート</h3>
+            <ol class="step-list">
+                <li>「モーションデータ」タブを開きます。</li>
+                <li><strong>「HPEインポート」</strong> ボタンをクリックし、HPE (STEP 2) で出力したCSVまたはHPEプロジェクトファイルを選択します。</li>
+                <li>AIの推定座標がモーションデータテーブルに読み込まれます。</li>
+                <li>外れ値や欠損値は <strong>「補間」</strong> ボタン（スプライン補間）で自動修復できます。</li>
+            </ol>
+
+            <div class="tip-box">
+                <strong><i class="fa-solid fa-lightbulb"></i> Tip:</strong>
+                <strong>「CSVインポート」</strong> ボタンでは、他のモーションキャプチャシステムからのCSVデータも読み込めます。
+            </div>
+
+            <!-- 3.5 手動デジタイズ -->
+            <h3><i class="fa-solid fa-hand-pointer"></i> 3.5 手動デジタイズ</h3>
+            <p>「デジタイズ」タブのメイン作業です。AIデータの補正や、ゼロからのデジタイズに使います。</p>
+
+            <ol class="step-list">
+                <li>「デジタイズ」タブで動画を読み込み、目的のフレームに移動します。</li>
+                <li>ポイント選択パネルで、デジタイズする関節名を選択します（<kbd class="kbd">↑</kbd> <kbd class="kbd">↓</kbd> で切替可能）。</li>
+                <li>動画上の正しい位置をクリックします。座標がテーブルに記録されます。</li>
+                <li>次のポイントに自動的に切り替わります。すべてのポイントを打ち終えたら、フレームが自動的に進みます。</li>
+            </ol>
+
+            <div class="sub-section">
+                <h4>デジタイズ設定</h4>
+                <table class="btn-table">
+                    <tr>
+                        <td><strong>ポイント名表示</strong></td>
+                        <td>キャンバス上にポイント名を表示。ON/OFF切替。</td>
+                    </tr>
+                    <tr>
+                        <td><strong>ポイントサイズ</strong></td>
+                        <td>クリック点の表示サイズ。1〜20ピクセル。</td>
+                    </tr>
+                    <tr>
+                        <td><strong>軌跡表示</strong></td>
+                        <td>各ポイントの移動軌跡を表示。動きの流れを確認できます。</td>
+                    </tr>
+                    <tr>
+                        <td><strong>リバースデジタイズ</strong></td>
+                        <td>通常と逆方向（終了→開始）にフレームを進めてデジタイズ。</td>
+                    </tr>
+                    <tr>
+                        <td><strong>デジタイズ間隔</strong></td>
+                        <td>デジタイズ後のフレーム送り幅。1〜20フレーム。</td>
+                    </tr>
+                </table>
+            </div>
+
+            <!-- 3.6 テーブル操作 -->
+            <h3><i class="fa-solid fa-table-cells"></i> 3.6 テーブル操作</h3>
+            <p>モーションデータテーブルはスプレッドシートのように操作できます。</p>
+
+            <table class="btn-table">
+                <tr>
+                    <td><span class="btn-icon">📈</span></td>
+                    <td><strong>補間</strong></td>
+                    <td>選択範囲の欠損セルをスプライン補間で自動補完。</td>
+                </tr>
+                <tr>
+                    <td><span class="btn-icon">🗑️</span></td>
+                    <td><strong>削除</strong></td>
+                    <td>選択セルのデータを削除。</td>
+                </tr>
+                <tr>
+                    <td><span class="btn-icon">📋</span></td>
+                    <td><strong>コピー</strong> (<kbd class="kbd">Ctrl+C</kbd>)</td>
+                    <td>選択セルをクリップボードにコピー（タブ区切り）。Excel等に貼り付け可能。</td>
+                </tr>
+                <tr>
+                    <td><span class="btn-icon">📄</span></td>
+                    <td><strong>貼付</strong> (<kbd class="kbd">Ctrl+V</kbd>)</td>
+                    <td>クリップボードからデータを貼り付け。</td>
+                </tr>
+                <tr>
+                    <td><span class="btn-icon">☑️</span></td>
+                    <td><strong>全選択</strong> (<kbd class="kbd">Ctrl+A</kbd>)</td>
+                    <td>テーブル全体を選択。</td>
+                </tr>
+                <tr>
+                    <td><span class="btn-icon">↩️</span></td>
+                    <td><strong>元に戻す</strong> (<kbd class="kbd">Ctrl+Z</kbd>)</td>
+                    <td>直前の操作を取り消し（最大50回）。</td>
+                </tr>
+                <tr>
+                    <td><span class="btn-icon">↪️</span></td>
+                    <td><strong>やり直し</strong> (<kbd class="kbd">Ctrl+Y</kbd>)</td>
+                    <td>取り消した操作をやり直し。</td>
+                </tr>
+            </table>
+
+            <!-- 3.7 実長換算とエクスポート -->
+            <h3><i class="fa-solid fa-ruler"></i> 3.7 実長換算とエクスポート</h3>
+            <ol class="step-list">
+                <li>キャリブレーション完了後、デジタイズデータが揃ったら <strong>「実長換算実行」</strong> をクリックします。</li>
+                <li>全フレームのデータがピクセル座標から実空間座標（メートル単位）に変換されます。</li>
+                <li>以下の形式で出力できます。
+                    <ul>
+                        <li><strong>.rd ファイル:</strong> Reality Data形式。MotionViewerへの入力データ。</li>
+                        <li><strong>C3D:</strong> 国際標準のモーションキャプチャデータ形式。他ソフトとの互換性あり。</li>
+                        <li><strong>TRC:</strong> OpenSim用マーカー軌跡形式。Inverse Kinematicsの入力に使用。</li>
+                    </ul>
+                </li>
+            </ol>
+
+            <!-- 3.8 CSVインポート詳細 -->
+            <h3><i class="fa-solid fa-file-csv"></i> 3.8 CSVインポート詳細</h3>
+            <p><strong>「CSVインポート」</strong> ボタンで、HPEが出力したCSVファイルを直接読み込めます。</p>
+
+            <div class="sub-section">
+                <h4>ポイント数の自動拡張</h4>
+                <p>CSVのヘッダー列（<code>_x</code> / <code>_y</code> ペア）を走査し、現在のプロジェクトのポイント数より多い場合は <strong>自動的にポイントを追加</strong> します。</p>
+                <ul>
+                    <li>例: プロジェクトに23点 → CSVに52点 → 差分の29点が自動追加</li>
+                    <li>追加されたポイント名はCSVのヘッダー名がそのまま使われる</li>
+                    <li>カテゴリーは「インポート」として登録される</li>
+                </ul>
+            </div>
+
+            <div class="sub-section">
+                <h4>ポイント名の自動上書き</h4>
+                <p>CSVの列順にポイントが割り当てられ、既存ポイントの名前もCSVのヘッダー名に更新されます。</p>
+                <div class="tip-box">
+                    <strong><i class="fa-solid fa-rotate-left"></i> Undo:</strong>
+                    インポート後に <kbd class="kbd">Ctrl+Z</kbd> でポイント名・データを一括復元できます。
+                </div>
+            </div>
+
+            <div class="sub-section">
+                <h4>対応CSVフォーマット</h4>
+                <pre>frame, Nose_x, Nose_y, L_Eye_x, L_Eye_y, ..., Nose_conf, ...
+1, 1888.1, 999.2, 1881.1, 988.4, ..., 0.932, ...</pre>
+                <table class="btn-table">
+                    <tr>
+                        <td><strong>1列目</strong></td>
+                        <td>フレーム番号</td>
+                    </tr>
+                    <tr>
+                        <td><strong><code>{Name}_x</code> / <code>{Name}_y</code></strong></td>
+                        <td>座標列（ペアで認識）</td>
+                    </tr>
+                    <tr>
+                        <td><strong><code>_conf</code> 列</strong></td>
+                        <td>信頼度列は自動的に無視される</td>
+                    </tr>
+                </table>
+            </div>
+
+            <!-- 3.9 OpenSim連携 -->
+            <h3><i class="fa-solid fa-person-running"></i> 3.9 OpenSim 連携（TRC エクスポート）</h3>
+            <p>MotionDigitizerで計測した3D座標データを、筋骨格シミュレーションソフト <strong>OpenSim</strong> で使用できるTRCファイルとして出力できます。</p>
+
+            <div class="sub-section">
+                <h4>OpenSimワークフロー概要</h4>
+                <div class="highlight-box">
+                    <code>MotionDigitizer（TRC出力）</code><br>
+                    &nbsp;&nbsp;&nbsp;├── <strong>Scale Tool</strong> → スケール済みモデル (.osim)<br>
+                    &nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└── 静止姿勢TRCで体型に合わせてスケーリング<br>
+                    &nbsp;&nbsp;&nbsp;└── <strong>Inverse Kinematics</strong> → 関節角度データ (.mot)<br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└── 動作TRC + スケール済みモデル → 骨格アニメーション
+                </div>
+            </div>
+
+            <div class="sub-section">
+                <h4>TRC出力の操作手順</h4>
+                <ol class="step-list">
+                    <li>実長換算を実行して3D座標データを生成する</li>
+                    <li>「分析結果」タブを開く</li>
+                    <li>必要に応じてオプションを設定する</li>
+                    <li><strong>「TRC出力 (OpenSim)」</strong> ボタンをクリックして保存する</li>
+                </ol>
+
+                <div class="tip-box">
+                    <strong><i class="fa-solid fa-rotate"></i> 座標軸変換:</strong>
+                    カメラ座標系からOpenSim座標系（Y-up）への変換は自動的に適用されます。
+                    スケルトンが正立するために必須の処理です。
+                </div>
+            </div>
+
+            <div class="sub-section">
+                <h4>座標軸変換について</h4>
+                <p>カメラ映像で取得した3D座標とOpenSimの座標系は異なります。</p>
+                <table class="shortcut-table">
+                    <thead>
+                        <tr>
+                            <th>軸</th>
+                            <th>カメラ座標系</th>
+                            <th>OpenSim座標系</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>X</td><td>左右（lateral）</td><td>前後（forward）</td></tr>
+                        <tr><td>Y</td><td>奥行き（depth）</td><td>上下（up）← Y-up</td></tr>
+                        <tr><td>Z</td><td>高さ（up）</td><td>左右（lateral）</td></tr>
+                    </tbody>
+                </table>
+                <p>変換式: <code>X_new = Y_old</code>、<code>Y_new = Z_old</code>、<code>Z_new = X_old</code></p>
+                <div class="warn-box">
+                    <strong><i class="fa-solid fa-triangle-exclamation"></i> 注意:</strong>
+                    この変換を適用しないと、OpenSim上でスケルトンが横倒しになります。
+                </div>
+            </div>
+
+            <div class="sub-section">
+                <h4>OpenSimでの使い方</h4>
+                <p><strong>Scale Tool（モデルのスケーリング）:</strong></p>
+                <ol class="step-list">
+                    <li>静止姿勢を撮影し、TRCファイルとして出力（例: <code>subject_static.trc</code>）</li>
+                    <li>OpenSim → Tools → Scale Model</li>
+                    <li>静止姿勢TRCを Marker File に指定して Run</li>
+                    <li>スケール済みモデル（<code>subject_scaled.osim</code>）が生成される</li>
+                </ol>
+                <p><strong>Inverse Kinematics（関節角度の算出）:</strong></p>
+                <ol class="step-list">
+                    <li>動作TRCファイルを出力（例: <code>subject_motion.trc</code>）</li>
+                    <li>OpenSim → Tools → Inverse Kinematics</li>
+                    <li>スケール済みモデルと動作TRCを指定して Run</li>
+                    <li>関節角度データ（<code>ik_result.mot</code>）が生成され、スケルトンがアニメーションする</li>
+                </ol>
+                <div class="tip-box">
+                    <strong><i class="fa-solid fa-lightbulb"></i> Tip:</strong>
+                    <code>opensim_toolkit.py</code>（MotionDigitizerフォルダに同梱）を使えば、Scale・IKのセットアップXMLを自動生成できます。52点マーカーに対応した測定セット（大腿長・下腿長・上腕長など）が自動で定義されます。
+                </div>
+            </div>
+
+
+            <!-- 3.10 ショートカット -->
+            <h3><i class="fa-solid fa-keyboard"></i> 3.10 キーボードショートカット</h3>
+            <table class="shortcut-table">
+                <thead>
+                    <tr>
+                        <th>キー</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><kbd class="kbd">Space</kbd></td>
+                        <td>再生 / 一時停止</td>
+                    </tr>
+                    <tr>
+                        <td><kbd class="kbd">←</kbd></td>
+                        <td>前のフレーム</td>
+                    </tr>
+                    <tr>
+                        <td><kbd class="kbd">→</kbd></td>
+                        <td>次のフレーム</td>
+                    </tr>
+                    <tr>
+                        <td><kbd class="kbd">↑</kbd></td>
+                        <td>前のポイント</td>
+                    </tr>
+                    <tr>
+                        <td><kbd class="kbd">↓</kbd></td>
+                        <td>次のポイント</td>
+                    </tr>
+                    <tr>
+                        <td><kbd class="kbd">Backspace</kbd></td>
+                        <td>1フレーム戻る</td>
+                    </tr>
+                    <tr>
+                        <td><kbd class="kbd">Ctrl+N</kbd></td>
+                        <td>新規プロジェクト</td>
+                    </tr>
+                    <tr>
+                        <td><kbd class="kbd">Ctrl+O</kbd></td>
+                        <td>プロジェクトを開く</td>
+                    </tr>
+                    <tr>
+                        <td><kbd class="kbd">Ctrl+S</kbd></td>
+                        <td>上書き保存</td>
+                    </tr>
+                    <tr>
+                        <td><kbd class="kbd">Ctrl+Shift+S</kbd></td>
+                        <td>名前を付けて保存</td>
+                    </tr>
+                    <tr>
+                        <td><kbd class="kbd">Ctrl+Z</kbd></td>
+                        <td>元に戻す</td>
+                    </tr>
+                    <tr>
+                        <td><kbd class="kbd">Ctrl+Y</kbd></td>
+                        <td>やり直し</td>
+                    </tr>
+                    <tr>
+                        <td><kbd class="kbd">Ctrl+C</kbd></td>
+                        <td>コピー</td>
+                    </tr>
+                    <tr>
+                        <td><kbd class="kbd">Ctrl+V</kbd></td>
+                        <td>貼り付け</td>
+                    </tr>
+                    <tr>
+                        <td><kbd class="kbd">Ctrl+A</kbd></td>
+                        <td>全選択</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- ============================================ -->
+        <!-- STEP 4: MotionViewer                         -->
+        <!-- ============================================ -->
+        <div class="card" id="motionviewer">
+            <h2><i class="fa-solid fa-chart-line"></i> STEP 4: MotionViewer <span
+                    style="font-size:0.6em; opacity:0.7;">動作分析・可視化</span></h2>
+
+            <div class="highlight-box">
+                <strong>目的:</strong>
+                3D座標データを読み込み、スティックピクチャ（骨格線画）の3D表示、速度・角度のグラフ分析、身体重心（COM）の算出を行います。動画・画像・SVGによるエクスポートにも対応。
+            </div>
+
+            <!-- MotionViewer ワークフロー画像ギャラリー -->
+            <div class="img-gallery">
+                <div class="img-gallery-item">
+                    <img src="picture/MotionViewer/スクリーンショット 2026-02-05 225018.png" alt="MotionViewer スティックピクチャ">
+                    <div class="img-gallery-caption">
+                        <strong>スティックピクチャ表示</strong>
+                        骨格をリアルタイムで3D表示
+                    </div>
+                </div>
+                <div class="img-gallery-item">
+                    <img src="picture/MotionViewer/スクリーンショット 2026-02-05 225037.png" alt="MotionViewer ポイント設定">
+                    <div class="img-gallery-caption">
+                        <strong>ポイント設定ダイアログ</strong>
+                        色・サイズ・形状をカスタマイズ
+                    </div>
+                </div>
+                <div class="img-gallery-item">
+                    <img src="picture/MotionViewer/スクリーンショット 2026-02-05 225137.png" alt="MotionViewer 連続図">
+                    <div class="img-gallery-caption">
+                        <strong>連続写真（図形描写）</strong>
+                        動きの軌跡を一覧表示
+                    </div>
+                </div>
+            </div>
+
+            <!-- 4.1 データの読み込み -->
+            <h3><i class="fa-solid fa-folder-open"></i> 4.1 データの読み込み</h3>
+            <ol class="step-list">
+                <li><span class="menu-path">ファイル <i class="fa-solid fa-chevron-right"></i> ファイルを開く</span>（<kbd
+                        class="kbd">Ctrl+O</kbd>）でモーションデータを読み込みます。ドラッグ＆ドロップにも対応。</li>
+                <li>対応形式: <code>.3d</code>（3Dデータ）/ <code>.2d</code> / <code>.rd</code> / <code>.sd</code>（2Dデータ）</li>
+                <li>読み込み後、中央の3Dビューアにスティックピクチャが表示されます。</li>
+            </ol>
+
+            <div class="sub-section">
+                <h4>ファイル形式の仕様</h4>
+                <p>テキストベースのCSV形式です。</p>
+                <pre style="font-size: 0.85rem; margin: 0.5rem 0;">1行目: フレーム数, ポイント数, フレーム間隔（秒）
+2行目～: x1,y1,z1, x2,y2,z2, ... xN,yN,zN  （1フレームの全座標）</pre>
+                <p style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 0.5rem;">例: フレーム間隔
+                    <code>0.004</code> = 250Hz、<code>0.033</code> = 30Hz
+                </p>
+            </div>
+
+            <!-- 4.2 3Dビューア操作 -->
+            <h3><i class="fa-solid fa-cube"></i> 4.2 3Dビューアの操作</h3>
+
+            <table class="btn-table">
+                <thead>
+                    <tr>
+                        <th>操作</th>
+                        <th>方法</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>回転</strong></td>
+                        <td>左マウスドラッグ。データの中心を軸に自由に回転できます。</td>
+                    </tr>
+                    <tr>
+                        <td><strong>移動（パン）</strong></td>
+                        <td>中ボタンドラッグ、または <kbd class="kbd">Ctrl</kbd>＋左マウスドラッグ。</td>
+                    </tr>
+                    <tr>
+                        <td><strong>拡大縮小（ズーム）</strong></td>
+                        <td>マウスホイール。</td>
+                    </tr>
+                    <tr>
+                        <td><strong>正面ビュー</strong></td>
+                        <td>メニュー: <span class="menu-path">表示 <i class="fa-solid fa-chevron-right"></i> y-z 平面</span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><strong>側面ビュー</strong></td>
+                        <td>メニュー: <span class="menu-path">表示 <i class="fa-solid fa-chevron-right"></i> x-z 平面</span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><strong>上面ビュー</strong></td>
+                        <td>メニュー: <span class="menu-path">表示 <i class="fa-solid fa-chevron-right"></i> x-y 平面</span>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <!-- 4.3 スティックピクチャ設定 -->
+            <h3><i class="fa-solid fa-person"></i> 4.3 スティックピクチャ設定</h3>
+            <p>メニューの <span class="menu-path">スティックピクチャー</span> から身体モデルを選択します。</p>
+
+            <div class="feature-grid">
+                <div class="feature-item">
+                    <h4>Body 23 Points</h4>
+                    <p>23関節モデル。体幹を1セグメントとして扱う標準モデル。</p>
+                </div>
+                <div class="feature-item">
+                    <h4>Body 25 Points</h4>
+                    <p>25関節モデル。体幹を上部/下部に分割。より詳細な分析に。</p>
+                </div>
+                <div class="feature-item">
+                    <h4>慣性楕円体</h4>
+                    <p>各セグメントの慣性楕円体を表示。回転運動の可視化に。</p>
+                </div>
+                <div class="feature-item">
+                    <h4>連続図 (Sequence Draw)</h4>
+                    <p>複数フレームのスティックピクチャを重ねて描画。動きの流れを1枚で把握。</p>
+                </div>
+            </div>
+
+            <!-- 4.4 ポイント・ライン設定 -->
+            <h3><i class="fa-solid fa-palette"></i> 4.4 ポイント・ラインの表示設定</h3>
+            <p>メニューの <span class="menu-path">表示 <i class="fa-solid fa-chevron-right"></i> ポイント設定</span> または <span
+                    class="menu-path">ライン設定</span> で開きます。</p>
+
+            <div class="sub-section">
+                <h4>ポイント設定</h4>
+                <ul style="margin-left: 1.5rem; color: var(--text-secondary); line-height: 2;">
+                    <li><strong>全選択/全解除:</strong> ポイントの一括表示制御。</li>
+                    <li><strong>個別カラー:</strong> カラーピッカーで各ポイントに固有色を割当。</li>
+                    <li><strong>サイズ:</strong> 0〜50ピクセル。</li>
+                    <li><strong>パターン:</strong> 球体やカスタム形状。</li>
+                    <li><strong>表示/非表示:</strong> 不要なポイントを個別に非表示。</li>
+                </ul>
+            </div>
+
+            <div class="sub-section">
+                <h4>ライン設定</h4>
+                <ul style="margin-left: 1.5rem; color: var(--text-secondary); line-height: 2;">
+                    <li><strong>ラインの追加:</strong> 任意の2点を結ぶラインを追加。</li>
+                    <li><strong>色:</strong> カラーピッカーで選択。</li>
+                    <li><strong>太さ:</strong> 1〜20ピクセル。</li>
+                    <li><strong>スタイル:</strong> 実線 / 点線 / 破線。</li>
+                </ul>
+            </div>
+
+            <!-- 4.5 再生コントロール -->
+            <h3><i class="fa-solid fa-play"></i> 4.5 再生コントロール</h3>
+            <p>画面下部のタイムラインバーで操作します。</p>
+
+            <table class="btn-table">
+                <tr>
+                    <td><span class="btn-icon">▶️</span></td>
+                    <td><strong>再生 / 一時停止</strong></td>
+                    <td><kbd class="kbd">Space</kbd> キーでも操作可能。</td>
+                </tr>
+                <tr>
+                    <td><span class="btn-icon">⏹️</span></td>
+                    <td><strong>リセット</strong></td>
+                    <td><kbd class="kbd">Home</kbd> キーで先頭フレームに戻ります。</td>
+                </tr>
+            </table>
+
+            <p>再生速度: <kbd class="kbd">↑</kbd> キーで加速（最大5.0x）、<kbd class="kbd">↓</kbd> キーで減速（最小0.1x）。</p>
+            <p>フレームスライダーのドラッグ、または直接フレーム番号入力でジャンプ可能。</p>
+
+            <!-- 4.6 グラフ解析 -->
+            <h3><i class="fa-solid fa-chart-area"></i> 4.6 グラフ解析</h3>
+            <p><span class="menu-path">表示 <i class="fa-solid fa-chevron-right"></i> グラフ表示</span> でグラフパネルを開きます。</p>
+
+            <div class="sub-section">
+                <h4>グラフの種類</h4>
+                <table class="btn-table">
+                    <thead>
+                        <tr>
+                            <th>グラフ種別</th>
+                            <th>内容</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>速度 (Velocity)</strong></td>
+                            <td>各ポイントの速度の時系列変化。合成速度 / X成分 / Y成分 / Z成分 を選択可能。</td>
+                        </tr>
+                        <tr>
+                            <td><strong>位置 (Position)</strong></td>
+                            <td>X / Y / Z 各軸の位置座標の時系列変化。</td>
+                        </tr>
+                        <tr>
+                            <td><strong>関節角度 (Joint Angle)</strong></td>
+                            <td>指定した関節の角度変化。14種類の関節角度定義に対応。3Dビューア上に角度の円弧も表示。</td>
+                        </tr>
+                        <tr>
+                            <td><strong>セグメント角度 (Segment Angle)</strong></td>
+                            <td>身体セグメントの傾き角度。XY / YZ / XZ 平面を選択。</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="sub-section">
+                <h4>グラフ操作</h4>
+                <ul style="margin-left: 1.5rem; color: var(--text-secondary); line-height: 2;">
+                    <li><strong>関節選択パネル:</strong> 表示したいポイントにチェックを入れます。</li>
+                    <li><strong>Y軸範囲:</strong> 手動で最小値・最大値を入力可能。</li>
+                    <li><strong>凡例:</strong> ドラッグで移動、リサイズ可能。</li>
+                    <li><strong>グラフ上クリック:</strong> 対応するフレームにジャンプ。</li>
+                </ul>
+            </div>
+
+            <!-- 4.7 身体重心 (COM) -->
+            <h3><i class="fa-solid fa-bullseye"></i> 4.7 身体重心 (COM) の算出</h3>
+            <p><span class="menu-path">処理 <i class="fa-solid fa-chevron-right"></i> 身体重心計算</span> を選択します。</p>
+
+            <ol class="step-list">
+                <li><strong>年齢区分</strong> を選択:
+                    <ul>
+                        <li><strong>成人 (Adult):</strong> 阿江14/15の身体部分慣性係数 (BSP) を使用。</li>
+                        <li><strong>小児 (Child, 3-17歳):</strong> 横井モデル。年齢と体型（痩身/標準/肥満）を指定。</li>
+                        <li><strong>高齢者 (Elderly, 65歳以上):</strong> 岡田モデル。加齢変化を反映。</li>
+                    </ul>
+                </li>
+                <li><strong>性別</strong> を選択します（男性/女性で重心位置が異なります）。</li>
+                <li><strong>身体モデル</strong> を選択します。
+                    <ul>
+                        <li><strong>23点モデル (Abe14):</strong> 14セグメント。体幹を1つのセグメントとして扱う。</li>
+                        <li><strong>25点モデル (Abe15):</strong> 15セグメント。体幹を上部/下部に分割。より正確。</li>
+                    </ul>
+                </li>
+                <li>計算を実行すると、全フレームの身体重心が自動算出され、3Dビューア上にマーカーとして表示されます。</li>
+            </ol>
+
+            <div class="tip-box">
+                <strong><i class="fa-solid fa-lightbulb"></i> Tip:</strong>
+                COMは追加ポイント (N+1番目) として扱われるため、グラフ分析で速度や位置の時系列変化を確認できます。投球・打撃・跳躍動作の重心移動分析に極めて有効です。
+            </div>
+
+            <!-- 4.8 Butterworth フィルタ -->
+            <h3><i class="fa-solid fa-wave-square"></i> 4.8 Butterworthフィルタ</h3>
+            <p><span class="menu-path">処理 <i class="fa-solid fa-chevron-right"></i> Butterworthフィルタ</span> を選択します。</p>
+
+            <div class="sub-section">
+                <h4>カットオフ周波数の設定</h4>
+                <table class="btn-table">
+                    <tr>
+                        <td><strong>自動 (Wells & Winter法)</strong></td>
+                        <td>残差分析により最適なカットオフ周波数を自動決定。チャネルごとに最適値を計算。<strong>通常はこちらを推奨。</strong></td>
+                    </tr>
+                    <tr>
+                        <td><strong>手動</strong></td>
+                        <td>0.1〜100 Hz の範囲で指定。先行研究の知見がある場合に。</td>
+                    </tr>
+                </table>
+            </div>
+
+            <div class="sub-section">
+                <h4>オプション</h4>
+                <p><strong>パディング（両端補正）:</strong> データの端でフィルタによる歪みを抑制する反射パディング。パッド長を1〜200フレームで指定。</p>
+            </div>
+
+            <!-- 4.9 エクスポート -->
+            <h3><i class="fa-solid fa-file-export"></i> 4.9 エクスポート</h3>
+
+            <table class="btn-table">
+                <thead>
+                    <tr>
+                        <th>形式</th>
+                        <th>内容</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><span class="btn-icon">📷</span> <strong>画像出力 (PNG)</strong></td>
+                        <td>現在の3Dビューアのスクリーンショット。グラフオーバーレイ付き。</td>
+                    </tr>
+                    <tr>
+                        <td><span class="btn-icon">📷</span> <strong>画像出力 (SVG)</strong></td>
+                        <td>スティックピクチャをSVG（ベクター画像）で出力。論文・発表用に最適。拡大しても劣化なし。</td>
+                    </tr>
+                    <tr>
+                        <td><span class="btn-icon">🎥</span> <strong>動画出力 (MP4)</strong></td>
+                        <td>アニメーション全体を FHD (1920x1080) / 60fps のMP4動画で出力。3Dビュー＋グラフの分割表示も可能。</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <!-- 4.10 プロジェクト管理 -->
+            <h3><i class="fa-solid fa-floppy-disk"></i> 4.10 プロジェクト管理</h3>
+            <ul style="margin-left: 1.5rem; color: var(--text-secondary); line-height: 2;">
+                <li><kbd class="kbd">Ctrl+N</kbd>: 新規プロジェクト</li>
+                <li><kbd class="kbd">Ctrl+Shift+O</kbd>: プロジェクトを開く (<code>.mvp</code>)</li>
+                <li><kbd class="kbd">Ctrl+S</kbd>: 上書き保存</li>
+                <li><kbd class="kbd">Ctrl+Shift+S</kbd>: 名前を付けて保存</li>
+                <li><span class="menu-path">ファイル <i class="fa-solid fa-chevron-right"></i> 設定を保存</span>:
+                    現在の表示設定をJSON形式でエクスポート</li>
+                <li><span class="menu-path">ファイル <i class="fa-solid fa-chevron-right"></i> 設定を読み込み</span>:
+                    JSON設定ファイルから表示設定をインポート</li>
+            </ul>
+
+            <!-- 4.11 ショートカット -->
+            <h3><i class="fa-solid fa-keyboard"></i> 4.11 キーボードショートカット</h3>
+            <table class="shortcut-table">
+                <thead>
+                    <tr>
+                        <th>キー</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><kbd class="kbd">Space</kbd></td>
+                        <td>再生 / 一時停止</td>
+                    </tr>
+                    <tr>
+                        <td><kbd class="kbd">Home</kbd></td>
+                        <td>先頭フレームへ</td>
+                    </tr>
+                    <tr>
+                        <td><kbd class="kbd">←</kbd></td>
+                        <td>前のフレーム</td>
+                    </tr>
+                    <tr>
+                        <td><kbd class="kbd">→</kbd></td>
+                        <td>次のフレーム</td>
+                    </tr>
+                    <tr>
+                        <td><kbd class="kbd">↑</kbd></td>
+                        <td>再生速度を上げる（最大5.0x）</td>
+                    </tr>
+                    <tr>
+                        <td><kbd class="kbd">↓</kbd></td>
+                        <td>再生速度を下げる（最小0.1x）</td>
+                    </tr>
+                    <tr>
+                        <td><kbd class="kbd">Ctrl+N</kbd></td>
+                        <td>新規プロジェクト</td>
+                    </tr>
+                    <tr>
+                        <td><kbd class="kbd">Ctrl+O</kbd></td>
+                        <td>ファイルを開く</td>
+                    </tr>
+                    <tr>
+                        <td><kbd class="kbd">Ctrl+Shift+O</kbd></td>
+                        <td>プロジェクトを開く</td>
+                    </tr>
+                    <tr>
+                        <td><kbd class="kbd">Ctrl+S</kbd></td>
+                        <td>上書き保存</td>
+                    </tr>
+                    <tr>
+                        <td><kbd class="kbd">Ctrl+Shift+S</kbd></td>
+                        <td>名前を付けて保存</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- ============================================ -->
+        <!-- Shortcut Reference                           -->
+        <!-- ============================================ -->
+        <div class="card" id="shortcut-ref">
+            <h2><i class="fa-solid fa-keyboard"></i> ショートカットキー一覧（全アプリ共通リファレンス）</h2>
+
+            <h3>全アプリ共通</h3>
+            <table class="shortcut-table">
+                <thead>
+                    <tr>
+                        <th>キー</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><kbd class="kbd">Space</kbd></td>
+                        <td>再生 / 一時停止</td>
+                    </tr>
+                    <tr>
+                        <td><kbd class="kbd">←</kbd></td>
+                        <td>前のフレーム</td>
+                    </tr>
+                    <tr>
+                        <td><kbd class="kbd">→</kbd></td>
+                        <td>次のフレーム</td>
+                    </tr>
+                    <tr>
+                        <td><kbd class="kbd">Ctrl+S</kbd></td>
+                        <td>プロジェクトを保存</td>
+                    </tr>
+                    <tr>
+                        <td><kbd class="kbd">Ctrl+Z</kbd></td>
+                        <td>元に戻す（Undo）</td>
+                    </tr>
+                    <tr>
+                        <td><kbd class="kbd">Ctrl+Y</kbd></td>
+                        <td>やり直し（Redo）</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>VideoSyncLab 固有</h3>
+            <table class="shortcut-table">
+                <thead>
+                    <tr>
+                        <th>キー</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><kbd class="kbd">↑</kbd> / <kbd class="kbd">↓</kbd></td>
+                        <td>再生速度変更</td>
+                    </tr>
+                    <tr>
+                        <td><kbd class="kbd">Ctrl+1</kbd></td>
+                        <td>動画1を開く</td>
+                    </tr>
+                    <tr>
+                        <td><kbd class="kbd">Ctrl+2</kbd></td>
+                        <td>動画2を開く</td>
+                    </tr>
+                    <tr>
+                        <td><kbd class="kbd">Ctrl+O</kbd></td>
+                        <td>プロジェクトを開く</td>
+                    </tr>
+                    <tr>
+                        <td><kbd class="kbd">Ctrl+W</kbd></td>
+                        <td>動画を閉じる</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>HPE 固有</h3>
+            <table class="shortcut-table">
+                <thead>
+                    <tr>
+                        <th>キー</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><kbd class="kbd">Ctrl+O</kbd></td>
+                        <td>動画読み込み</td>
+                    </tr>
+                    <tr>
+                        <td><kbd class="kbd">Ctrl+Shift+O</kbd></td>
+                        <td>プロジェクト読み込み</td>
+                    </tr>
+                    <tr>
+                        <td><kbd class="kbd">Ctrl+Shift+S</kbd></td>
+                        <td>名前を付けて保存</td>
+                    </tr>
+                    <tr>
+                        <td><kbd class="kbd">Ctrl+W</kbd></td>
+                        <td>プロジェクトを閉じる</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>MotionDigitizer 固有</h3>
+            <table class="shortcut-table">
+                <thead>
+                    <tr>
+                        <th>キー</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><kbd class="kbd">↑</kbd> / <kbd class="kbd">↓</kbd></td>
+                        <td>ポイント切替（前/次）</td>
+                    </tr>
+                    <tr>
+                        <td><kbd class="kbd">Backspace</kbd></td>
+                        <td>1フレーム戻る</td>
+                    </tr>
+                    <tr>
+                        <td><kbd class="kbd">Ctrl+N</kbd></td>
+                        <td>新規プロジェクト</td>
+                    </tr>
+                    <tr>
+                        <td><kbd class="kbd">Ctrl+C</kbd> / <kbd class="kbd">Ctrl+V</kbd></td>
+                        <td>テーブルのコピー/貼り付け</td>
+                    </tr>
+                    <tr>
+                        <td><kbd class="kbd">Ctrl+A</kbd></td>
+                        <td>テーブル全選択</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>MotionViewer 固有</h3>
+            <table class="shortcut-table">
+                <thead>
+                    <tr>
+                        <th>キー</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><kbd class="kbd">Home</kbd></td>
+                        <td>先頭フレームへリセット</td>
+                    </tr>
+                    <tr>
+                        <td><kbd class="kbd">↑</kbd> / <kbd class="kbd">↓</kbd></td>
+                        <td>再生速度変更（0.1x〜5.0x）</td>
+                    </tr>
+                    <tr>
+                        <td><kbd class="kbd">Ctrl+N</kbd></td>
+                        <td>新規プロジェクト</td>
+                    </tr>
+                    <tr>
+                        <td><kbd class="kbd">Ctrl+Shift+O</kbd></td>
+                        <td>プロジェクトを開く</td>
+                    </tr>
+                    <tr>
+                        <td><kbd class="kbd">Ctrl+R</kbd></td>
+                        <td>ファイルを閉じる</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- ============================================ -->
+        <!-- File Format Reference                        -->
+        <!-- ============================================ -->
+        <div class="card" id="file-format-ref">
+            <h2><i class="fa-solid fa-file-code"></i> ファイル形式リファレンス</h2>
+
+            <h3>プロジェクトファイル</h3>
+            <table class="shortcut-table">
+                <thead>
+                    <tr>
+                        <th>拡張子</th>
+                        <th>アプリ</th>
+                        <th>内容</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>.vsl</code></td>
+                        <td>VideoSyncLab</td>
+                        <td>動画パス、トリミング点、同期点を含むプロジェクト状態。</td>
+                    </tr>
+                    <tr>
+                        <td><code>.hpe</code></td>
+                        <td>HPE</td>
+                        <td>推定結果、フィルタ設定、編集履歴を含むプロジェクト。</td>
+                    </tr>
+                    <tr>
+                        <td><code>.mdp</code></td>
+                        <td>MotionDigitizer</td>
+                        <td>キャリブレーション、デジタイズデータ、動画パスを含むプロジェクト。</td>
+                    </tr>
+                    <tr>
+                        <td><code>.mvp</code></td>
+                        <td>MotionViewer</td>
+                        <td>表示設定、ポイント/ライン設定、フィルタ設定を含むプロジェクト。</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>データファイル</h3>
+            <table class="shortcut-table">
+                <thead>
+                    <tr>
+                        <th>拡張子</th>
+                        <th>内容</th>
+                        <th>使用場面</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>.csv</code></td>
+                        <td>関節座標データ（カンマ区切り）</td>
+                        <td>HPE出力 → MotionDigitizer入力</td>
+                    </tr>
+                    <tr>
+                        <td><code>.rd</code></td>
+                        <td>実長換算データ（Reality Data）</td>
+                        <td>MotionDigitizer出力 → MotionViewer入力</td>
+                    </tr>
+                    <tr>
+                        <td><code>.3d</code></td>
+                        <td>3次元座標データ</td>
+                        <td>MotionViewerでの3D可視化</td>
+                    </tr>
+                    <tr>
+                        <td><code>.2d</code> / <code>.sd</code></td>
+                        <td>2次元座標データ</td>
+                        <td>MotionViewerでの2D可視化</td>
+                    </tr>
+                    <tr>
+                        <td><code>.c3d</code></td>
+                        <td>C3D形式（国際標準）</td>
+                        <td>他のモーション解析ソフトとの相互運用</td>
+                    </tr>
+                    <tr>
+                        <td><code>.trc</code></td>
+                        <td>OpenSim用マーカー軌跡データ（Track Row Column）</td>
+                        <td>MotionDigitizer出力 → OpenSim Scale/IK Tool入力</td>
+                    </tr>
+                    <tr>
+                        <td><code>.cal</code></td>
+                        <td>キャリブレーションデータ（JSON）</td>
+                        <td>MotionDigitizerのカメラパラメータ保存/読み込み</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>データの流れ</h3>
+            <div class="highlight-box">
+                <strong>典型的なワークフロー:</strong><br>
+                <code>動画 (.mp4)</code>
+                &rarr; <strong>VideoSyncLab</strong> &rarr; <code>同期済み動画 (_cut.mp4)</code>
+                &rarr; <strong>HPE</strong> &rarr; <code>.csv / .hpe</code>
+                &rarr; <strong>MotionDigitizer</strong> &rarr; <code>.rd / .3d / .c3d / .trc</code>
+                &rarr; <strong>MotionViewer</strong> &rarr; <code>グラフ / 動画 / SVG</code><br>
+                <span style="opacity:0.7; font-size:0.9em;">※ TRCの場合: &rarr; <strong>OpenSim</strong> (Scale Tool / IK Tool) &rarr; <code>関節角度 (.mot)</code></span>
+            </div>
+        </div>
+
+        <!-- ============================================ -->
+        <!-- Troubleshooting                              -->
+        <!-- ============================================ -->
+        <div class="card" id="troubleshooting">
+            <h2><i class="fa-solid fa-wrench"></i> トラブルシューティング</h2>
+
+            <div class="sub-section">
+                <h4><i class="fa-solid fa-video"></i> VideoSyncLab</h4>
+                <table class="btn-table">
+                    <thead>
+                        <tr>
+                            <th>症状</th>
+                            <th>対処法</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>動画再生がカクつく</td>
+                            <td><span class="menu-path">ファイル <i class="fa-solid fa-chevron-right"></i>
+                                    動画を最適化して再読み込み</span> を実行。H.264に変換して再生パフォーマンスを改善します。</td>
+                        </tr>
+                        <tr>
+                            <td>同期ボタンが押せない</td>
+                            <td>デュアルスクリーンモードで、両方の動画が読み込まれていることを確認してください。</td>
+                        </tr>
+                        <tr>
+                            <td>二画面出力ボタンが押せない</td>
+                            <td>同期モードが有効であること、かつ両方の動画でトリミング範囲が設定されていることが必要です。</td>
+                        </tr>
+                        <tr>
+                            <td>トリミング後の動画が開けない</td>
+                            <td>スマートカットはキーフレーム単位での切り出しのため、他プレーヤーで問題がある場合は「再エンコード」を使用してください。</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="sub-section">
+                <h4><i class="fa-solid fa-brain"></i> HPE</h4>
+                <table class="btn-table">
+                    <thead>
+                        <tr>
+                            <th>症状</th>
+                            <th>対処法</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>GPU (CUDA) が表示されない</td>
+                            <td>NVIDIA GPUとCUDAツールキットがインストールされているか確認。ドライバが最新であることを確認してください。</td>
+                        </tr>
+                        <tr>
+                            <td>推定結果の左右が入れ替わる</td>
+                            <td>データクレンジングの「脚入替」「腕入替」ボタンで修正。またはフィルタの「左右脚・腕自動修正」をONに。</td>
+                        </tr>
+                        <tr>
+                            <td>複数人のIDが入れ替わる</td>
+                            <td>データクレンジングの「ID入替」ボタンで手動修正。交差が発生したフレームで実行してください。</td>
+                        </tr>
+                        <tr>
+                            <td>プロジェクトを開くと動画が見つからない</td>
+                            <td>「動画を再選択」ダイアログが表示されます。動画ファイルの新しい場所を指定してください。</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="sub-section">
+                <h4><i class="fa-solid fa-crosshairs"></i> MotionDigitizer</h4>
+                <table class="btn-table">
+                    <thead>
+                        <tr>
+                            <th>症状</th>
+                            <th>対処法</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>キャリブレーション精度が悪い</td>
+                            <td>制御点の数を増やす、制御点を広い範囲に分散させる、クリック精度を上げる（ズームを活用）。</td>
+                        </tr>
+                        <tr>
+                            <td>ChArUcoボードが検出されない</td>
+                            <td>ボードが鮮明に映っているフレームを選択。サイズ設定（縦横数、チェッカーサイズ、マーカーサイズ）が実物と一致しているか確認。</td>
+                        </tr>
+                        <tr>
+                            <td>テーブルに欠損値が多い</td>
+                            <td>「補間」ボタンでスプライン補間を適用。または手動デジタイズで欠損フレームを埋めてください。</td>
+                        </tr>
+                        <tr>
+                            <td>実長換算の結果がおかしい</td>
+                            <td>キャリブレーション時の制御点座標（メートル単位）の入力値を再確認。単位の間違い（mm/m）に注意。</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="sub-section">
+                <h4><i class="fa-solid fa-chart-line"></i> MotionViewer</h4>
+                <table class="btn-table">
+                    <thead>
+                        <tr>
+                            <th>症状</th>
+                            <th>対処法</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>スティックピクチャが表示されない</td>
+                            <td><span class="menu-path">スティックピクチャー</span> メニューで「Body 23 Points」または「Body 25
+                                Points」にチェックが入っているか確認。ポイント数が合っている必要があります。</td>
+                        </tr>
+                        <tr>
+                            <td>データが小さすぎて見えない</td>
+                            <td>マウスホイールでズームイン。または固定ビュー（x-y / y-z / x-z 平面）を選択してカメラを自動調整。</td>
+                        </tr>
+                        <tr>
+                            <td>グラフにノイズが多い</td>
+                            <td><span class="menu-path">処理 <i class="fa-solid fa-chevron-right"></i>
+                                    Butterworthフィルタ</span> を適用。まずは「自動（Wells & Winter法）」を試してください。</td>
+                        </tr>
+                        <tr>
+                            <td>動画出力に時間がかかる</td>
+                            <td>FHD/60fps出力は計算量が大きいです。フレーム数が多いデータの場合は時間がかかります。進捗バーを確認してお待ちください。</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- バージョン変遷 -->
+    <div class="content-section" id="changelog">
+        <h2><i class="fa-solid fa-clock-rotate-left"></i> バージョン変遷</h2>
+
+        <div class="sub-section">
+            <h4><i class="fa-solid fa-brain"></i> HPE</h4>
+
+            <div class="version-block" style="margin-bottom: 2rem;">
+                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 0.8rem;">
+                    <span style="background: rgba(6,182,212,0.15); color: var(--accent-cyan); border: 1px solid rgba(6,182,212,0.4); border-radius: 6px; padding: 2px 12px; font-weight: 700; font-size: 1em; font-family: 'Fira Code', monospace;">v1.1.0</span>
+                    <span style="color: #94a3b8; font-size: 0.9em;">2026-03</span>
+                </div>
+                <ul>
+                    <li><strong>スワップ検出アルゴリズム強化</strong> — <code>global_optimization</code>（動的計画法・デフォルト）、<code>trajectory_prediction</code>、<code>temporal_window</code>、<code>legacy</code> の4アルゴリズムを選択可能</li>
+                    <li><strong>FPS適応型速度閾値</strong> — 閾値 = 1500.0 / fps (px/frame) で自動調整（60fps → 25.0、120fps → 12.5）</li>
+                    <li><strong>加速度ベース外れ値検出</strong> — max_acceleration = 50,000 px/s² で瞬間ジャンプを検出</li>
+                    <li><strong>交差フェーズ検出</strong> — 股関節・膝の水平距離から脚交差を判定し、ランニング時の誤検出を抑制</li>
+                    <li><strong>フィルタ処理順序を最適化</strong> — スワップ修正 → 外れ値除去 → 補間 → Butterworth（旧順序では有効データが誤削除される問題を修正）</li>
+                    <li>Zスコア閾値デフォルト変更: 5.0 → 3.5 / 最大速度デフォルト変更: 5000 → 3000 px/s</li>
+                </ul>
+            </div>
+
+            <div class="version-block">
+                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 0.8rem;">
+                    <span style="background: rgba(255,255,255,0.06); color: #94a3b8; border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; padding: 2px 12px; font-weight: 700; font-size: 1em; font-family: 'Fira Code', monospace;">v1.0.0</span>
+                    <span style="color: #94a3b8; font-size: 0.9em;">初期リリース</span>
+                </div>
+                <ul>
+                    <li>RTMLib による AI 骨格推定（ONNX Runtime 直接推論）</li>
+                    <li>Butterworth フィルタ、Zスコア外れ値除去、スプライン補間</li>
+                    <li>左右スワップ検出（legacy アルゴリズム）</li>
+                    <li>CSV / JSON エクスポート、バッチ処理</li>
+                    <li>グラフモードでの手動編集</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="sub-section">
+            <h4><i class="fa-solid fa-crosshairs"></i> MotionDigitizer</h4>
+
+            <div class="version-block" style="margin-bottom: 2rem;">
+                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 0.8rem;">
+                    <span style="background: rgba(6,182,212,0.15); color: var(--accent-cyan); border: 1px solid rgba(6,182,212,0.4); border-radius: 6px; padding: 2px 12px; font-weight: 700; font-size: 1em; font-family: 'Fira Code', monospace;">v1.1.0</span>
+                    <span style="color: #94a3b8; font-size: 0.9em;">2026-03</span>
+                </div>
+                <ul>
+                    <li><strong>OpenSim TRC エクスポート</strong> — OpenSim 公式仕様準拠（PathFileType 4、空行、メートル単位）</li>
+                    <li><strong>座標軸変換の自動適用</strong> — カメラ座標（X=左右, Y=奥行, Z=高さ）→ OpenSim Y-up（X=前後, Y=上下, Z=左右）を常時適用</li>
+                    <li><strong>CSVインポート改善</strong> — ポイント名を列ヘッダーから自動取得。既存ポイント1〜23もCSV名に自動リネーム。列数超過分は自動追加</li>
+                    <li><strong>opensim_toolkit.py 強化</strong> — MeasurementSet（16部位）を Scale Tool Setup XML に自動生成し「Run」ボタン有効化</li>
+                    <li>テーブルクリック後の <code>savedRow is not defined</code> エラーを修正</li>
+                </ul>
+            </div>
+
+            <div class="version-block">
+                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 0.8rem;">
+                    <span style="background: rgba(255,255,255,0.06); color: #94a3b8; border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; padding: 2px 12px; font-weight: 700; font-size: 1em; font-family: 'Fira Code', monospace;">v1.0.0</span>
+                    <span style="color: #94a3b8; font-size: 0.9em;">初期リリース</span>
+                </div>
+                <ul>
+                    <li>3Dデジタイズ（手動・HPE データインポート）</li>
+                    <li>DLT キャリブレーション / ChArUco ボードによる自動キャリブレーション</li>
+                    <li>実長換算（メートル変換）</li>
+                    <li>C3D / CSV エクスポート</li>
+                    <li>テーブル操作・スプライン補間・外れ値除去</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <p>&copy; 2026 Electoron Biomechanics Suite. All Rights Reserved.</p>
+    </footer>
+
+</body>
+
+</html>

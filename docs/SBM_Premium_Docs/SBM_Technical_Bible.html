@@ -1,0 +1,2332 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SBM Technical Bible | アルゴリズム詳細仕様書</title>
+    <link rel="stylesheet" href="premium_style.css">
+    <link rel="stylesheet" href="premium_style_append.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <style>
+        .toc {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            padding: 2rem;
+            margin: 2rem 0;
+        }
+
+        .toc h3 {
+            margin-top: 0;
+            color: var(--accent-cyan);
+        }
+
+        .toc ol {
+            margin: 0;
+            padding-left: 1.5rem;
+        }
+
+        .toc li {
+            margin: 0.4rem 0;
+        }
+
+        .toc a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .toc a:hover {
+            color: var(--accent-cyan);
+        }
+
+        .toc ol ol {
+            margin-top: 0.3rem;
+        }
+
+        .toc ol ol li {
+            font-size: 0.92em;
+            margin: 0.2rem 0;
+        }
+
+        .algo-pipeline {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            align-items: center;
+            margin: 1.5rem 0;
+        }
+
+        .algo-stage {
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 8px;
+            padding: 0.8rem 1.2rem;
+            text-align: center;
+            flex: 1;
+            min-width: 120px;
+        }
+
+        .algo-stage .stage-name {
+            font-weight: 700;
+            color: var(--accent-cyan);
+            font-size: 0.95rem;
+        }
+
+        .algo-stage .stage-detail {
+            font-size: 0.82rem;
+            color: var(--text-secondary);
+            margin-top: 0.3rem;
+        }
+
+        .algo-arrow {
+            color: var(--accent-blue);
+            font-size: 1.5rem;
+            flex-shrink: 0;
+        }
+
+        .param-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1.5rem 0;
+            font-size: 0.9rem;
+        }
+
+        .param-table th {
+            background: rgba(139, 92, 246, 0.12);
+            color: var(--accent-purple);
+            padding: 0.7rem 0.8rem;
+            text-align: left;
+            border-bottom: 2px solid rgba(139, 92, 246, 0.3);
+            font-weight: 600;
+        }
+
+        .param-table td {
+            padding: 0.6rem 0.8rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            vertical-align: top;
+        }
+
+        .param-table tr:hover td {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .param-table code {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 1px 5px;
+            border-radius: 3px;
+            font-size: 0.88em;
+            color: #93c5fd;
+        }
+
+        .bsp-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1.5rem 0;
+            font-size: 0.82rem;
+        }
+
+        .bsp-table th {
+            background: rgba(6, 182, 212, 0.12);
+            color: var(--accent-cyan);
+            padding: 0.5rem;
+            text-align: center;
+            border-bottom: 2px solid rgba(6, 182, 212, 0.3);
+            font-weight: 600;
+        }
+
+        .bsp-table td {
+            padding: 0.4rem 0.5rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            text-align: center;
+        }
+
+        .bsp-table tr:hover td {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        pre {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 8px;
+            padding: 1.2rem;
+            overflow-x: auto;
+            font-family: 'Fira Code', 'Consolas', monospace;
+            font-size: 0.85rem;
+            line-height: 1.6;
+            color: #e2e8f0;
+        }
+
+        pre .comment {
+            color: #6b7280;
+        }
+
+        pre .keyword {
+            color: #c084fc;
+        }
+
+        pre .string {
+            color: #34d399;
+        }
+
+        pre .number {
+            color: #fbbf24;
+        }
+
+        pre .func {
+            color: #60a5fa;
+        }
+
+        .file-ref {
+            display: inline-block;
+            font-size: 0.82rem;
+            color: var(--text-secondary);
+            background: rgba(0, 0, 0, 0.2);
+            padding: 2px 10px;
+            border-radius: 20px;
+            margin-bottom: 0.5rem;
+        }
+
+        .file-ref i {
+            margin-right: 4px;
+        }
+
+        .math-block {
+            background: rgba(0, 0, 0, 0.25);
+            border-left: 3px solid var(--accent-purple);
+            padding: 1.2rem 1.5rem;
+            margin: 1.5rem 0;
+            border-radius: 0 8px 8px 0;
+            overflow-x: auto;
+        }
+
+        .sub-section {
+            margin-top: 2.5rem;
+        }
+
+        .sub-section:first-of-type {
+            margin-top: 1.5rem;
+        }
+
+        .note-box {
+            background: rgba(251, 191, 36, 0.08);
+            border-left: 3px solid #fbbf24;
+            padding: 1rem 1.2rem;
+            border-radius: 0 8px 8px 0;
+            margin: 1rem 0;
+            font-size: 0.92rem;
+        }
+
+        .note-box strong {
+            color: #fbbf24;
+        }
+
+        .two-col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+
+        @media (max-width: 768px) {
+            .two-col {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <header>
+        <div class="brand">
+            <i class="fa-solid fa-book-journal-whills"></i> SBM System <span
+                style="font-size:0.8em; opacity:0.7;">Technical Bible</span>
+        </div>
+        <nav class="nav-links">
+            <a href="SBM_User_Manual.html">User Manual</a>
+            <a href="SBM_Integration_Map.html">Integration Map</a>
+            <a href="SBM_Technical_Bible.html" class="active">Technical Bible</a>
+        </nav>
+    </header>
+
+    <section class="hero" style="background: radial-gradient(circle at 50% 50%, #312e81 0%, #0f172a 100%);">
+        <div class="hero-badges">
+            <span class="badge">Algorithm Deep Dive</span>
+            <span class="badge">Mathematical Proof</span>
+            <span class="badge">Source Code Reference</span>
+        </div>
+        <h1>Algorithm & <br><span class="text-gradient">Mathematics</span></h1>
+        <p>
+            コードの深層にある数理モデルとアルゴリズムの正体。<br>
+            ブラックボックスを排除し、信頼できる科学的根拠（エビデンス）をここに提示する。
+        </p>
+    </section>
+
+    <div class="container">
+
+        <!-- ===== TABLE OF CONTENTS ===== -->
+        <div class="toc">
+            <h3><i class="fa-solid fa-list"></i> Table of Contents</h3>
+            <ol>
+                <li><a href="#philosophy">設計思想 &amp; Tech Stack Comparison</a></li>
+                <li><a href="#vsl">VideoSyncLab — 映像処理アルゴリズム</a>
+                    <ol>
+                        <li><a href="#vsl-smartcut">FFmpeg Smart Cut（3セグメントハイブリッド）</a></li>
+                        <li><a href="#vsl-sync">フレーム同期アルゴリズム</a></li>
+                        <li><a href="#vsl-strobe">ストロボモーション合成</a></li>
+                        <li><a href="#vsl-onnx">ONNX人物セグメンテーション</a></li>
+                    </ol>
+                </li>
+                <li><a href="#hpe">HPE — AI姿勢推定パイプライン</a>
+                    <ol>
+                        <li><a href="#hpe-arch">サーバーアーキテクチャ</a></li>
+                        <li><a href="#hpe-yolo">YOLO人物検出</a></li>
+                        <li><a href="#hpe-vitpose">rtmlib統合骨格推定（RTMPose / SynthPose）</a></li>
+                        <li><a href="#hpe-norfair">Norfairマルチ人物追跡</a></li>
+                        <li><a href="#hpe-filter">5段階フィルタリングパイプライン</a></li>
+                    </ol>
+                </li>
+                <li><a href="#md">MotionDigitizer — 空間座標変換</a>
+                    <ol>
+                        <li><a href="#md-dlt2d">2D-DLT法</a></li>
+                        <li><a href="#md-dlt3d">3D-DLT法</a></li>
+                        <li><a href="#md-cc">CC法（Control Coordinates Method）</a></li>
+                        <li><a href="#md-camera">カメラモデル &amp; レンズ歪み補正</a></li>
+                        <li><a href="#md-charuco">ChArUco自動キャリブレーション</a></li>
+                        <li><a href="#md-reallength">実長換算</a></li>
+                        <li><a href="#md-c3d">C3Dフォーマット</a></li>
+                        <li><a href="#md-trc">TRCフォーマット（OpenSim連携）</a></li>
+                    </ol>
+                </li>
+                <li><a href="#mv">MotionViewer — 運動学解析エンジン</a>
+                    <ol>
+                        <li><a href="#mv-butter">Butterworthフィルタ</a></li>
+                        <li><a href="#mv-cutoff">Wells &amp; Winter自動カットオフ決定</a></li>
+                        <li><a href="#mv-bsp">身体部分慣性係数（BSP）</a></li>
+                        <li><a href="#mv-com">身体重心（COM）算出</a></li>
+                        <li><a href="#mv-vel">速度・加速度の数値微分</a></li>
+                        <li><a href="#mv-joint">関節角度の算出</a></li>
+                        <li><a href="#mv-segment">セグメント角度</a></li>
+                        <li><a href="#mv-3d">Three.js 3Dレンダリング</a></li>
+                    </ol>
+                </li>
+                <li><a href="#formats">ファイルフォーマット仕様</a></li>
+                <li><a href="#refs">参考文献</a></li>
+                <li><a href="#author">開発者・連絡先</a></li>
+            </ol>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- 1. DESIGN PHILOSOPHY                       -->
+        <!-- ========================================== -->
+        <div class="card" id="philosophy">
+            <h2><i class="fa-solid fa-microscope"></i> 1. 設計思想 &amp; Tech Stack Comparison</h2>
+            <p>
+                <strong>SBM System</strong> (Sports BioMechanics System)
+                は、従来の高価な光学式モーションキャプチャ（VICON、Qualisys等）が独占していた「定量的3D動作分析」を、
+                汎用カメラと最先端AIと堅牢な幾何学アルゴリズムの融合によって民主化するために設計された。
+            </p>
+            <div class="highlight-box">
+                <strong>Core Philosophy:</strong>
+                「AIによる省力化」と「古典的幾何学による精度保証」のハイブリッド。
+                AIが大量フレームの骨格推定を自動処理し、人間はAIが苦手なオクルージョン区間のみを修正する。
+                最終的な座標変換はDLT/CC法という確立された数理モデルが担保する。
+            </div>
+
+            <table class="comparison-table">
+                <thead>
+                    <tr>
+                        <th>特徴</th>
+                        <th>SBM System (Hybrid)</th>
+                        <th>光学式MoCap (Vicon等)</th>
+                        <th>簡易スマホアプリ</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>マーカー</strong></td>
+                        <td><span style="color:var(--accent-cyan)">不要（Markerless）</span></td>
+                        <td>必須（反射マーカー）</td>
+                        <td>不要</td>
+                    </tr>
+                    <tr>
+                        <td><strong>環境制約</strong></td>
+                        <td>低（屋外・試合中OK）</td>
+                        <td>高（専用スタジオ必須）</td>
+                        <td>低</td>
+                    </tr>
+                    <tr>
+                        <td><strong>3D精度</strong></td>
+                        <td><span style="color:var(--accent-success)">高（DLT/CC補正）</span></td>
+                        <td>極高（sub-mm）</td>
+                        <td>低（2Dのみが多い）</td>
+                    </tr>
+                    <tr>
+                        <td><strong>コスト</strong></td>
+                        <td>低（汎用PC+カメラ）</td>
+                        <td>極高（数千万円〜）</td>
+                        <td>無料〜安価</td>
+                    </tr>
+                    <tr>
+                        <td><strong>解析ロジック</strong></td>
+                        <td><strong>Hybrid（AI + Human-in-the-Loop）</strong></td>
+                        <td>幾何計算のみ</td>
+                        <td>AIブラックボックス</td>
+                    </tr>
+                    <tr>
+                        <td><strong>マルチカメラ3D</strong></td>
+                        <td>2〜N台（DLT法）</td>
+                        <td>8〜20台以上</td>
+                        <td>非対応が多い</td>
+                    </tr>
+                    <tr>
+                        <td><strong>出力形式</strong></td>
+                        <td>CSV / C3D / 独自形式</td>
+                        <td>C3D / TSV</td>
+                        <td>CSV / JSON</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- 2. VideoSyncLab                            -->
+        <!-- ========================================== -->
+        <div class="card" id="vsl">
+            <h2><i class="fa-solid fa-film"></i> 2. VideoSyncLab — 映像処理アルゴリズム</h2>
+            <p>映像の品質が分析の品質を決定する。VideoSyncLabは FFmpeg を核とした高精度映像処理エンジンである。</p>
+
+            <!-- 2.1 Smart Cut -->
+            <div class="sub-section" id="vsl-smartcut">
+                <h3><i class="fa-solid fa-scissors"></i> 2.1 FFmpeg Smart Cut（3セグメントハイブリッド）</h3>
+                <span class="file-ref"><i class="fa-regular fa-file-code"></i> VideoSyncLab/renderer.js —
+                    performSmartCut()</span>
+                <p>
+                    通常のストリームコピー（<code>-c copy</code>）はキーフレーム境界でしかカットできず、
+                    開始点がGOPの途中にある場合は映像が乱れる。Smart Cutはこの問題を<strong>3セグメント合成</strong>で解決する。
+                </p>
+
+                <div class="algo-pipeline">
+                    <div class="algo-stage">
+                        <div class="stage-name">Segment A</div>
+                        <div class="stage-detail">IN点〜次のキーフレーム<br>再エンコード（H.264）</div>
+                    </div>
+                    <span class="algo-arrow">→</span>
+                    <div class="algo-stage">
+                        <div class="stage-name">Segment B</div>
+                        <div class="stage-detail">キーフレーム〜最終キーフレーム<br>ストリームコピー（高速）</div>
+                    </div>
+                    <span class="algo-arrow">→</span>
+                    <div class="algo-stage">
+                        <div class="stage-name">Segment C</div>
+                        <div class="stage-detail">最終キーフレーム〜OUT点<br>再エンコード（H.264）</div>
+                    </div>
+                    <span class="algo-arrow">→</span>
+                    <div class="algo-stage">
+                        <div class="stage-name">Concat</div>
+                        <div class="stage-detail">FFmpeg concat demuxer<br>で3セグメントを結合</div>
+                    </div>
+                </div>
+
+                <div class="note-box">
+                    <strong>Note:</strong> 再エンコードは先頭と末尾の数フレームのみに限定されるため、
+                    全フレーム再エンコードに比べ処理時間は大幅に短縮され、画質劣化も最小限に抑えられる。
+                </div>
+
+                <p>エンコードパラメータ:</p>
+                <pre><span class="comment">// Smart Cut エンコード設定</span>
+<span class="keyword">const</span> encodeArgs = [
+  <span class="string">'-c:v'</span>, <span class="string">'libx264'</span>,
+  <span class="string">'-preset'</span>, <span class="string">'medium'</span>,
+  <span class="string">'-crf'</span>, <span class="string">'18'</span>,          <span class="comment">// 高品質（視覚的にほぼロスレス）</span>
+  <span class="string">'-pix_fmt'</span>, <span class="string">'yuv420p'</span>,
+  <span class="string">'-c:a'</span>, <span class="string">'aac'</span>,
+  <span class="string">'-b:a'</span>, <span class="string">'192k'</span>
+];</pre>
+            </div>
+
+            <!-- 2.2 Frame Sync -->
+            <div class="sub-section" id="vsl-sync">
+                <h3><i class="fa-solid fa-link"></i> 2.2 フレーム同期アルゴリズム</h3>
+                <span class="file-ref"><i class="fa-regular fa-file-code"></i> VideoSyncLab/renderer.js —
+                    syncToParent()</span>
+                <p>
+                    マルチカメラ同期は<strong>Parent-Child</strong>モデルで実装されている。
+                    左プレーヤーが親（タイムライン基準）、右プレーヤーが子となり、
+                    ユーザーが設定した同期ポイントからオフセットを自動計算する。
+                </p>
+
+                <div class="math-block">
+                    \[
+                    \Delta t = \frac{F_{sync}^{parent} - F_{sync}^{child}}{fps}
+                    \]
+                    \[
+                    t_{child} = t_{parent} - \Delta t
+                    \]
+                </div>
+
+                <p>
+                    ここで \( F_{sync} \) は各プレーヤーの同期ポイントフレーム番号、\( fps \) はフレームレートである。
+                    同期再生中は <code>requestAnimationFrame</code> ループ内で毎フレーム子動画の <code>currentTime</code> を補正する。
+                </p>
+            </div>
+
+            <!-- 2.3 Strobe Motion -->
+            <div class="sub-section" id="vsl-strobe">
+                <h3><i class="fa-solid fa-person-running"></i> 2.3 ストロボモーション合成</h3>
+                <span class="file-ref"><i class="fa-regular fa-file-code"></i> VideoSyncLab/strobe-motion.js</span>
+                <p>
+                    複数フレームの人物像を1枚の静止画に重ね合わせ、動作の軌跡を視覚化する。
+                    ONNX Runtime で YOLO11m-seg モデルを実行し、人物のセグメンテーションマスクを取得する。
+                </p>
+
+                <div class="algo-pipeline">
+                    <div class="algo-stage">
+                        <div class="stage-name">Frame取得</div>
+                        <div class="stage-detail">指定間隔でフレーム<br>をCanvasに描画</div>
+                    </div>
+                    <span class="algo-arrow">→</span>
+                    <div class="algo-stage">
+                        <div class="stage-name">YOLO11m-seg</div>
+                        <div class="stage-detail">ONNXセグメンテーション<br>人物マスク生成</div>
+                    </div>
+                    <span class="algo-arrow">→</span>
+                    <div class="algo-stage">
+                        <div class="stage-name">マスク適用</div>
+                        <div class="stage-detail">ImageDataのピクセル<br>単位でアルファ合成</div>
+                    </div>
+                    <span class="algo-arrow">→</span>
+                    <div class="algo-stage">
+                        <div class="stage-name">合成出力</div>
+                        <div class="stage-detail">背景+全フレーム<br>の人物像を重畳</div>
+                    </div>
+                </div>
+
+                <h4>セグメンテーション処理</h4>
+                <p>YOLO11m-seg の出力テンソルからセグメンテーションマスクを復元する処理:</p>
+                <pre><span class="comment">// 1. 検出結果 (8400 candidates) から信頼度閾値でフィルタ</span>
+<span class="comment">// 2. 各検出のproto係数(32次元)とprotoマスク(160x160x32)の内積</span>
+<span class="comment">// 3. シグモイド関数でマスク確率に変換</span>
+<span class="keyword">for</span> (<span class="keyword">let</span> i = <span class="number">0</span>; i < maskH * maskW; i++) {
+    <span class="keyword">let</span> val = <span class="number">0</span>;
+    <span class="keyword">for</span> (<span class="keyword">let</span> k = <span class="number">0</span>; k < <span class="number">32</span>; k++) {
+        val += maskCoeffs[k] * protoData[k * maskH * maskW + i];
+    }
+    mask[i] = <span class="number">1.0</span> / (<span class="number">1.0</span> + Math.<span class="func">exp</span>(-val));  <span class="comment">// sigmoid</span>
+}
+<span class="comment">// 4. bbox領域でクリップ → 元画像サイズにリサイズ</span></pre>
+
+                <h4>合成モード</h4>
+                <table class="param-table">
+                    <tr>
+                        <th>モード</th>
+                        <th>アルゴリズム</th>
+                        <th>用途</th>
+                    </tr>
+                    <tr>
+                        <td><strong>通常合成</strong></td>
+                        <td>透明度付きオーバーレイ（後のフレームが前面）</td>
+                        <td>標準的な動作軌跡の可視化</td>
+                    </tr>
+                    <tr>
+                        <td><strong>背景差分</strong></td>
+                        <td>先頭フレームとの差分でマスク生成</td>
+                        <td>セグメンテーションなしの高速処理</td>
+                    </tr>
+                    <tr>
+                        <td><strong>グラデーション</strong></td>
+                        <td>時間軸に沿って色相を変化（HSL回転）</td>
+                        <td>時間経過の視覚的表現</td>
+                    </tr>
+                </table>
+            </div>
+
+            <!-- 2.4 ONNX -->
+            <div class="sub-section" id="vsl-onnx">
+                <h3><i class="fa-solid fa-microchip"></i> 2.4 ONNX人物セグメンテーション</h3>
+                <span class="file-ref"><i class="fa-regular fa-file-code"></i> VideoSyncLab/strobe-motion.js —
+                    OnnxSegmenter</span>
+                <p>
+                    <code>onnxruntime-web</code> (WebAssembly backend) により、ブラウザプロセス内でYOLO11m-segを推論する。
+                    モデルは <code>.onnx</code> 形式で配布され、GPUを必要としない。
+                </p>
+
+                <table class="param-table">
+                    <tr>
+                        <th>パラメータ</th>
+                        <th>値</th>
+                        <th>説明</th>
+                    </tr>
+                    <tr>
+                        <td>入力テンソル</td>
+                        <td><code>[1, 3, 640, 640]</code></td>
+                        <td>NCHW形式、RGB正規化 (0-1)</td>
+                    </tr>
+                    <tr>
+                        <td>検出出力</td>
+                        <td><code>[1, 116, 8400]</code></td>
+                        <td>bbox(4) + conf(1) + classes(80) + mask_coeffs(32) × 8400候補</td>
+                    </tr>
+                    <tr>
+                        <td>マスク出力</td>
+                        <td><code>[1, 32, 160, 160]</code></td>
+                        <td>プロトタイプマスク（32チャンネル）</td>
+                    </tr>
+                    <tr>
+                        <td>NMS閾値</td>
+                        <td><code>0.45</code></td>
+                        <td>IoUによる重複除去</td>
+                    </tr>
+                    <tr>
+                        <td>信頼度閾値</td>
+                        <td><code>0.5</code></td>
+                        <td>検出スコアの下限</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- 3. HPE                                     -->
+        <!-- ========================================== -->
+        <div class="card" id="hpe">
+            <h2><i class="fa-solid fa-brain"></i> 3. HPE — AI姿勢推定パイプライン</h2>
+            <p>
+                HPEは<strong>Electron（フロントエンド）+ FastAPI Python（バックエンド）</strong>の二層構成で動作する。
+                GPU/CPUの重い推論処理をPythonプロセスに委譲し、UIの応答性を維持する。
+            </p>
+
+            <!-- 3.1 Architecture -->
+            <div class="sub-section" id="hpe-arch">
+                <h3><i class="fa-solid fa-server"></i> 3.1 サーバーアーキテクチャ</h3>
+                <span class="file-ref"><i class="fa-regular fa-file-code"></i> HPE/server/main.py</span>
+
+                <div class="algo-pipeline">
+                    <div class="algo-stage">
+                        <div class="stage-name">Electron</div>
+                        <div class="stage-detail">UI / ファイル管理<br>HTTP API呼び出し</div>
+                    </div>
+                    <span class="algo-arrow">⇄</span>
+                    <div class="algo-stage">
+                        <div class="stage-name">FastAPI</div>
+                        <div class="stage-detail">REST API<br>localhost:8000</div>
+                    </div>
+                    <span class="algo-arrow">→</span>
+                    <div class="algo-stage">
+                        <div class="stage-name">YOLO + RTMPose<br>or SynthPose</div>
+                        <div class="stage-detail">ONNX Runtime<br>CUDA / CPU</div>
+                    </div>
+                    <span class="algo-arrow">→</span>
+                    <div class="algo-stage">
+                        <div class="stage-name">Norfair</div>
+                        <div class="stage-detail">Tracking<br>ID永続化</div>
+                    </div>
+                </div>
+
+                <p>起動シーケンス:</p>
+                <pre><span class="comment"># Electron main.js から子プロセスとして起動</span>
+python server/main.py --port <span class="number">8000</span>
+
+<span class="comment"># FastAPI エンドポイント</span>
+POST /detect          <span class="comment"># 単一フレーム推論</span>
+POST /process-video   <span class="comment"># 動画全フレーム一括処理</span>
+GET  /model-status    <span class="comment"># モデルロード状態確認</span>
+POST /load-model      <span class="comment"># モデルの明示的ロード</span></pre>
+            </div>
+
+            <!-- 3.2 YOLO -->
+            <div class="sub-section" id="hpe-yolo">
+                <h3><i class="fa-solid fa-magnifying-glass"></i> 3.2 YOLO人物検出</h3>
+                <p>
+                    YOLO（You Only Look Once）は1パスでバウンディングボックスとクラスを同時予測するリアルタイム物体検出モデルである。
+                    本システムでは <strong>YOLOv11x</strong>（最高精度モデル）をONNX形式で利用する。
+                </p>
+
+                <table class="param-table">
+                    <tr>
+                        <th>設定</th>
+                        <th>値</th>
+                        <th>備考</th>
+                    </tr>
+                    <tr>
+                        <td>モデル</td>
+                        <td><code>yolo11x.onnx</code></td>
+                        <td>Extra Largeモデル（最高精度）</td>
+                    </tr>
+                    <tr>
+                        <td>入力解像度</td>
+                        <td><code>640 × 640</code></td>
+                        <td>letterbox padding で縦横比保持</td>
+                    </tr>
+                    <tr>
+                        <td>対象クラス</td>
+                        <td><code>person (id=0)</code></td>
+                        <td>COCO 80クラスからpersonのみフィルタ</td>
+                    </tr>
+                    <tr>
+                        <td>信頼度閾値</td>
+                        <td><code>0.25</code></td>
+                        <td>低めに設定（追跡で補完）</td>
+                    </tr>
+                    <tr>
+                        <td>NMS IoU</td>
+                        <td><code>0.45</code></td>
+                        <td>重複ボックス除去</td>
+                    </tr>
+                    <tr>
+                        <td>推論バックエンド</td>
+                        <td><code>CUDA / CPU</code></td>
+                        <td>自動判定</td>
+                    </tr>
+                </table>
+
+                <p>検出結果は各人物の bounding box <code>[x1, y1, x2, y2, confidence]</code> として次段の骨格推定モデルに渡される。</p>
+            </div>
+
+            <!-- 3.3 rtmlib -->
+            <div class="sub-section" id="hpe-vitpose">
+                <h3><i class="fa-solid fa-bone"></i> 3.3 rtmlib統合骨格推定（RTMPose / SynthPose）</h3>
+                <p>
+                    v1.1.0 から <strong>rtmlib</strong> に一本化された。rtmlib は MMDeploy を使わず ONNX Runtime で直接推論する軽量ラッパーであり、
+                    RTMPose・ViTPose・SynthPose を統一インターフェースで扱える。PyTorch は不要で、ONNX ファイルのみで動作する。
+                </p>
+
+                <h4>計測プリセットとモデル対応</h4>
+                <table class="param-table">
+                    <tr>
+                        <th>プリセット</th>
+                        <th>ポーズモデル</th>
+                        <th>検出モデル</th>
+                        <th>出力キーポイント</th>
+                        <th>主な用途</th>
+                    </tr>
+                    <tr>
+                        <td><strong>23点（RTMPose-M・高速）</strong></td>
+                        <td>RTMPose-M (HALPE 26pt ONNX)</td>
+                        <td><code>yolo11s.onnx</code></td>
+                        <td>26pt → <strong>23pt</strong>変換</td>
+                        <td>高速プレビュー・大量バッチ</td>
+                    </tr>
+                    <tr>
+                        <td><strong>23点（RTMPose-X・高精度）</strong></td>
+                        <td>RTMPose-X (HALPE 26pt ONNX)</td>
+                        <td><code>yolo11x.onnx</code></td>
+                        <td>26pt → <strong>23pt</strong>変換</td>
+                        <td>標準分析（推奨）</td>
+                    </tr>
+                    <tr>
+                        <td><strong>52点（SynthPose-Huge）</strong></td>
+                        <td>SynthPose-Huge (ViT-Huge ONNX)</td>
+                        <td><code>yolo11x.onnx</code></td>
+                        <td><strong>52pt</strong> (OpenCapBench)</td>
+                        <td>バイオメカニクス精密解析・OpenSim連携</td>
+                    </tr>
+                </table>
+
+                <h4>RTMPose（23点モード）</h4>
+                <p><strong>RTMPose</strong>（Real-Time Multi-Person Pose Estimation）は、RTMDet をバックボーンとした高速・高精度 CNN 姿勢推定モデルである。</p>
+                <table class="param-table">
+                    <tr><th>項目</th><th>RTMPose-M</th><th>RTMPose-X</th></tr>
+                    <tr><td>バックボーン</td><td>CSPNeXt-M</td><td>CSPNeXt-XL</td></tr>
+                    <tr><td>入力解像度</td><td><code>256 × 192</code></td><td><code>256 × 192</code></td></tr>
+                    <tr><td>出力キーポイント</td><td><strong>26点</strong> (HALPE)</td><td><strong>26点</strong> (HALPE)</td></tr>
+                    <tr><td>変換後</td><td colspan="2"><strong>23点</strong>（バイオメカニクス標準）</td></tr>
+                    <tr><td>推論形式</td><td colspan="2">ONNX Runtime (CUDA/CPU)</td></tr>
+                </table>
+
+                <h4>SynthPose（52点モード）</h4>
+                <p><strong>SynthPose</strong> は OpenCap / OpenCapBench の合成データで学習した ViT-Huge ベースのモデルで、OpenSim 互換の <strong>52点</strong>バイオメカニクスマーカーを直接出力する。</p>
+                <table class="param-table">
+                    <tr><th>項目</th><th>詳細</th></tr>
+                    <tr><td>モデル</td><td><code>synthpose-vitpose-huge-hf.onnx</code> (ViT-Huge backbone)</td></tr>
+                    <tr><td>入力解像度</td><td><code>256 × 192</code></td></tr>
+                    <tr><td>出力</td><td><strong>52点</strong> ヒートマップ <code>[batch, 52, 64, 48]</code></td></tr>
+                    <tr><td>フォーマット</td><td>OpenCapBench（OpenSim マーカー互換）</td></tr>
+                    <tr><td>推論形式</td><td>ONNX Runtime (CUDA/CPU)</td></tr>
+                </table>
+
+                <h4>HALPE 26点 → 23点マッピング（RTMPoseモード）</h4>
+                <p>RTMPose の HALPE 26点出力から、バイオメカニクス分析に必要な 23 関節を選択・統合する:</p>
+                <table class="param-table">
+                    <tr>
+                        <th>#</th>
+                        <th>関節名</th>
+                        <th>HALPE元ID</th>
+                        <th>備考</th>
+                    </tr>
+                    <tr>
+                        <td>0</td>
+                        <td>鼻 (Nose)</td>
+                        <td>0</td>
+                        <td>頭部基準</td>
+                    </tr>
+                    <tr>
+                        <td>1-2</td>
+                        <td>左右目</td>
+                        <td>1, 2</td>
+                        <td>頭部方向の推定</td>
+                    </tr>
+                    <tr>
+                        <td>3-4</td>
+                        <td>左右耳</td>
+                        <td>3, 4</td>
+                        <td>頭部幅の推定</td>
+                    </tr>
+                    <tr>
+                        <td>5-6</td>
+                        <td>左右肩</td>
+                        <td>5, 6</td>
+                        <td>上肢の起点</td>
+                    </tr>
+                    <tr>
+                        <td>7-8</td>
+                        <td>左右肘</td>
+                        <td>7, 8</td>
+                        <td>—</td>
+                    </tr>
+                    <tr>
+                        <td>9-10</td>
+                        <td>左右手首</td>
+                        <td>9, 10</td>
+                        <td>—</td>
+                    </tr>
+                    <tr>
+                        <td>11-12</td>
+                        <td>左右股関節</td>
+                        <td>11, 12</td>
+                        <td>下肢の起点</td>
+                    </tr>
+                    <tr>
+                        <td>13-14</td>
+                        <td>左右膝</td>
+                        <td>13, 14</td>
+                        <td>—</td>
+                    </tr>
+                    <tr>
+                        <td>15-16</td>
+                        <td>左右足首</td>
+                        <td>15, 16</td>
+                        <td>—</td>
+                    </tr>
+                    <tr>
+                        <td>17-18</td>
+                        <td>左右つま先</td>
+                        <td>17, 20 (foot)</td>
+                        <td>大指先端</td>
+                    </tr>
+                    <tr>
+                        <td>19-20</td>
+                        <td>左右かかと</td>
+                        <td>19, 22 (foot)</td>
+                        <td>踵骨後端</td>
+                    </tr>
+                    <tr>
+                        <td>21-22</td>
+                        <td>左右手指先</td>
+                        <td>mid-finger tip</td>
+                        <td>中指先端</td>
+                    </tr>
+                </table>
+            </div>
+
+            <!-- 3.4 Norfair -->
+            <div class="sub-section" id="hpe-norfair">
+                <h3><i class="fa-solid fa-route"></i> 3.4 Norfairマルチ人物追跡</h3>
+                <span class="file-ref"><i class="fa-regular fa-file-code"></i> HPE/server/main.py — Norfair
+                    Tracker</span>
+                <p>
+                    複数人物が交差する場面でのID入れ替わりを防止するため、
+                    <strong>Norfair</strong>ライブラリのカルマンフィルタ + ハンガリアンアルゴリズムによる追跡を実装。
+                </p>
+
+                <h4>カルマンフィルタ</h4>
+                <p>各追跡対象の状態ベクトルは位置と速度で構成される:</p>
+                <div class="math-block">
+                    \[
+                    \mathbf{x}_k = \begin{bmatrix} x \\ y \\ \dot{x} \\ \dot{y} \end{bmatrix}, \quad
+                    \mathbf{x}_{k|k-1} = \mathbf{F} \mathbf{x}_{k-1} + \mathbf{w}_k
+                    \]
+                </div>
+                <p>
+                    予測ステップで次フレームの位置を推定し、観測ステップで実際の検出結果と照合する。
+                </p>
+
+                <h4>ハンガリアンアルゴリズム</h4>
+                <p>
+                    予測位置と検出結果のコスト行列（ユークリッド距離）を構築し、
+                    ハンガリアン法で最小コストの割り当てを求める。
+                    閾値を超えた場合は新規IDを発行する。
+                </p>
+
+                <table class="param-table">
+                    <tr>
+                        <th>パラメータ</th>
+                        <th>値</th>
+                        <th>役割</th>
+                    </tr>
+                    <tr>
+                        <td><code>distance_function</code></td>
+                        <td>Euclidean (keypoints)</td>
+                        <td>キーポイント間の距離で類似度評価</td>
+                    </tr>
+                    <tr>
+                        <td><code>distance_threshold</code></td>
+                        <td><code>100</code>px</td>
+                        <td>この距離を超えると別人物と判定</td>
+                    </tr>
+                    <tr>
+                        <td><code>hit_counter_max</code></td>
+                        <td><code>15</code></td>
+                        <td>検出消失後も15フレーム保持</td>
+                    </tr>
+                    <tr>
+                        <td><code>initialization_delay</code></td>
+                        <td><code>3</code></td>
+                        <td>3フレーム連続検出でID確定</td>
+                    </tr>
+                </table>
+            </div>
+
+            <!-- 3.5 Filtering Pipeline -->
+            <div class="sub-section" id="hpe-filter">
+                <h3><i class="fa-solid fa-filter"></i> 3.5 フィルタリングパイプライン</h3>
+                <span class="file-ref"><i class="fa-regular fa-file-code"></i> HPE/server/filtering.py —
+                    process_keypoints()</span>
+                <p>
+                    AI推定の生データにはスパイクノイズ、左右入替、欠損が含まれる。
+                    以下のパイプラインで段階的にデータ品質を改善する。
+                    処理順序は意図的に設計されており、左右スワップを最初に修正することで
+                    「偽の外れ値」として有効データが削除されることを防止する。
+                </p>
+
+                <div class="algo-pipeline">
+                    <div class="algo-stage">
+                        <div class="stage-name">① 左右入替補正</div>
+                        <div class="stage-detail">全体最適化<br>動的計画法</div>
+                    </div>
+                    <span class="algo-arrow">→</span>
+                    <div class="algo-stage">
+                        <div class="stage-name">② 外れ値除去</div>
+                        <div class="stage-detail">Z-score / 速度<br>/ 加速度</div>
+                    </div>
+                    <span class="algo-arrow">→</span>
+                    <div class="algo-stage">
+                        <div class="stage-name">③ 補間</div>
+                        <div class="stage-detail">PCHIP / Cubic<br>Akima / Linear</div>
+                    </div>
+                    <span class="algo-arrow">→</span>
+                    <div class="algo-stage">
+                        <div class="stage-name">③.5 パディング</div>
+                        <div class="stage-detail">端点埋め<br>反転パディング</div>
+                    </div>
+                    <span class="algo-arrow">→</span>
+                    <div class="algo-stage">
+                        <div class="stage-name">④ Butterworth</div>
+                        <div class="stage-detail">4次ローパス<br>フィルタ</div>
+                    </div>
+                    <span class="algo-arrow">→</span>
+                    <div class="algo-stage">
+                        <div class="stage-name">⑤ Kalman</div>
+                        <div class="stage-detail">前方パス<br>フィルタ</div>
+                    </div>
+                </div>
+
+                <h4>① 左右入替補正（Limb Swap Correction）</h4>
+                <p>
+                    AIが左右のキーポイントを誤って入れ替えるケースを検出・修正する。
+                    <strong>パイプラインの最初</strong>に実行する理由は、スワップによる大きな位置ジャンプが
+                    後段の外れ値除去で「偽の外れ値」として正常データを削除してしまうことを防ぐためである。
+                </p>
+
+                <p><strong>スワップ検出アルゴリズム（4種類）:</strong></p>
+                <table class="param-table">
+                    <tr>
+                        <th>手法</th>
+                        <th>説明</th>
+                        <th>推奨</th>
+                    </tr>
+                    <tr>
+                        <td><strong>全体最適化</strong><br><code>global_optimization</code></td>
+                        <td>動画全体で軌跡の滑らかさを最大化するラベル割り当てを動的計画法で求める。遷移ペナルティ（デフォルト: 25.0）により不要なスワップを抑制</td>
+                        <td><span style="color:var(--accent-cyan)">★推奨（デフォルト）</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>軌跡予測</strong><br><code>trajectory_prediction</code></td>
+                        <td>過去の軌跡から次の位置を線形予測し、予測との乖離が「同側より反対側の方が小さい」場合にスワップと判定</td>
+                        <td>予測可能な動作</td>
+                    </tr>
+                    <tr>
+                        <td><strong>時間窓</strong><br><code>temporal_window</code></td>
+                        <td>前後フレームを含む時間窓（デフォルト: 5フレーム）で判定。最小連続フレーム数（デフォルト: 3）を要求し安定性を向上</td>
+                        <td>高FPS動画</td>
+                    </tr>
+                    <tr>
+                        <td><strong>レガシー</strong><br><code>legacy</code></td>
+                        <td>フレーム間距離比較による単純なスワップ検出</td>
+                        <td>後方互換</td>
+                    </tr>
+                </table>
+
+                <table class="param-table">
+                    <tr>
+                        <th>パラメータ</th>
+                        <th>デフォルト</th>
+                        <th>説明</th>
+                    </tr>
+                    <tr>
+                        <td><code>base_swap_velocity</code></td>
+                        <td>1500 px/秒</td>
+                        <td>スワップ検出の基準速度。閾値 = base / fps</td>
+                    </tr>
+                    <tr>
+                        <td><code>swap_window_size</code></td>
+                        <td>5</td>
+                        <td>時間窓サイズ（temporal_window手法で使用）</td>
+                    </tr>
+                    <tr>
+                        <td><code>swap_min_consecutive</code></td>
+                        <td>3</td>
+                        <td>スワップ判定に必要な最小連続フレーム数</td>
+                    </tr>
+                    <tr>
+                        <td><code>transition_penalty</code></td>
+                        <td>25.0</td>
+                        <td>全体最適化のスワップ遷移ペナルティ</td>
+                    </tr>
+                </table>
+
+                <p><strong>FPS適応型閾値:</strong></p>
+                <div class="math-block">
+                    \[
+                    \text{threshold} = \frac{\text{base\_swap\_velocity}}{\text{fps}}
+                    \]
+                </div>
+                <table class="param-table">
+                    <tr>
+                        <th>FPS</th>
+                        <th>閾値 (px/frame)</th>
+                    </tr>
+                    <tr>
+                        <td>30</td>
+                        <td>50.0</td>
+                    </tr>
+                    <tr>
+                        <td>60</td>
+                        <td>25.0</td>
+                    </tr>
+                    <tr>
+                        <td>120</td>
+                        <td>12.5</td>
+                    </tr>
+                    <tr>
+                        <td>240</td>
+                        <td>6.25</td>
+                    </tr>
+                </table>
+
+                <p><strong>交差フェーズ検出:</strong></p>
+                <p>
+                    ランニング時に左右脚が体の中心で交差する瞬間を検出し、この間のスワップ検出を抑制する。
+                    股関節(Hip)・膝(Knee)の水平距離から交差確信度を計算:
+                </p>
+                <div class="math-block">
+                    \[
+                    \text{crossing\_ratio} = 1 - \min\left(\frac{|x_{\text{R\_hip}} -
+                    x_{\text{L\_hip}}|}{\text{typical\_hip\_distance}}, 1\right)
+                    \]
+                </div>
+
+                <h4>② 外れ値除去（Outlier Rejection）</h4>
+                <p>2種類の検出アルゴリズムを組み合わせて外れ値を除去する:</p>
+                <table class="param-table">
+                    <tr>
+                        <th>検出手法</th>
+                        <th>閾値（デフォルト）</th>
+                        <th>説明</th>
+                    </tr>
+                    <tr>
+                        <td><strong>Z-score</strong></td>
+                        <td>3.5σ</td>
+                        <td>統計的外れ値検出。位置の分布から逸脱した点を除去</td>
+                    </tr>
+                    <tr>
+                        <td><strong>速度ベース</strong></td>
+                        <td>3000 px/秒</td>
+                        <td>隣接フレーム間の移動速度が閾値超過で除去</td>
+                    </tr>
+                </table>
+                <div class="math-block">
+                    \[
+                    v_i = \sqrt{(x_i - x_{i-1})^2 + (y_i - y_{i-1})^2} \times \text{fps}
+                    \]
+                </div>
+
+                <h4>③ 補間（Interpolation）</h4>
+                <p>欠損区間を以下のアルゴリズムで補間する（ユーザー選択可能）。連続する欠損区間が <code>max_gap</code>（デフォルト: 30フレーム）以下の場合のみ補間する:</p>
+                <table class="param-table">
+                    <tr>
+                        <th>手法</th>
+                        <th>特徴</th>
+                        <th>推奨場面</th>
+                    </tr>
+                    <tr>
+                        <td><strong>PCHIP</strong></td>
+                        <td>区分的3次エルミート。オーバーシュートなし</td>
+                        <td>一般的な動作（推奨）</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Cubic Spline</strong></td>
+                        <td>滑らかだがオーバーシュートの可能性あり</td>
+                        <td>滑らかな動作</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Akima</strong></td>
+                        <td>局所的フィット。急激な変化に強い</td>
+                        <td>爆発的動作</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Linear</strong></td>
+                        <td>直線補間。最もシンプル</td>
+                        <td>短い欠損区間</td>
+                    </tr>
+                </table>
+
+                <h4>③.5 端点埋め &amp; エッジパディング</h4>
+                <p>
+                    補間後、ButterworthやKalmanフィルタを適用する前に2つの前処理を行う:
+                </p>
+                <table class="param-table">
+                    <tr>
+                        <th>処理</th>
+                        <th>内容</th>
+                        <th>目的</th>
+                    </tr>
+                    <tr>
+                        <td><strong>端点埋め</strong><br><code>fill_edge_gaps()</code></td>
+                        <td>データの始端・終端の欠損を最も近い有効値で埋める（Nearest Neighbor）</td>
+                        <td>エッジパディング時に欠損値が増殖するのを防止</td>
+                    </tr>
+                    <tr>
+                        <td><strong>反転パディング</strong><br><code>edge_padding=20</code></td>
+                        <td>両端にデータを反転して追加（デフォルト: 20フレーム）。フィルタ適用後にパディングを除去</td>
+                        <td>Butterworthフィルタの端点効果（Gibbs現象）の軽減</td>
+                    </tr>
+                </table>
+
+                <h4>④ Butterworthローパスフィルタ</h4>
+                <p>
+                    高周波ノイズを除去する<strong>4次</strong>Butterworthフィルタ。
+                    カットオフ周波数はユーザー設定（デフォルト: 6Hz）。
+                    <code>scipy.signal.filtfilt</code>（ゼロ位相シフト）で前後双方向に適用する。
+                    信頼度 &gt; 0 の連続区間ごとに独立して適用し、欠損区間の影響を遮断する。
+                </p>
+                <table class="param-table">
+                    <tr>
+                        <th>パラメータ</th>
+                        <th>デフォルト</th>
+                        <th>説明</th>
+                    </tr>
+                    <tr>
+                        <td><code>butterworth_cutoff</code></td>
+                        <td>6.0 Hz</td>
+                        <td>カットオフ周波数</td>
+                    </tr>
+                    <tr>
+                        <td><code>butterworth_order</code></td>
+                        <td>4</td>
+                        <td>フィルタ次数</td>
+                    </tr>
+                    <tr>
+                        <td>最小区間長</td>
+                        <td><code>3 × order + 3 = 15</code></td>
+                        <td>これ未満の短い区間はフィルタをスキップ</td>
+                    </tr>
+                </table>
+
+                <h4>⑤ カルマンフィルタ（オプション）</h4>
+                <p>
+                    <code>filterpy</code> ライブラリによる<strong>前方パスカルマンフィルタ</strong>。
+                    状態ベクトル \( \mathbf{x} = [x, v_x, y, v_y]^T \) で位置と速度を同時推定する。
+                    信頼度が低い（&le; 0.3）フレームでは観測更新をスキップし、予測のみで推定を継続する。
+                </p>
+                <div class="math-block">
+                    \[
+                    \mathbf{F} = \begin{bmatrix} 1 & dt & 0 & 0 \\ 0 & 1 & 0 & 0 \\ 0 & 0 & 1 & dt \\ 0 & 0 & 0 & 1
+                    \end{bmatrix}, \quad
+                    \mathbf{H} = \begin{bmatrix} 1 & 0 & 0 & 0 \\ 0 & 0 & 1 & 0 \end{bmatrix}
+                    \]
+                </div>
+                <table class="param-table">
+                    <tr>
+                        <th>パラメータ</th>
+                        <th>デフォルト</th>
+                        <th>説明</th>
+                    </tr>
+                    <tr>
+                        <td><code>process_noise</code></td>
+                        <td>0.1</td>
+                        <td>プロセスノイズ（動き不確実性）</td>
+                    </tr>
+                    <tr>
+                        <td><code>measurement_noise</code></td>
+                        <td>1.0</td>
+                        <td>観測ノイズ（検出精度の不確実性）</td>
+                    </tr>
+                </table>
+            </div>
+
+            <!-- 3.6 ONNX Optimization -->
+            <div class="sub-section" id="hpe-onnx">
+                <h3><i class="fa-solid fa-rocket"></i> 3.6 ONNX Runtime Optimization & Acceleration</h3>
+                <p>
+                    本システムでは、PyTorchなどの学習フレームワークをそのまま推論に使用せず、
+                    <strong>ONNX (Open Neural Network Exchange) Runtime</strong> を採用することで、
+                    商用レベルの推論速度と効率性を実現している。
+                </p>
+
+                <h4>なぜ PyTorch 生モデルではなく ONNX なのか？</h4>
+                <p>
+                    学習（Training）と推論（Inference）は要求されるリソース特性が全く異なる。
+                    ONNX Runtimeへの移行により、以下の数理的・工学的最適化が適用される。
+                </p>
+
+                <table class="param-table">
+                    <tr>
+                        <th>最適化技術</th>
+                        <th>詳細</th>
+                        <th>効果</th>
+                    </tr>
+                    <tr>
+                        <td><strong>Graph Optimization</strong></td>
+                        <td>
+                            計算グラフの静的解析による不要ノード削除、定数畳み込み（Constant Folding）、
+                            演算融合（Operator Fusion: Conv+BatchNorm+Relu → Single Kernel）。
+                        </td>
+                        <td>メモリアクセス回数の削減、レイテンシ低下</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Execution Providers</strong></td>
+                        <td>
+                            ハードウェアごとのバックエンド（CUDA, TensorRT, CPU, DirectML）を
+                            抽象化レイヤーで切り替え、各デバイスに特化したカーネルを実行。
+                        </td>
+                        <td>ハードウェア性能の最大化</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Quantization (量子化)</strong></td>
+                        <td>
+                            FP32（32bit浮動小数点）から FP16 / INT8 への精度・型変換。
+                            ダイナミックレンジの縮小による計算コスト削減。
+                        </td>
+                        <td>モデルサイズ 1/2〜1/4、推論速度 2〜4倍</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Memory Optimization</strong></td>
+                        <td>
+                            メモリ割り当ての計画化（Static Memory Planning）により、
+                            動的なメモリ確保・解放のオーバーヘッドを排除。
+                        </td>
+                        <td>ピークメモリ使用量の削減</td>
+                    </tr>
+                </table>
+
+                <div class="note-box">
+                    <strong>Deployment Benefit:</strong>
+                    PyTorchの巨大な依存関係（数GB）を排除し、軽量なONNX Runtimeライブラリのみで動作するため、
+                    配布パッケージサイズを劇的に削減でき、Python環境のバージョン依存問題（Dependency Hell）も回避できる。
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- 4. MotionDigitizer                         -->
+        <!-- ========================================== -->
+        <div class="card" id="md">
+            <h2><i class="fa-solid fa-crosshairs"></i> 4. MotionDigitizer — 空間座標変換</h2>
+            <p>
+                MotionDigitizerの中核は「ピクセル座標（画像平面）を実世界座標（メートル空間）に変換する」ことである。
+                この変換を支える数理的基盤を詳述する。
+            </p>
+
+            <!-- 4.1 2D-DLT -->
+            <div class="sub-section" id="md-dlt2d">
+                <h3><i class="fa-solid fa-vector-square"></i> 4.1 2D-DLT法（Direct Linear Transformation）</h3>
+                <span class="file-ref"><i class="fa-regular fa-file-code"></i> MotionDigitizer/src/analysis-engine.js —
+                    solveDLT2D()</span>
+                <p>
+                    単一カメラで撮影した2D平面上の運動を実長換算する手法。
+                    <strong>8個のカメラ定数</strong> \( L_1 \dots L_8 \) を用いて射影変換を定義する。
+                </p>
+
+                <div class="math-block">
+                    \[
+                    u = \frac{L_1 X + L_2 Y + L_3}{L_7 X + L_8 Y + 1}
+                    \]
+                    \[
+                    v = \frac{L_4 X + L_5 Y + L_6}{L_7 X + L_8 Y + 1}
+                    \]
+                </div>
+
+                <p>
+                    ここで \( (u, v) \) は画像座標（ピクセル）、\( (X, Y) \) は実空間座標（メートル等）。
+                    分母を払って線形化すると:
+                </p>
+                <div class="math-block">
+                    \[
+                    \begin{bmatrix}
+                    X_1 & Y_1 & 1 & 0 & 0 & 0 & -u_1 X_1 & -u_1 Y_1 \\
+                    0 & 0 & 0 & X_1 & Y_1 & 1 & -v_1 X_1 & -v_1 Y_1 \\
+                    \vdots & & & & & & & \vdots
+                    \end{bmatrix}
+                    \begin{bmatrix} L_1 \\ L_2 \\ \vdots \\ L_8 \end{bmatrix}
+                    =
+                    \begin{bmatrix} u_1 \\ v_1 \\ \vdots \end{bmatrix}
+                    \]
+                </div>
+
+                <p><strong>必要条件:</strong> 最低4個の制御点（8個の方程式で8個の未知数を解く）。冗長性のため6点以上を推奨。</p>
+
+                <div class="note-box">
+                    <strong>逆変換:</strong> 既知の \( L_1 \dots L_8 \) を用いて、任意の画像座標 \( (u, v) \) から実空間座標 \( (X, Y) \) を逆算可能。
+                    これにより、デジタイズした全キーポイントを実長に換算する。
+                </div>
+            </div>
+
+            <!-- 4.2 3D-DLT -->
+            <div class="sub-section" id="md-dlt3d">
+                <h3><i class="fa-solid fa-cube"></i> 4.2 3D-DLT法</h3>
+                <span class="file-ref"><i class="fa-regular fa-file-code"></i> MotionDigitizer/src/analysis-engine.js —
+                    solveDLT3D()</span>
+                <p>
+                    2台以上のカメラ映像から3次元座標を復元する。各カメラに<strong>11個の定数</strong> \( L_1 \dots L_{11} \) を定義する。
+                </p>
+
+                <div class="math-block">
+                    \[
+                    u = \frac{L_1 X + L_2 Y + L_3 Z + L_4}{L_9 X + L_{10} Y + L_{11} Z + 1}
+                    \]
+                    \[
+                    v = \frac{L_5 X + L_6 Y + L_7 Z + L_8}{L_9 X + L_{10} Y + L_{11} Z + 1}
+                    \]
+                </div>
+
+                <p><strong>キャリブレーション:</strong> 6個以上の既知3D制御点から、各カメラの11定数を最小二乗法で算出。</p>
+                <p><strong>3D復元:</strong> 2台のカメラで同一点をデジタイズすると、4本の方程式（各カメラ2本）で3つの未知数 \( (X, Y, Z) \) を解く過決定系となる。</p>
+
+                <pre><span class="comment">// 3D-DLT 座標復元（2カメラの場合）</span>
+<span class="comment">// 行列 A (4×3) と ベクトル b (4×1) を構築</span>
+A = [
+  [L1<sup>1</sup> - L9<sup>1</sup>·u1,  L2<sup>1</sup> - L10<sup>1</sup>·u1,  L3<sup>1</sup> - L11<sup>1</sup>·u1],
+  [L5<sup>1</sup> - L9<sup>1</sup>·v1,  L6<sup>1</sup> - L10<sup>1</sup>·v1,  L7<sup>1</sup> - L11<sup>1</sup>·v1],
+  [L1<sup>2</sup> - L9<sup>2</sup>·u2,  L2<sup>2</sup> - L10<sup>2</sup>·u2,  L3<sup>2</sup> - L11<sup>2</sup>·u2],
+  [L5<sup>2</sup> - L9<sup>2</sup>·v2,  L6<sup>2</sup> - L10<sup>2</sup>·v2,  L7<sup>2</sup> - L11<sup>2</sup>·v2]
+];
+<span class="comment">// 最小二乗法: X = (AᵀA)⁻¹ Aᵀb</span>
+<span class="keyword">const</span> result = math.<span class="func">lusolve</span>(AtA, Atb);</pre>
+            </div>
+
+            <!-- 4.3 CC Method -->
+            <div class="sub-section" id="md-cc">
+                <h3><i class="fa-solid fa-bullseye"></i> 4.3 3次元CC法（競技場特徴点利用）</h3>
+                <span class="file-ref"><i class="fa-regular fa-file-code"></i>
+                    MotionDigitizer/src/cc-method-implementation.js</span>
+                <p>
+                    <strong>鈴木ら (2016)</strong> によって提案された「競技場の特徴点を利用したカメラパラメータ算出法」。
+                    DLT法が少なくとも6点の3次元的（Z軸方向に広がりのある）な制御点を必要とするのに対し、
+                    CC法は<strong>平面上（Z=0）の最低3点</strong>の制御点のみでキャリブレーションが可能である。
+                </p>
+
+                <h4>透視投影モデル（共線性条件式）</h4>
+                <div class="math-block">
+                    \[
+                    u = u_0 - f_u \frac{r_{11}(X - X_0) + r_{12}(Y - Y_0) + r_{13}(Z - Z_0)}{r_{31}(X - X_0) + r_{32}(Y
+                    - Y_0) + r_{33}(Z - Z_0)}
+                    \]
+                    \[
+                    v = v_0 - f_v \frac{r_{21}(X - X_0) + r_{22}(Y - Y_0) + r_{23}(Z - Z_0)}{r_{31}(X - X_0) + r_{32}(Y
+                    - Y_0) + r_{33}(Z - Z_0)}
+                    \]
+                </div>
+                <p>
+                    ここで \((X_0, Y_0, Z_0)\) はカメラ位置、\((u_0, v_0)\) は光学中心、
+                    \((f_u, f_v)\) は焦点距離、\(r_{ij}\) は回転行列要素（オイラー角 \(\phi, \theta, \psi\) より算出）である。
+                </p>
+
+                <h4>最適化の2段階戦略</h4>
+                <div class="two-col">
+                    <div class="highlight-box">
+                        <h4>Stage 1: 大域的探索 (GA)</h4>
+                        <p><strong>遺伝的アルゴリズム（Genetic Algorithm）</strong>を用いて、多峰性を持つ探索空間から大域的最適解の候補を探索する。
+                            これにより、初期値依存性を低減し、局所解へのトラップを回避する（鈴木らの手法の核）。</p>
+                    </div>
+                    <div class="highlight-box">
+                        <h4>Stage 2: 局所的収束</h4>
+                        <p><strong>Nelder-Mead法</strong>（シンプレックス法）または準ニュートン法で、GAの解を初期値として高精度に収束させる。
+                            再投影誤差を最小化するパラメータを確定する。</p>
+                    </div>
+                </div>
+
+                <h4>目的関数（再投影誤差）</h4>
+                <div class="math-block">
+                    \[
+                    E = \sum_{i=1}^{N} \sqrt{(u_i - \hat{u}_i(\mathbf{p}))^2 + (v_i - \hat{v}_i(\mathbf{p}))^2}
+                    \]
+                </div>
+
+                <div class="note-box">
+                    <strong>Accuracy Improvement:</strong>
+                    本システムでは、<strong>Charucoボード</strong>で事前に取得した高精度な内部パラメータ（焦点距離、歪み係数）を固定値として利用することで、
+                    最適化計算の自由度を下げ、外部パラメータ（カメラ位置・姿勢）の推定精度を飛躍的に向上させている。
+                </div>
+            </div>
+
+            <!-- 4.4 Camera Model -->
+            <div class="sub-section" id="md-camera">
+                <h3><i class="fa-solid fa-camera"></i> 4.4 カメラモデル &amp; レンズ歪み補正</h3>
+                <p>CC法の内部で使用されるピンホールカメラモデルとレンズ歪みモデルを示す。</p>
+
+                <h4>ピンホールカメラ投影</h4>
+                <div class="math-block">
+                    \[
+                    \begin{bmatrix} x' \\ y' \\ z' \end{bmatrix}
+                    = \mathbf{R}
+                    \begin{bmatrix} X - T_x \\ Y - T_y \\ Z - T_z \end{bmatrix}
+                    \]
+                    \[
+                    u_0 = f \cdot \frac{x'}{z'}, \quad v_0 = f \cdot \frac{y'}{z'}
+                    \]
+                </div>
+                <p>ここで \( \mathbf{R} \) は回転行列（3つの回転角 ω, φ, κ から構成）、\( (T_x, T_y, T_z) \) はカメラ位置、\( f \) は焦点距離。</p>
+
+                <h4>レンズ歪み補正</h4>
+                <p>放射歪みと接線歪みの両方を補正する:</p>
+                <div class="math-block">
+                    \[
+                    r^2 = u_0^2 + v_0^2
+                    \]
+                    \[
+                    \Delta_r = k_1 r^2 + k_2 r^4 + k_3 r^6 \quad \text{(放射歪み)}
+                    \]
+                    \[
+                    \Delta u_t = 2 p_1 u_0 v_0 + p_2 (r^2 + 2 u_0^2) \quad \text{(接線歪み)}
+                    \]
+                    \[
+                    \Delta v_t = p_1 (r^2 + 2 v_0^2) + 2 p_2 u_0 v_0
+                    \]
+                    \[
+                    u = u_0 (1 + \Delta_r) + \Delta u_t + c_x
+                    \]
+                    \[
+                    v = v_0 (1 + \Delta_r) + \Delta v_t + c_y
+                    \]
+                </div>
+
+                <table class="param-table">
+                    <tr>
+                        <th>歪み係数</th>
+                        <th>種別</th>
+                        <th>効果</th>
+                    </tr>
+                    <tr>
+                        <td>\( k_1, k_2, k_3 \)</td>
+                        <td>放射歪み</td>
+                        <td>樽型 / 糸巻き型歪みの補正</td>
+                    </tr>
+                    <tr>
+                        <td>\( p_1, p_2 \)</td>
+                        <td>接線歪み</td>
+                        <td>レンズ軸のズレによる歪みの補正</td>
+                    </tr>
+                    <tr>
+                        <td>\( c_x, c_y \)</td>
+                        <td>主点</td>
+                        <td>光学中心のオフセット</td>
+                    </tr>
+                </table>
+            </div>
+
+            <!-- 4.5 ChArUco -->
+            <div class="sub-section" id="md-charuco">
+                <h3><i class="fa-solid fa-chess-board"></i> 4.5 ChArUco自動キャリブレーション</h3>
+                <span class="file-ref"><i class="fa-regular fa-file-code"></i>
+                    MotionDigitizer/src/charuco-calibration.js</span>
+                <p>
+                    ChArUcoボード（チェスボード + ArUcoマーカーの融合）を撮影した複数枚の画像から、
+                    カメラの内部パラメータと歪み係数を自動推定する。OpenCV nativeモジュールを使用。
+                </p>
+
+                <table class="param-table">
+                    <tr>
+                        <th>処理ステップ</th>
+                        <th>内容</th>
+                    </tr>
+                    <tr>
+                        <td>1. ArUco検出</td>
+                        <td>各画像からArUcoマーカーのIDと角点を検出</td>
+                    </tr>
+                    <tr>
+                        <td>2. ChArUco補間</td>
+                        <td>ArUcoの位置からチェスボード角点のサブピクセル位置を補間</td>
+                    </tr>
+                    <tr>
+                        <td>3. キャリブレーション</td>
+                        <td><code>cv.calibrateCamera()</code> で内部パラメータと歪み係数を推定</td>
+                    </tr>
+                    <tr>
+                        <td>4. 再投影誤差</td>
+                        <td>平均再投影誤差（RMS）を表示。0.5px以下が良好</td>
+                    </tr>
+                </table>
+            </div>
+
+            <!-- 4.6 Real Length -->
+            <div class="sub-section" id="md-reallength">
+                <h3><i class="fa-solid fa-ruler"></i> 4.6 実長換算（4点法）</h3>
+                <span class="file-ref"><i class="fa-regular fa-file-code"></i> MotionDigitizer/src/renderer.js —
+                    calculateRealLength()</span>
+                <p>
+                    DLT/CC法が使えない簡易的な場面では、映像内の既知距離（身長、器具の長さ等）を
+                    基準として画素→実長のスケールファクターを算出する。
+                </p>
+                <div class="math-block">
+                    \[
+                    \text{scale} = \frac{D_{real}}{D_{pixel}} = \frac{D_{real}}{\sqrt{(x_2 - x_1)^2 + (y_2 - y_1)^2}}
+                    \]
+                </div>
+                <p>4点法では2組の基準距離（例: 水平方向と垂直方向）を指定し、直交2方向のスケールを独立に設定できる。</p>
+            </div>
+
+            <!-- 4.7 C3D -->
+            <div class="sub-section" id="md-c3d">
+                <h3><i class="fa-solid fa-file-export"></i> 4.7 C3Dフォーマット</h3>
+                <span class="file-ref"><i class="fa-regular fa-file-code"></i>
+                    MotionDigitizer/src/c3d-exporter.js</span>
+                <p>
+                    <strong>C3D</strong>（Coordinate 3D）はバイオメカニクス分野の標準バイナリ交換フォーマットである。
+                    Visual3D、MATLAB等の外部ソフトウェアとのデータ互換を確保する。
+                </p>
+
+                <table class="param-table">
+                    <tr>
+                        <th>セクション</th>
+                        <th>内容</th>
+                    </tr>
+                    <tr>
+                        <td>ヘッダー</td>
+                        <td>マーカー数、フレーム数、サンプリングレート等（512バイトブロック）</td>
+                    </tr>
+                    <tr>
+                        <td>パラメータ</td>
+                        <td>グループ/パラメータ階層構造（POINT:LABELS, POINT:RATE等）</td>
+                    </tr>
+                    <tr>
+                        <td>3Dデータ</td>
+                        <td>各フレーム × 各マーカーの (X, Y, Z, residual) を float32 で格納</td>
+                    </tr>
+                </table>
+
+                <div class="note-box">
+                    <strong>エンディアン:</strong> C3Dはリトルエンディアン（Intel形式）とビッグエンディアン（SGI形式）の両方をサポート。
+                    本システムはリトルエンディアンで出力する。
+                </div>
+            </div>
+
+            <!-- 4.8 TRC -->
+            <div class="sub-section" id="md-trc">
+                <h3><i class="fa-solid fa-person-running"></i> 4.8 TRCフォーマット（OpenSim連携）</h3>
+                <span class="file-ref"><i class="fa-regular fa-file-code"></i>
+                    MotionDigitizer/src/trc-handler.js</span>
+                <p>
+                    <strong>TRC</strong>（Track Row Column）は OpenSim が採用するマーカー軌跡の標準テキストフォーマットである。
+                    DLT法または実長換算で得た3D座標を、Inverse Kinematics / Scale Tool の入力として使用する。
+                </p>
+
+                <h4>ファイル構造（タブ区切り）</h4>
+                <table class="param-table">
+                    <tr>
+                        <th>行</th>
+                        <th>内容</th>
+                        <th>例</th>
+                    </tr>
+                    <tr>
+                        <td>Line 1</td>
+                        <td>PathFileType ヘッダー</td>
+                        <td><code>PathFileType&nbsp;&nbsp;4&nbsp;&nbsp;(X/Y/Z)&nbsp;&nbsp;motion.trc</code></td>
+                    </tr>
+                    <tr>
+                        <td>Line 2</td>
+                        <td>パラメータ列名</td>
+                        <td><code>DataRate&nbsp;&nbsp;CameraRate&nbsp;&nbsp;NumFrames&nbsp;&nbsp;NumMarkers&nbsp;&nbsp;Units&nbsp;&nbsp;...</code></td>
+                    </tr>
+                    <tr>
+                        <td>Line 3</td>
+                        <td>パラメータ値</td>
+                        <td><code>30.00&nbsp;&nbsp;30.00&nbsp;&nbsp;300&nbsp;&nbsp;23&nbsp;&nbsp;m&nbsp;&nbsp;...</code></td>
+                    </tr>
+                    <tr>
+                        <td>Line 4</td>
+                        <td>マーカー名ヘッダー</td>
+                        <td><code>Frame#&nbsp;&nbsp;Time&nbsp;&nbsp;R.Ankle&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;L.Ankle&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;...</code></td>
+                    </tr>
+                    <tr>
+                        <td>Line 5</td>
+                        <td>サブ列ラベル（X/Y/Z番号）</td>
+                        <td><code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;X1&nbsp;&nbsp;Y1&nbsp;&nbsp;Z1&nbsp;&nbsp;X2&nbsp;&nbsp;Y2&nbsp;&nbsp;Z2&nbsp;&nbsp;...</code></td>
+                    </tr>
+                    <tr>
+                        <td>Line 6</td>
+                        <td><strong>必須空行</strong>（OpenSim仕様）</td>
+                        <td><em>（空）</em></td>
+                    </tr>
+                    <tr>
+                        <td>Line 7+</td>
+                        <td>データ行</td>
+                        <td><code>1&nbsp;&nbsp;0.000000&nbsp;&nbsp;0.123456&nbsp;&nbsp;0.987654&nbsp;&nbsp;0.543210&nbsp;&nbsp;...</code></td>
+                    </tr>
+                </table>
+
+                <div class="note-box">
+                    <strong>重要:</strong> Line 6 の空行は OpenSim 公式仕様で必須。この行がないと
+                    一部のOpenSimバージョンでデータが正しく読み込まれない。
+                </div>
+
+                <h4>座標系変換</h4>
+                <p>
+                    カメラ座標系（Z-up）から OpenSim 座標系（Y-up）への変換を実装する。
+                </p>
+                <div class="math-block">
+                    \[
+                    \begin{pmatrix} X_{new} \\ Y_{new} \\ Z_{new} \end{pmatrix}
+                    =
+                    \begin{pmatrix} 0 & 1 & 0 \\ 0 & 0 & 1 \\ 1 & 0 & 0 \end{pmatrix}
+                    \begin{pmatrix} X_{cam} \\ Y_{cam} \\ Z_{cam} \end{pmatrix}
+                    \]
+                </div>
+                <p>
+                    すなわち: <code>X_new = Y_cam</code>（奥行き→前後）、<code>Y_new = Z_cam</code>（高さ→上下）、<code>Z_new = X_cam</code>（横→左右）
+                </p>
+
+                <table class="param-table">
+                    <tr>
+                        <th>軸</th>
+                        <th>カメラ座標系</th>
+                        <th>OpenSim座標系</th>
+                    </tr>
+                    <tr>
+                        <td>X</td>
+                        <td>左右（lateral）</td>
+                        <td>前後（forward/anterior）</td>
+                    </tr>
+                    <tr>
+                        <td>Y</td>
+                        <td>奥行き（depth）</td>
+                        <td>上下（superior）← <strong>Y-up</strong></td>
+                    </tr>
+                    <tr>
+                        <td>Z</td>
+                        <td>高さ（up）</td>
+                        <td>左右（lateral）</td>
+                    </tr>
+                </table>
+
+                <h4>実装（trc-handler.js）</h4>
+                <pre><span class="comment">/**
+ * カメラ座標系 → OpenSim 座標系への変換
+ * カメラ: X=左右, Y=奥行, Z=高さ
+ * OpenSim: X=前後, Y=上下, Z=左右
+ */</span>
+<span class="keyword">function</span> <span class="func">toOpenSimAxes</span>(x, y, z) {
+    <span class="keyword">return</span> { x: y, y: z, z: x };
+}
+
+<span class="comment">// データ行の座標変換（applyAxisConv が true の場合）</span>
+<span class="keyword">const</span> { x, y, z } = applyAxisConv
+    ? <span class="func">toOpenSimAxes</span>(rawX, rawY, rawZ)
+    : { x: rawX, y: rawY, z: rawZ };</pre>
+
+                <div class="note-box">
+                    <strong>マーカー名:</strong> ポイント名はCSV/プロジェクトの名前がそのままTRCに出力される。
+                    OpenSimモデル側のマーカー名と一致させる必要があるため、
+                    OpenSimモデルのマーカー名にプロジェクトのポイント名を合わせるか、
+                    OpenSim側のSetup XMLでマーカーをマッピングすること。
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- 5. MotionViewer                            -->
+        <!-- ========================================== -->
+        <div class="card" id="mv">
+            <h2><i class="fa-solid fa-chart-line"></i> 5. MotionViewer — 運動学解析エンジン</h2>
+            <p>
+                3D座標データから運動学的パラメータ（速度、角度、重心等）を算出し、
+                3D可視化と時系列グラフで表示するエンジン。
+            </p>
+
+            <!-- 5.1 Butterworth -->
+            <div class="sub-section" id="mv-butter">
+                <h3><i class="fa-solid fa-wave-square"></i> 5.1 Butterworthフィルタ</h3>
+                <span class="file-ref"><i class="fa-regular fa-file-code"></i>
+                    MotionViewer/src/renderer/butterworth-filter.js</span>
+                <p>
+                    座標データの高周波ノイズを除去するため、<strong>4次Butterworthローパスフィルタ</strong>を実装。
+                    カスケード接続された2つの2次セクション（biquad）で構成される。
+                </p>
+
+                <h4>伝達関数（アナログ）</h4>
+                <div class="math-block">
+                    \[
+                    |H(j\omega)|^2 = \frac{1}{1 + \left(\frac{\omega}{\omega_c}\right)^{2n}}
+                    \]
+                </div>
+                <p>ここで \( n = 4 \)（4次）、\( \omega_c \) はカットオフ角周波数。</p>
+
+                <h4>カスケードBiquad実装</h4>
+                <p>4次フィルタは2つの2次セクションに分解される。各セクションのQ値:</p>
+                <table class="param-table">
+                    <tr>
+                        <th>セクション</th>
+                        <th>Q値</th>
+                        <th>極角度</th>
+                    </tr>
+                    <tr>
+                        <td>Biquad 1</td>
+                        <td>\( Q_1 = 0.5411961 \)</td>
+                        <td>\( \pi \cdot 5/8 \)</td>
+                    </tr>
+                    <tr>
+                        <td>Biquad 2</td>
+                        <td>\( Q_2 = 1.3065630 \)</td>
+                        <td>\( \pi \cdot 7/8 \)</td>
+                    </tr>
+                </table>
+
+                <p>双線形変換（Bilinear Transform）でデジタルフィルタ係数に変換:</p>
+                <div class="math-block">
+                    \[
+                    \omega_a = \tan\left(\frac{\pi f_c}{f_s}\right) \quad \text{(周波数プリワーピング)}
+                    \]
+                    \[
+                    a_0 = 1 + \frac{\omega_a}{Q} + \omega_a^2, \quad
+                    b_0 = \frac{\omega_a^2}{a_0}, \quad
+                    b_1 = \frac{2\omega_a^2}{a_0}, \quad
+                    b_2 = b_0
+                    \]
+                </div>
+
+                <h4>ゼロ位相フィルタ（filtfilt）</h4>
+                <p>
+                    位相遅れを完全に除去するため、<strong>前方パス + 時系列反転 + 後方パス</strong>の構成を採用。
+                    実効的なフィルタ次数は 4×2 = <strong>8次</strong> 相当となる。
+                </p>
+                <pre><span class="keyword">function</span> <span class="func">filtfilt</span>(b, a, data) {
+    <span class="keyword">const</span> forward = <span class="func">applyFilter</span>(b, a, data);         <span class="comment">// 前方パス</span>
+    <span class="keyword">const</span> reversed = forward.<span class="func">slice</span>().<span class="func">reverse</span>();     <span class="comment">// 時系列反転</span>
+    <span class="keyword">const</span> backward = <span class="func">applyFilter</span>(b, a, reversed);    <span class="comment">// 後方パス</span>
+    <span class="keyword">return</span> backward.<span class="func">slice</span>().<span class="func">reverse</span>();              <span class="comment">// 再反転で出力</span>
+}</pre>
+            </div>
+
+            <!-- 5.2 Wells & Winter -->
+            <div class="sub-section" id="mv-cutoff">
+                <h3><i class="fa-solid fa-sliders"></i> 5.2 Wells &amp; Winter 自動カットオフ決定</h3>
+                <span class="file-ref"><i class="fa-regular fa-file-code"></i>
+                    MotionViewer/src/renderer/butterworth-filter.js — autoDetectCutoff()</span>
+                <p>
+                    <strong>Wells &amp; Winter (1980)</strong> の残差分析法により、最適なカットオフ周波数を自動決定する。
+                    各候補周波数でフィルタリングを行い、残差の二乗和（SSE）を評価する。
+                </p>
+
+                <div class="math-block">
+                    \[
+                    SSE(f_c) = \sum_{i=1}^{N} \left( x_i - \hat{x}_i(f_c) \right)^2
+                    \]
+                </div>
+
+                <p>
+                    SSE曲線を高周波側（ノイズ成分のみが残る領域）で線形回帰し、
+                    その外挿直線からSSE曲線が乖離し始める点を最適カットオフとする。
+                </p>
+
+                <pre><span class="comment">// 候補周波数 1Hz〜Nyquist/2 を走査</span>
+<span class="keyword">for</span> (<span class="keyword">let</span> fc = <span class="number">1</span>; fc <= nyquist / <span class="number">2</span>; fc += <span class="number">0.5</span>) {
+    <span class="keyword">const</span> filtered = <span class="func">butterworthFilter</span>(data, fc, fs);
+    <span class="keyword">const</span> sse = data.<span class="func">reduce</span>((sum, x, i) =>
+        sum + (x - filtered[i]) ** <span class="number">2</span>, <span class="number">0</span>);
+    residuals.<span class="func">push</span>({ fc, sse });
+}
+<span class="comment">// SSE曲線の変曲点を検出 → 最適カットオフ</span></pre>
+            </div>
+
+            <!-- 5.3 BSP -->
+            <div class="sub-section" id="mv-bsp">
+                <h3><i class="fa-solid fa-person"></i> 5.3 身体部分慣性係数（BSP）</h3>
+                <span class="file-ref"><i class="fa-regular fa-file-code"></i>
+                    MotionViewer/src/renderer/body-com.js</span>
+                <p>
+                    各身体セグメントの<strong>質量比</strong>（体重に対する割合）と<strong>重心比</strong>（近位端からの距離比）を
+                    文献データベースとして保持している。
+                </p>
+
+                <h4>Ae et al. (2014/2015) — 日本人成人モデル</h4>
+                <table class="bsp-table">
+                    <thead>
+                        <tr>
+                            <th>セグメント</th>
+                            <th>質量比 (男性)</th>
+                            <th>重心比 (男性)</th>
+                            <th>質量比 (女性)</th>
+                            <th>重心比 (女性)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>頭部</td>
+                            <td>0.0694</td>
+                            <td>0.4860</td>
+                            <td>0.0669</td>
+                            <td>0.4860</td>
+                        </tr>
+                        <tr>
+                            <td>体幹</td>
+                            <td>0.4270</td>
+                            <td>0.4510</td>
+                            <td>0.4260</td>
+                            <td>0.4510</td>
+                        </tr>
+                        <tr>
+                            <td>上腕</td>
+                            <td>0.0280</td>
+                            <td>0.5290</td>
+                            <td>0.0255</td>
+                            <td>0.5290</td>
+                        </tr>
+                        <tr>
+                            <td>前腕</td>
+                            <td>0.0168</td>
+                            <td>0.4150</td>
+                            <td>0.0138</td>
+                            <td>0.4150</td>
+                        </tr>
+                        <tr>
+                            <td>手</td>
+                            <td>0.0061</td>
+                            <td>0.8910</td>
+                            <td>0.0056</td>
+                            <td>0.8910</td>
+                        </tr>
+                        <tr>
+                            <td>大腿</td>
+                            <td>0.1100</td>
+                            <td>0.4330</td>
+                            <td>0.1180</td>
+                            <td>0.4330</td>
+                        </tr>
+                        <tr>
+                            <td>下腿</td>
+                            <td>0.0500</td>
+                            <td>0.4340</td>
+                            <td>0.0480</td>
+                            <td>0.4340</td>
+                        </tr>
+                        <tr>
+                            <td>足</td>
+                            <td>0.0124</td>
+                            <td>0.4400</td>
+                            <td>0.0107</td>
+                            <td>0.4400</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h4>対応BSPモデル一覧</h4>
+                <table class="param-table">
+                    <tr>
+                        <th>モデル名</th>
+                        <th>対象</th>
+                        <th>特徴</th>
+                        <th>文献</th>
+                    </tr>
+                    <tr>
+                        <td><strong>Ae 2014</strong></td>
+                        <td>日本人成人</td>
+                        <td>15セグメント、23点モデル対応</td>
+                        <td>阿江ほか (2014)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Ae 2015</strong></td>
+                        <td>日本人成人</td>
+                        <td>15セグメント、25点モデル対応</td>
+                        <td>阿江ほか (2015)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Yokoi</strong></td>
+                        <td>日本人小児 (3-15歳)</td>
+                        <td>年齢別パラメータ（発育補正）</td>
+                        <td>横井ほか</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Okada</strong></td>
+                        <td>日本人高齢者</td>
+                        <td>サルコペニア・脂肪分布を考慮</td>
+                        <td>岡田ほか</td>
+                    </tr>
+                </table>
+            </div>
+
+            <!-- 5.4 COM -->
+            <div class="sub-section" id="mv-com">
+                <h3><i class="fa-solid fa-bullseye"></i> 5.4 身体重心（COM）算出</h3>
+                <p>
+                    各セグメントの重心位置 \( \mathbf{g}_i \) をBSPの重心比から算出し、
+                    質量加重平均で全身重心を求める。
+                </p>
+
+                <h4>セグメント重心の算出</h4>
+                <div class="math-block">
+                    \[
+                    \mathbf{g}_i = \mathbf{p}_{proximal} + r_i \cdot (\mathbf{p}_{distal} - \mathbf{p}_{proximal})
+                    \]
+                </div>
+                <p>ここで \( r_i \) はBSPテーブルの重心比、\( \mathbf{p}_{proximal} \) は近位端、\( \mathbf{p}_{distal} \) は遠位端の座標。</p>
+
+                <h4>全身重心</h4>
+                <div class="math-block">
+                    \[
+                    \mathbf{G}_{body} = \frac{\sum_{i=1}^{n} m_i \cdot \mathbf{g}_i}{\sum_{i=1}^{n} m_i}
+                    = \sum_{i=1}^{n} w_i \cdot \mathbf{g}_i
+                    \]
+                </div>
+                <p>ここで \( w_i = m_i / M \) は各セグメントの質量比（BSPテーブルの値そのもの）。</p>
+            </div>
+
+            <!-- 5.5 Velocity -->
+            <div class="sub-section" id="mv-vel">
+                <h3><i class="fa-solid fa-gauge-high"></i> 5.5 速度・加速度の数値微分（FDF法）</h3>
+                <span class="file-ref"><i class="fa-regular fa-file-code"></i> MotionViewer/src/renderer/filter.js —
+                    calculateVelocitySeries()</span>
+                <span class="file-ref"><i class="fa-regular fa-file-code"></i> MotionViewer/src/renderer/app.js —
+                    calculateAndCacheVelocity()</span>
+
+                <p>
+                    速度の算出には、微分によるノイズ増幅を抑制するため、<strong>FDF法（Filtering-Differentiation-Filtering）</strong>を採用している。
+                    位置データの平滑化だけでなく、微分後の速度データに対しても再度ローパスフィルタを適用する。
+                </p>
+
+                <div class="algo-pipeline">
+                    <div class="algo-stage">
+                        <div class="stage-name">位置データ</div>
+                        <div class="stage-detail">Raw Coordinate</div>
+                    </div>
+                    <span class="algo-arrow">→</span>
+                    <div class="algo-stage">
+                        <div class="stage-name">Filter 1</div>
+                        <div class="stage-detail">Butterworth 4次<br>(位置用Cutoff)</div>
+                    </div>
+                    <span class="algo-arrow">→</span>
+                    <div class="algo-stage">
+                        <div class="stage-name">微分</div>
+                        <div class="stage-detail">3点中央差分<br>Central Diff</div>
+                    </div>
+                    <span class="algo-arrow">→</span>
+                    <div class="algo-stage">
+                        <div class="stage-name">Filter 2</div>
+                        <div class="stage-detail">Butterworth 4次<br>(速度用Cutoff)</div>
+                    </div>
+                    <span class="algo-arrow">→</span>
+                    <div class="algo-stage">
+                        <div class="stage-name">速度</div>
+                        <div class="stage-detail">Smooth Velocity</div>
+                    </div>
+                </div>
+
+                <h4>1. 中央差分法（Central Difference）</h4>
+                <p>2次精度の3点中央差分により、フレーム \( i \) における仮速度を算出する:</p>
+                <div class="math-block">
+                    \[
+                    v_x(t) = \frac{x(t + \Delta t) - x(t - \Delta t)}{2 \Delta t}
+                    \]
+                </div>
+
+                <h4>2. 第2段階フィルタリング（Velocity Filtering）</h4>
+                <p>
+                    数値微分プロセスは高周波ノイズを直線的に増幅させる特性がある（\( \frac{d}{dt} e^{i\omega t} = i\omega e^{i\omega t} \)）。
+                    そのため、第1段階（位置）のフィルタだけでは不十分であり、微分後に第2段階のフィルタリングを行うことがバイオメカニクス分析のベストプラクティスとされる。
+                </p>
+                <p>
+                    速度データの最適カットオフ周波数は <strong>Wells &amp; Winter法</strong> (`calculateVelocityCutoff`)
+                    により、位置データとは独立して推定される。通常、位置データよりも低い周波数が選択される傾向にある。
+                </p>
+
+                <div class="note-box">
+                    <strong>Performance Note:</strong>
+                    このFDF処理は計算コストが高いため、`app.js` 内で <strong>事前計算キャッシュ (Velocity Cache)</strong> される。
+                    グラフ描画時にはキャッシュされたデータが高速に参照され、フィルタ設定変更時のみ再計算が行われる。
+                </div>
+            </div>
+
+            <!-- 5.6 Joint Angles -->
+            <div class="sub-section" id="mv-joint">
+                <h3><i class="fa-solid fa-arrows-turn-to-dots"></i> 5.6 関節角度の算出</h3>
+                <span class="file-ref"><i class="fa-regular fa-file-code"></i> MotionViewer/src/renderer/app.js —
+                    calculateJointAngles()</span>
+                <p>
+                    3点で定義される関節角度を、ベクトルの内積とアークコサインで算出する。
+                </p>
+
+                <div class="math-block">
+                    \[
+                    \mathbf{a} = \mathbf{P}_1 - \mathbf{P}_2, \quad
+                    \mathbf{b} = \mathbf{P}_3 - \mathbf{P}_2
+                    \]
+                    \[
+                    \theta = \arccos\left(\frac{\mathbf{a} \cdot \mathbf{b}}{|\mathbf{a}| \cdot |\mathbf{b}|}\right)
+                    \]
+                </div>
+
+                <h4>14関節角度の定義</h4>
+                <table class="param-table">
+                    <tr>
+                        <th>関節</th>
+                        <th>P₁（近位）</th>
+                        <th>P₂（関節中心）</th>
+                        <th>P₃（遠位）</th>
+                    </tr>
+                    <tr>
+                        <td>左肘</td>
+                        <td>左肩</td>
+                        <td>左肘</td>
+                        <td>左手首</td>
+                    </tr>
+                    <tr>
+                        <td>右肘</td>
+                        <td>右肩</td>
+                        <td>右肘</td>
+                        <td>右手首</td>
+                    </tr>
+                    <tr>
+                        <td>左肩</td>
+                        <td>体幹上</td>
+                        <td>左肩</td>
+                        <td>左肘</td>
+                    </tr>
+                    <tr>
+                        <td>右肩</td>
+                        <td>体幹上</td>
+                        <td>右肩</td>
+                        <td>右肘</td>
+                    </tr>
+                    <tr>
+                        <td>左股関節</td>
+                        <td>体幹下</td>
+                        <td>左股関節</td>
+                        <td>左膝</td>
+                    </tr>
+                    <tr>
+                        <td>右股関節</td>
+                        <td>体幹下</td>
+                        <td>右股関節</td>
+                        <td>右膝</td>
+                    </tr>
+                    <tr>
+                        <td>左膝</td>
+                        <td>左股関節</td>
+                        <td>左膝</td>
+                        <td>左足首</td>
+                    </tr>
+                    <tr>
+                        <td>右膝</td>
+                        <td>右股関節</td>
+                        <td>右膝</td>
+                        <td>右足首</td>
+                    </tr>
+                    <tr>
+                        <td>左足首</td>
+                        <td>左膝</td>
+                        <td>左足首</td>
+                        <td>左つま先</td>
+                    </tr>
+                    <tr>
+                        <td>右足首</td>
+                        <td>右膝</td>
+                        <td>右足首</td>
+                        <td>右つま先</td>
+                    </tr>
+                    <tr>
+                        <td>左手首</td>
+                        <td>左肘</td>
+                        <td>左手首</td>
+                        <td>左手指先</td>
+                    </tr>
+                    <tr>
+                        <td>右手首</td>
+                        <td>右肘</td>
+                        <td>右手首</td>
+                        <td>右手指先</td>
+                    </tr>
+                    <tr>
+                        <td>体幹前傾</td>
+                        <td>頭頂</td>
+                        <td>肩中点</td>
+                        <td>股関節中点</td>
+                    </tr>
+                    <tr>
+                        <td>骨盤傾斜</td>
+                        <td>肩中点</td>
+                        <td>股関節中点</td>
+                        <td>膝中点</td>
+                    </tr>
+                </table>
+            </div>
+
+            <!-- 5.7 Segment Angles -->
+            <div class="sub-section" id="mv-segment">
+                <h3><i class="fa-solid fa-rotate"></i> 5.7 セグメント角度</h3>
+                <p>
+                    座標軸に対するセグメントの絶対角度を <code>atan2</code> で算出する。
+                    これは重力方向に対する体幹傾斜などの評価に用いる。
+                </p>
+
+                <div class="math-block">
+                    \[
+                    \theta_{XY} = \text{atan2}(Y_{distal} - Y_{proximal}, \; X_{distal} - X_{proximal})
+                    \]
+                    \[
+                    \theta_{XZ} = \text{atan2}(Z_{distal} - Z_{proximal}, \; X_{distal} - X_{proximal})
+                    \]
+                </div>
+                <p>各座標平面（XY, XZ, YZ）への投影角度を独立に算出可能。</p>
+            </div>
+
+            <!-- 5.8 Three.js -->
+            <div class="sub-section" id="mv-3d">
+                <h3><i class="fa-solid fa-cubes"></i> 5.8 Three.js 3Dレンダリング</h3>
+                <span class="file-ref"><i class="fa-regular fa-file-code"></i> MotionViewer/src/renderer/app.js —
+                    init3DScene()</span>
+                <p>
+                    WebGL ベースの <strong>Three.js</strong> ライブラリで3Dスティックピクチャーをリアルタイム描画する。
+                </p>
+
+                <table class="param-table">
+                    <tr>
+                        <th>コンポーネント</th>
+                        <th>実装</th>
+                        <th>用途</th>
+                    </tr>
+                    <tr>
+                        <td>レンダラー</td>
+                        <td><code>THREE.WebGLRenderer</code></td>
+                        <td>GPU描画エンジン</td>
+                    </tr>
+                    <tr>
+                        <td>カメラ</td>
+                        <td><code>THREE.PerspectiveCamera</code></td>
+                        <td>透視投影（FOV 75°）</td>
+                    </tr>
+                    <tr>
+                        <td>コントロール</td>
+                        <td><code>OrbitControls</code></td>
+                        <td>マウスドラッグで回転・ズーム</td>
+                    </tr>
+                    <tr>
+                        <td>骨格線</td>
+                        <td><code>THREE.LineSegments</code></td>
+                        <td>関節間を線分で接続</td>
+                    </tr>
+                    <tr>
+                        <td>関節点</td>
+                        <td><code>THREE.Points / Mesh</code></td>
+                        <td>球体で関節位置を表示</td>
+                    </tr>
+                    <tr>
+                        <td>軌跡</td>
+                        <td><code>THREE.Line</code></td>
+                        <td>選択キーポイントの移動軌跡</td>
+                    </tr>
+                    <tr>
+                        <td>床面</td>
+                        <td><code>THREE.GridHelper</code></td>
+                        <td>空間参照用グリッド</td>
+                    </tr>
+                </table>
+
+                <p>
+                    アニメーション再生は <code>requestAnimationFrame</code> ループで制御され、
+                    タイムラインスライダーと同期する。FFmpeg経由でMP4動画としてエクスポートも可能。
+                </p>
+            </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- 6. FILE FORMATS                            -->
+        <!-- ========================================== -->
+        <div class="card" id="formats">
+            <h2><i class="fa-solid fa-file-code"></i> 6. ファイルフォーマット仕様</h2>
+
+            <table class="param-table">
+                <tr>
+                    <th>拡張子</th>
+                    <th>アプリ</th>
+                    <th>形式</th>
+                    <th>内容</th>
+                </tr>
+                <tr>
+                    <td><code>.vsl</code></td>
+                    <td>VideoSyncLab</td>
+                    <td>JSON</td>
+                    <td>同期ポイント、トリム範囲、ファイルパス、再生速度</td>
+                </tr>
+                <tr>
+                    <td><code>.hpe</code></td>
+                    <td>HPE</td>
+                    <td>JSON</td>
+                    <td>フレームごとの全キーポイント座標・信頼度、人物ID、メタデータ</td>
+                </tr>
+                <tr>
+                    <td><code>.csv</code></td>
+                    <td>HPE</td>
+                    <td>CSV</td>
+                    <td>タブ区切り。frame, person_id, kp0_x, kp0_y, kp0_conf, ... の列構成</td>
+                </tr>
+                <tr>
+                    <td><code>.mdp</code></td>
+                    <td>MotionDigitizer</td>
+                    <td>JSON</td>
+                    <td>キャリブレーション定数、デジタイズ座標、スケール情報、プロジェクト設定</td>
+                </tr>
+                <tr>
+                    <td><code>.rd</code></td>
+                    <td>MotionDigitizer</td>
+                    <td>CSV</td>
+                    <td>実長換算済み2D/3D座標データ（旧形式互換）</td>
+                </tr>
+                <tr>
+                    <td><code>.3d</code></td>
+                    <td>MotionDigitizer</td>
+                    <td>CSV</td>
+                    <td>3D座標データ（DLT復元後）</td>
+                </tr>
+                <tr>
+                    <td><code>.c3d</code></td>
+                    <td>MotionDigitizer</td>
+                    <td>Binary</td>
+                    <td>国際標準バイオメカニクス交換フォーマット</td>
+                </tr>
+                <tr>
+                    <td><code>.trc</code></td>
+                    <td>MotionDigitizer</td>
+                    <td>TSV（タブ区切りテキスト）</td>
+                    <td>OpenSim用マーカー軌跡。PathFileType4形式、単位: メートル、座標系: Y-up</td>
+                </tr>
+                <tr>
+                    <td><code>.mvp</code></td>
+                    <td>MotionViewer</td>
+                    <td>JSON</td>
+                    <td>解析設定、フィルタパラメータ、BSPモデル選択、表示設定</td>
+                </tr>
+            </table>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- 7. REFERENCES                              -->
+        <!-- ========================================== -->
+        <div class="card" id="refs">
+            <h2><i class="fa-solid fa-book"></i> 7. 参考文献</h2>
+
+            <h3>座標変換・キャリブレーション</h3>
+            <ul>
+                <li>Abdel-Aziz, Y.I. &amp; Karara, H.M. (1971). Direct linear transformation from comparator coordinates
+                    into object space coordinates in close-range photogrammetry. <em>Proc. ASP/UI Symposium on
+                        Close-Range Photogrammetry</em>.</li>
+                <li>Walton, J.S. (1981). Close-range cine-photogrammetry: A generalized technique for quantifying gross
+                    human motion. <em>Ph.D. Dissertation, Penn State University</em>.</li>
+                <li>池上康男, 桜井伸二, 矢部京之助 (1991). DLT法. <em>Jpn J Sports Sci</em>, 10, 191-195.</li>
+                <li>鈴木雄太, 竹中俊輔, 榎本靖士, 田内健二 (2016). 競技場の特徴点を利用したカメラパラメータ算出法に関する研究. <em>バイオメカニクス研究</em>, 20(1), 2-9.</li>
+            </ul>
+
+            <h3>フィルタリング</h3>
+            <ul>
+                <li>Butterworth, S. (1930). On the theory of filter amplifiers. <em>Experimental Wireless and the
+                        Wireless Engineer</em>, 7, 536-541.</li>
+                <li>Winter, D.A. (2009). <em>Biomechanics and Motor Control of Human Movement</em> (4th ed.). Wiley.
+                </li>
+                <li>Wells, R.P. &amp; Winter, D.A. (1980). Assessment of signal and noise in the kinematics of normal,
+                    pathological and sporting gaits. <em>Human Locomotion I</em>, 92-93.</li>
+            </ul>
+
+            <h3>身体部分慣性係数</h3>
+            <ul>
+                <li>阿江通良, 湯海鵬, 横井孝志 (1992). 日本人アスリートの身体部分慣性特性の推定. <em>バイオメカニズム</em>, 11, 23-33.</li>
+                <li>横井孝志, 渋川侃二, 阿江通良 (1986). 日本人幼少年の身体部分係数. <em>体育学研究</em>, 31(1), 53-66.</li>
+                <li>岡田英孝, 阿江通良, 藤井範久, 森丘保典 (1996). 日本人高齢者の身体部分慣性特性. <em>バイオメカニズム</em>, 13, 125-139.</li>
+            </ul>
+
+            <h3>AI・姿勢推定</h3>
+            <ul>
+                <li>Xu, Y. et al. (2022). ViTPose: Simple Vision Transformer Baselines for Human Pose Estimation.
+                    <em>NeurIPS 2022</em>.
+                </li>
+                <li>Jiang, T. et al. (2023). RTMPose: Real-Time Multi-Person Pose Estimation based on MMPose.
+                    <em>arXiv:2303.07399</em>.
+                </li>
+                <li>Uhlrich, S.D. et al. (2023). OpenCap: Human movement dynamics from smartphone videos.
+                    <em>PLOS Computational Biology</em>, 19(10).
+                </li>
+                <li>rtmlib — Lightweight ONNX inference wrapper for RTMPose/ViTPose. https://github.com/Tau-J/rtmlib</li>
+                <li>Ultralytics. YOLOv11 — Real-Time Object Detection.</li>
+                <li>Xie, J. et al. Norfair: Customizable Lightweight Python Library for Real-Time Multi-Object Tracking.
+                </li>
+            </ul>
+
+            <h3>ARマーカー・画像処理</h3>
+            <ul>
+                <li>Garrido-Jurado, S., Muñoz-Salinas, R., Madrid-Cuevas, F.J., & Medina-Carnicer, R. (2014). Automatic
+                    generation and detection of highly reliable fiducial markers under occlusion. <em>Pattern
+                        Recognition</em>, 47(6), 2280-2292.</li>
+                <li>Garrido-Jurado, S. et al. (2016). Generation of fiducial marker dictionaries using Mixed Integer
+                    Linear Programming. <em>Pattern Recognition</em>, 51, 481-491.</li>
+            </ul>
+
+            <h3>データフォーマット・筋骨格シミュレーション</h3>
+            <ul>
+                <li>C3D.org. The C3D File Format — A Standard for Biomechanics Data Exchange.</li>
+                <li>Delp, S.L. et al. (2007). OpenSim: Open-Source Software to Create and Analyze Dynamic Simulations of
+                    Movement. <em>IEEE Transactions on Biomedical Engineering</em>, 54(11), 1940-1950.</li>
+                <li>Seth, A. et al. (2018). OpenSim: Simulating musculoskeletal dynamics and neuromuscular control to
+                    study human and animal movement. <em>PLOS Computational Biology</em>, 14(7), e1006223.</li>
+                <li>Simtk.org. OpenSim Documentation — TRC File Format Specification.</li>
+            </ul>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- 8. AUTHOR / CONTACT                        -->
+        <!-- ========================================== -->
+        <div class="card" id="author">
+            <h2><i class="fa-solid fa-address-card"></i> 8. 開発者・連絡先</h2>
+            <div class="two-col">
+                <div class="highlight-box">
+                    <h4><i class="fa-solid fa-user-tie"></i> 開発・監修</h4>
+                    <p><strong>村田 和隆</strong> (Kazutaka Murata)</p>
+                    <p>桃山学院大学 人間教育学部</p>
+                </div>
+                <div class="highlight-box">
+                    <h4><i class="fa-solid fa-envelope"></i> Contact</h4>
+                    <p>研究・開発に関するお問い合わせ:</p>
+                    <p><code>k-murata[at]andrew.ac.jp</code></p>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <footer>
+        <p>&copy; 2026 Electoron Biomechanics Suite | Algorithm &amp; Mathematics Documentation | Generated from Source
+            Code Analysis</p>
+    </footer>
+
+</body>
+
+</html>
