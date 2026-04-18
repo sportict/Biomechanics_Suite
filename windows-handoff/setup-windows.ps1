@@ -2,15 +2,15 @@
 # setup-windows.ps1
 #
 # 1コマンドで clone + モデル取得 + 全ビルド まで完結させる総合セットアップ
-# Claude Desktop に WINDOWS_HANDOFF.md を読ませた際、最初にこのスクリプトを
-# 呼べば良い想定。
+# Claude Desktop に windows-handoff/README.md を読ませた際、
+# 最初にこのスクリプトを呼べば良い想定。
 #
 # 使い方:
 #   # 1. 空のフォルダで PowerShell を開いて以下を実行
-#   iwr -useb https://raw.githubusercontent.com/sportict/Biomechanics_Suite/main/scripts/setup-windows.ps1 | iex
+#   iwr -useb https://raw.githubusercontent.com/sportict/Biomechanics_Suite/main/windows-handoff/setup-windows.ps1 | iex
 #
 #   # または既にclone済みなら
-#   .\scripts\setup-windows.ps1
+#   .\windows-handoff\setup-windows.ps1
 # ============================================================================
 
 $ErrorActionPreference = "Stop"
@@ -40,13 +40,13 @@ foreach ($t in $tools.GetEnumerator()) {
     }
 }
 if ($missing.Count -gt 0) {
-    Die "前提ツールが不足しています。WINDOWS_HANDOFF.md 1章を参照してインストール後に再実行してください。"
+    Die "前提ツールが不足しています。windows-handoff/README.md 1章を参照してインストール後に再実行してください。"
 }
 
 # vcpkg は MotionDigitizer ビルド時にのみ必要。存在チェックだけ実施。
 if (-not (Test-Path "C:\vcpkg\vcpkg.exe")) {
     Write-Warn "C:\vcpkg が見つかりません。MotionDigitizer のビルドは失敗します。"
-    Write-Warn "WINDOWS_HANDOFF.md 1-D を参照して vcpkg + opencv:x64-windows を準備してください。"
+    Write-Warn "windows-handoff/README.md 1-D を参照して vcpkg + opencv:x64-windows を準備してください。"
     Write-Warn "MotionDigitizer 以外の3アプリは続行します。"
 }
 
@@ -87,7 +87,7 @@ if ($allModelsPresent) {
     Write-Host "  全モデルが HPE\Models\ に存在します。スキップ。"
 } else {
     Write-Host "  fetch-hpe-models.ps1 を実行してモデルを取得します..."
-    & "$REPO_ROOT\scripts\fetch-hpe-models.ps1"
+    & "$REPO_ROOT\windows-handoff\fetch-hpe-models.ps1"
     if ($LASTEXITCODE -ne 0) {
         Write-Warn "モデル取得に失敗しました。HPE のビルドはスキップされます。"
         Write-Warn "他の3アプリは続行します。"
@@ -96,7 +96,7 @@ if ($allModelsPresent) {
 
 # --- 4. 全アプリビルド ---
 Write-Phase "4. 全アプリビルド"
-& "$REPO_ROOT\scripts\build-all-windows.ps1"
+& "$REPO_ROOT\windows-handoff\build-all-windows.ps1"
 
 Write-Phase "セットアップ完了"
 Write-Host "成果物:"

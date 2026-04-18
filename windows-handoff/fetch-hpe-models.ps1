@@ -7,7 +7,7 @@
 #   1. GitHub Releases の添付アセット(環境変数 MODEL_RELEASE_URL が設定されている場合)
 #   2. HuggingFace から SynthPose のみ自動変換(他モデルはスキップ警告)
 #
-# 使い方: `.\scripts\fetch-hpe-models.ps1`
+# 使い方: `.\windows-handoff\fetch-hpe-models.ps1`
 # ============================================================================
 
 $ErrorActionPreference = "Stop"
@@ -96,11 +96,11 @@ Write-Host "[WARN] 以下のモデルが取得できませんでした:" -Foregr
 foreach ($m in $failed) { Write-Host "  - $m" }
 Write-Host ""
 Write-Host "フォールバック手順:" -ForegroundColor Yellow
-Write-Host "  1. macOS マシンから HPE\Models\ を USB 等でコピー(WINDOWS_HANDOFF.md 3-A)"
+Write-Host "  1. macOS マシンから HPE\Models\ を USB 等でコピー(windows-handoff/README.md 3-A)"
 Write-Host "  2. SynthPose のみ生成する場合: "
 Write-Host "       cd HPE && python server\convert_synthpose_to_onnx.py --size huge"
 Write-Host "  3. GitHub Releases に手動アップロード後、環境変数で再試行:"
 Write-Host "       `$env:MODEL_RELEASE_URL = 'https://.../download/models-v1'"
-Write-Host "       .\scripts\fetch-hpe-models.ps1"
+Write-Host "       .\windows-handoff\fetch-hpe-models.ps1"
 
 exit 1

@@ -3,8 +3,8 @@
 #
 # Windows環境で 4 アプリを一括ビルドするスクリプト
 # 前提: Node.js 20+, Python 3.11, VS Build Tools 2022, vcpkg+OpenCV
-#       詳細は WINDOWS_HANDOFF.md 1章を参照
-# 使い方: リポジトリ直下で `.\scripts\build-all-windows.ps1`
+#       詳細は windows-handoff/README.md 1章を参照
+# 使い方: リポジトリ直下で `.\windows-handoff\build-all-windows.ps1`
 # ============================================================================
 
 $ErrorActionPreference = "Stop"
@@ -74,7 +74,7 @@ Push-Location (Join-Path $REPO_ROOT "HPE")
 try {
     # Models フォルダ存在確認
     if (-not (Test-Path "Models\yolo26m.onnx") -or -not (Test-Path "Models\rtmpose-x.onnx")) {
-        Write-Fail "HPE\Models\ にモデルファイルがありません。WINDOWS_HANDOFF.md 3章を参照して配置してください。"
+        Write-Fail "HPE\Models\ にモデルファイルがありません。windows-handoff/README.md 3章を参照して配置してください。"
         $results["HPE"] = "SKIPPED (missing models)"
     } else {
         cmd.exe /c build.bat

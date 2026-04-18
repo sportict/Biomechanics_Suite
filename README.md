@@ -25,12 +25,12 @@ npm run build:mac
 
 ## Windows ビルド
 
-**[WINDOWS_HANDOFF.md](./WINDOWS_HANDOFF.md)** を参照してください。Claude Desktop に読み込ませるだけで自動セットアップが完了する形式になっています。
+引き継ぎ資材は **[`windows-handoff/`](./windows-handoff/)** フォルダにまとまっています。Claude Desktop に `windows-handoff/README.md` を読み込ませるだけで自動セットアップが完了します。
 
 ワンコマンド版:
 ```powershell
 # 空のフォルダで PowerShell を開いて
-iwr -useb https://raw.githubusercontent.com/sportict/Biomechanics_Suite/main/scripts/setup-windows.ps1 | iex
+iwr -useb https://raw.githubusercontent.com/sportict/Biomechanics_Suite/main/windows-handoff/setup-windows.ps1 | iex
 ```
 
 ## GitHub Actions による完全自動ビルド
@@ -49,13 +49,13 @@ Biomechanics_Suite/
 ├── VideoSyncLab/           # 動画同期アプリ
 ├── shared/                 # 4アプリ共通の Electron ユーティリティ
 │   └── electron-utils.js
-├── scripts/                # Windowsビルド補助スクリプト
-│   ├── setup-windows.ps1
+├── windows-handoff/        # Windows 引き継ぎ資材一式
+│   ├── README.md           # 手順書(Claude Desktop に読ませる)
+│   ├── setup-windows.ps1   # 総合セットアップ
 │   ├── build-all-windows.ps1
 │   └── fetch-hpe-models.ps1
 ├── .github/workflows/      # CI/CD
 │   └── build.yml
-├── WINDOWS_HANDOFF.md      # Windows 引き継ぎ手順書
 └── README.md               # このファイル
 ```
 
@@ -69,4 +69,4 @@ Biomechanics_Suite/
 - yolo26m.onnx (78MB)
 - synthpose-vitpose-huge-hf.onnx (1.2GB)
 
-取得方法は [WINDOWS_HANDOFF.md 3章](./WINDOWS_HANDOFF.md#3-モデルファイルの取得hpe用) を参照。
+取得方法は [windows-handoff/README.md 3章](./windows-handoff/README.md#3-モデルファイルの取得hpe用) を参照。

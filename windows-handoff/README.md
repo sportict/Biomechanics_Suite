@@ -1,15 +1,29 @@
 # Windows 引き継ぎ手順書
 
 > **Claude Desktop (Windows版) 向け自動化手順書**
-> このドキュメントを Claude Desktop に読み込ませると、リポジトリの取得・依存セットアップ・ビルドまでを自動化できます。
+> このフォルダ `windows-handoff/` をそのまま Claude Desktop に渡せば、リポジトリの取得・依存セットアップ・ビルドまでを自動化できます。
+
+## このフォルダの中身
+
+| ファイル | 役割 |
+|---|---|
+| `README.md`(本ファイル) | 手順書(Claude Desktop に読ませる主文書) |
+| `setup-windows.ps1` | 総合セットアップ(clone→モデル取得→全ビルドを1コマンド) |
+| `build-all-windows.ps1` | 4アプリ一括ビルドのみ |
+| `fetch-hpe-models.ps1` | HPE/Models/ のダウンロード |
 
 ---
 
 ## 0. この手順書の使い方(Claude Desktopへの指示)
 
-Claude Desktop にこのファイルを共有したら、次のプロンプトを渡してください:
+Claude Desktop にこのフォルダ丸ごと or `README.md` を共有したら、次のプロンプトを渡してください:
 
-> 「このドキュメント **WINDOWS_HANDOFF.md** の手順 1〜6 を順番に実行してください。各ステップ終了後に検証コマンドの結果を確認し、成功していれば次に進んでください。エラーが出たら止まって、エラー内容を私に共有してください。」
+> 「このドキュメント **windows-handoff/README.md** の手順 1〜6 を順番に実行してください。各ステップ終了後に検証コマンドの結果を確認し、成功していれば次に進んでください。エラーが出たら止まって、エラー内容を私に共有してください。」
+
+**最速ルート**: PowerShell を開いて以下を実行すれば、上記の手順 2〜4 を自動で走らせます。
+```powershell
+iwr -useb https://raw.githubusercontent.com/sportict/Biomechanics_Suite/main/windows-handoff/setup-windows.ps1 | iex
+```
 
 ---
 
@@ -123,10 +137,10 @@ macOSマシンから `HPE/Models/` フォルダをそのままコピーして、
 管理者が GitHub Releases にモデルをアップロードしてあれば、以下でダウンロード可能:
 
 ```powershell
-.\scripts\fetch-hpe-models.ps1
+.\windows-handoff\fetch-hpe-models.ps1
 ```
 
-(このスクリプトは下記 `scripts/fetch-hpe-models.ps1` を参照。公開URLが設定されている前提)
+(公開URLが設定されている前提。詳細は同ファイル冒頭コメント参照)
 
 ### 3-C. HuggingFace(SynthPose のみ)
 
@@ -151,7 +165,7 @@ Get-ChildItem .\HPE\Models\*.onnx | Select-Object Name, @{N='Size(MB)';E={[math]
 リポジトリ直下で:
 
 ```powershell
-.\scripts\build-all-windows.ps1
+.\windows-handoff\build-all-windows.ps1
 ```
 
 このスクリプトは以下を順に実行します(下記「5. 個別ビルド」と等価):
