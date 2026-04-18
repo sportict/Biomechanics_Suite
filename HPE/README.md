@@ -1,6 +1,6 @@
 # HPE - Human Pose Estimation
 
-[rtmlib](https://github.com/Tau-J/rtmlib) をベースに、**RTMPose / RTMDet / ViTPose (SynthPose)** を利用する人体姿勢推定デスクトップアプリ。
+[rtmlib](https://github.com/Tau-J/rtmlib) をベースに、**RTMPose / RTMDet / SynthPose** を利用する人体姿勢推定デスクトップアプリ。
 
 ## 主な機能
 
@@ -8,7 +8,7 @@
 - 複数の計測プリセット
   - **高速**: RTMDet + RTMPose-M(23点、軽量・リアルタイム向け)
   - **高精度**: RTMDet + RTMPose-X(23点、精度優先)
-  - **SynthPose (52点)**: RTMDet + SynthPose-ViTPose-Huge(バイオメカニクス用52キーポイント)
+  - **SynthPose (52点)**: RTMDet + SynthPose-Huge(バイオメカニクス用52キーポイント、[Stanford MIMI / OpenCapBench](https://github.com/StanfordMIMI/OpenCapBench) の派生モデル)
 - 人物追跡(Norfair ベース)による一貫したID付与
 - バッチ処理(複数動画の一括推定)
 - 外れ値フィルタ(Z-score / 速度 / 加速度)
@@ -28,14 +28,14 @@
 | `rtmpose-m.onnx` | 高速プリセットの身体姿勢推定 | 53MB |
 | `rtmpose-x.onnx` | 高精度プリセットの身体姿勢推定 | 191MB |
 | `rtmpose-m_hand.onnx` | 手の姿勢推定(RTMPose系) | 53MB |
-| `synthpose-vitpose-huge-hf.onnx` | SynthPose 52点推定(ViTPose派生) | 1.2GB |
+| `synthpose-vitpose-huge-hf.onnx` | **SynthPose 52点推定**(バイオメカニクス特化の Transformer 系モデル) | 1.2GB |
 
 モデルファイルは容量が大きいため、このリポジトリには含まれていません(`.gitignore` 済み)。取得方法は [../windows-handoff/README.md 3章](../windows-handoff/README.md#3-モデルファイルの取得hpe用) を参照。
 
 ### モデルの入手先
 
 - **RTMPose / RTMDet(yolo26m)**: [rtmlib](https://github.com/Tau-J/rtmlib) 配布の ONNX を利用
-- **SynthPose ViTPose-Huge**: [Stanford MIMI / OpenCapBench](https://github.com/StanfordMIMI/OpenCapBench) の HuggingFace モデルを ONNX 変換
+- **SynthPose**: [Stanford MIMI / OpenCapBench](https://github.com/StanfordMIMI/OpenCapBench) の HuggingFace モデル(バイオメカニクス用52キーポイント向けに再学習された Transformer 姿勢推定モデル)を ONNX に変換して利用
   - 自前変換: `python server/convert_synthpose_to_onnx.py --size huge`
 
 ## 開発環境での起動
@@ -158,7 +158,7 @@ SynthPose の52点定義は [server/utils.py `KEYPOINT_NAMES_SYNTHPOSE`](server/
 - **ONNX Runtime** (MIT) — Microsoft
 - **[rtmlib](https://github.com/Tau-J/rtmlib)** (Apache License 2.0)
 - **RTMPose / RTMDet** (Apache License 2.0) — OpenMMLab
-- **ViTPose / SynthPose** — 配布元 [StanfordMIMI/OpenCapBench](https://github.com/StanfordMIMI/OpenCapBench) のライセンスに従う(モデル重みは別途入手)
+- **SynthPose** (Stanford MIMI / OpenCapBench) — モデル重みの配布元ライセンスに従う(リポジトリには同梱しない)
 - **Norfair** (BSD-3-Clause) — 人物追跡
 
 ### その他 Python パッケージ
