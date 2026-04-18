@@ -1,101 +1,153 @@
 # HPE - Human Pose Estimation
 
-easy-ViTPose を使用したポーズ推定デスクトップアプリケーション
+[rtmlib](https://github.com/Tau-J/rtmlib) をベースに、**RTMPose / RTMDet / ViTPose (SynthPose)** を利用する人体姿勢推定デスクトップアプリ。
 
-## 機能
+## 主な機能
 
-- 画像・動画からの人体ポーズ推定
-- 23点キーポイント検出
-- 骨格・バウンディングボックス表示
-- CSV/JSON形式でのエクスポート
-- 骨格付き動画のエクスポート
-- GPU (CUDA) / CPU 両対応
+- 画像・動画からの人体姿勢推定
+- 複数の計測プリセット
+  - **高速**: RTMDet + RTMPose-M(23点、軽量・リアルタイム向け)
+  - **高精度**: RTMDet + RTMPose-X(23点、精度優先)
+  - **SynthPose (52点)**: RTMDet + SynthPose-ViTPose-Huge(バイオメカニクス用52キーポイント)
+- 人物追跡(Norfair ベース)による一貫したID付与
+- バッチ処理(複数動画の一括推定)
+- 外れ値フィルタ(Z-score / 速度 / 加速度)
+- CSV / JSON / 骨格描画付き動画 エクスポート
+- デバイス自動選択
+  - **CoreML** (Apple Silicon / mps)
+  - **CUDA** (NVIDIA GPU)
+  - **CPU** (フォールバック)
 
-## 必要なモデルファイル
+## モデル構成(ONNX)
 
-`Models/` フォルダに以下のファイルを配置してください：
+`Models/` フォルダに以下のファイルを配置します(計約 **1.6GB**):
 
+| ファイル | 用途 | サイズ |
+|---|---|---|
+| `yolo26m.onnx` | 人物検出器(全プリセット共通) | 78MB |
+| `rtmpose-m.onnx` | 高速プリセットの身体姿勢推定 | 53MB |
+| `rtmpose-x.onnx` | 高精度プリセットの身体姿勢推定 | 191MB |
+| `rtmpose-m_hand.onnx` | 手の姿勢推定(RTMPose系) | 53MB |
+| `synthpose-vitpose-huge-hf.onnx` | SynthPose 52点推定(ViTPose派生) | 1.2GB |
+
+モデルファイルは容量が大きいため、このリポジトリには含まれていません(`.gitignore` 済み)。取得方法は [../windows-handoff/README.md 3章](../windows-handoff/README.md#3-モデルファイルの取得hpe用) を参照。
+
+### モデルの入手先
+
+- **RTMPose / RTMDet(yolo26m)**: [rtmlib](https://github.com/Tau-J/rtmlib) 配布の ONNX を利用
+- **SynthPose ViTPose-Huge**: [Stanford MIMI / OpenCapBench](https://github.com/StanfordMIMI/OpenCapBench) の HuggingFace モデルを ONNX 変換
+  - 自前変換: `python server/convert_synthpose_to_onnx.py --size huge`
+
+## 開発環境での起動
+
+### 1. Python 環境
+
+Python 3.11 推奨。リポジトリ直下で:
+
+**macOS:**
+```bash
+cd HPE
+python3.11 -m venv .venv
+source .venv/bin/activate
+pip install ./rtmlib --no-deps
+pip install -r server/requirements.txt
 ```
-Models/
-├── yolo11x.pt                          # YOLOv11 人物検出モデル
-└── vitpose-h-wholebody/
-    └── vitpose-h-wholebody.onnx        # ViTPose ONNX モデル
-```
 
-## 開発環境での実行
-
-### 1. Python環境のセットアップ
-
+**Windows (PowerShell):**
 ```powershell
-cd server
-py -3.11 -m pip install -r requirements.txt
+cd HPE
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install .\rtmlib --no-deps
+pip install -r server\requirements.txt
 ```
 
-### 2. Node.js依存関係のインストール
+### 2. Node.js 依存パッケージ
 
-```powershell
-cd app
+```bash
+cd HPE
 npm install
 ```
 
-### 3. 起動
+### 3. アプリ起動
 
-**ターミナル1 (APIサーバー):**
-```powershell
-cd server
-py -3.11 main.py
+```bash
+npm start          # 通常起動
+npm run dev        # DevTools 自動起動(開発用)
 ```
 
-**ターミナル2 (Electronアプリ):**
-```powershell
-cd app
-npm run dev
-```
+Python サーバー(`server/ipc_handler.py`)は Electron の子プロセスとして自動起動するので、別ターミナルで走らせる必要はありません。
 
 ## 配布用ビルド
 
-### 前提条件
+### 前提
 
-- Python 3.11
-- Node.js 18+
-- PyInstaller (`pip install pyinstaller`)
-- electron-builder (`npm install`)
+- Python 3.11(venv 生成に使用)
+- Node.js 20+
+- macOS: Xcode Command Line Tools
+- Windows: Visual Studio Build Tools(ONNX Runtime のネイティブ依存)
 
 ### ビルド実行
 
-```powershell
-build.bat
+**macOS:**
+```bash
+npm run build:mac
+# → HPE/dist/HPE-1.1.0-arm64.dmg
 ```
 
-ビルド完了後、`dist/win-unpacked/` フォルダが生成されます。
+**Windows:**
+```powershell
+.\build.bat
+# → HPE\dist\HPE-Setup-1.1.0.exe
+```
 
-### 配布
-
-1. `dist/win-unpacked/` フォルダをZIP化
-2. ユーザーは解凍して `HPE - Human Pose Estimation.exe` を実行
+`build.bat` は `.venv` 作成 → Python パッケージインストール → `npm install` → `electron-builder --win` までを自動実行します。
 
 ## ディレクトリ構成
 
 ```
 HPE/
-├── app/                    # Electronアプリ
-│   ├── main.js            # メインプロセス
-│   ├── preload.js         # プリロードスクリプト
-│   ├── renderer/          # レンダラープロセス
-│   │   ├── index.html
-│   │   ├── app.js
-│   │   └── style.css
-│   └── package.json
-├── server/                 # Python APIサーバー
-│   ├── main.py            # FastAPI サーバー
-│   ├── requirements.txt
-│   └── hpe-server.spec    # PyInstaller設定
-├── Models/                 # モデルファイル
-├── easy_ViTPose/          # ViTPoseライブラリ
-├── build.bat              # ビルドスクリプト
+├── main.js                     # Electron メインプロセス
+├── preload.js                  # プリロード
+├── package.json
+├── renderer/                   # レンダラプロセス(Electron UI)
+│   ├── index.html
+│   ├── app.js                  # UI 制御 + IPC
+│   ├── style.css
+│   ├── skeleton-renderer.js    # 骨格描画
+│   └── skeleton-worker.js
+├── server/                     # Python バックエンド
+│   ├── ipc_handler.py          # stdin/stdout JSON IPC
+│   ├── rtmpose_estimator.py    # RTMPose 推定器ラッパー
+│   ├── synthpose_onnx_estimator.py
+│   ├── synthpose_torch_estimator.py
+│   ├── onnx_vitpose_integration.py
+│   ├── filtering.py            # 外れ値 & ID統合
+│   ├── utils.py                # キーポイント定義 + Norfair tracker
+│   ├── convert_synthpose_to_onnx.py
+│   └── requirements.txt
+├── rtmlib/                     # rtmlib (ローカル同梱、--no-deps でインストール)
+├── Models/                     # ONNX モデル配置先(.gitignore)
+├── shared/                     # 他アプリ共通 Electron ユーティリティ(ビルド時に
+│   └── electron-utils.js       # リポジトリ /shared からコピー)
+├── build.bat                   # Windows ビルド
 └── README.md
 ```
 
+## キーポイント形式
+
+| プリセット | 出力点数 | スキーム | 主用途 |
+|---|---|---|---|
+| 高速 / 高精度 | 23点 | COCO17 + 足6点(HALPE26派生) | 一般動作解析 |
+| SynthPose (52点) | 52点 | COCO17 + 解剖学的ランドマーク35点 | OpenSim / バイオメカニクス |
+
+SynthPose の52点定義は [server/utils.py `KEYPOINT_NAMES_SYNTHPOSE`](server/utils.py) を参照。
+
 ## ライセンス
 
-MIT License
+本アプリ: MIT License
+
+同梱ライブラリ/モデルは各々のライセンスに従います:
+- [rtmlib](https://github.com/Tau-J/rtmlib): Apache License 2.0
+- RTMPose / RTMDet(OpenMMLab): Apache License 2.0
+- ViTPose / SynthPose(Stanford MIMI): モデル配布元のライセンスに従う
