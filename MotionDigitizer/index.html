@@ -32,7 +32,7 @@
                         <div id="project-name-display" class="project-name">新規プロジェクト</div>
                     </div>
                     <!-- キャリブレーション方法（最上位） -->
-                    <div class="section">
+                    <div class="section" id="method-section">
                         <div class="section-header">
                             <svg class="section-icon" viewBox="0 0 24 24">
                                 <path
@@ -72,66 +72,75 @@
                             </div>
                         </div>
                     </div>
-                    <!-- モード選択 -->
-                    <div class="section" style="margin-bottom: 2px !important;">
-                        <div class="section-header">モード選択</div>
-                        <div class="mode-cam-row">
-                            <div class="toggle-group">
-                                <input type="radio" id="calibration" name="mode" value="calibration" class="option-input" checked>
-                                <label for="calibration" class="toggle-btn">キャリブレーション</label>
-                                <input type="radio" id="motion" name="mode" value="motion" class="option-input">
-                                <label for="motion" class="toggle-btn">モーション</label>
+                    <!-- 対象データ（モード + カメラ + 動画ファイル） -->
+                    <div class="section" id="session-section">
+                        <div class="section-header">
+                            <svg class="section-icon" viewBox="0 0 24 24">
+                                <path d="M12,16L19.36,10.27L21,9L12,2L3,9L4.63,10.27L12,16M12,18.54L4.62,12.81L3,14.07L12,21.07L21,14.07L19.37,12.81L12,18.54Z" />
+                            </svg>
+                            対象データ
+                        </div>
+                        <!-- モード -->
+                        <div class="section-subgroup">
+                            <div class="section-sublabel">モード</div>
+                            <div class="mode-cam-row">
+                                <div class="toggle-group">
+                                    <input type="radio" id="calibration" name="mode" value="calibration" class="option-input" checked>
+                                    <label for="calibration" class="toggle-btn">キャリブレーション</label>
+                                    <input type="radio" id="motion" name="mode" value="motion" class="option-input">
+                                    <label for="motion" class="toggle-btn">モーション</label>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                    <!-- カメラ選択 -->
-                    <div class="section" id="camera-select-section" style="margin-bottom: 2px !important;">
-                        <div class="section-header">カメラ選択</div>
-                        <div class="mode-cam-row">
-                            <div class="cam-num-group">
-                                <input type="radio" id="camera1" name="camera" value="cam1" class="option-input" checked>
-                                <label for="camera1" class="cam-num-btn"><span>1</span><span class="cam-dot" id="cam1-dot"></span></label>
-                                <input type="radio" id="camera2" name="camera" value="cam2" class="option-input">
-                                <label for="camera2" class="cam-num-btn"><span>2</span><span class="cam-dot" id="cam2-dot"></span></label>
-                                <input type="radio" id="camera3" name="camera" value="cam3" class="option-input" disabled>
-                                <label for="camera3" class="cam-num-btn disabled"><span>3</span><span class="cam-dot" id="cam3-dot"></span></label>
-                                <input type="radio" id="camera4" name="camera" value="cam4" class="option-input" disabled>
-                                <label for="camera4" class="cam-num-btn disabled"><span>4</span><span class="cam-dot" id="cam4-dot"></span></label>
+                        <!-- カメラ -->
+                        <div class="section-subgroup" id="camera-select-section">
+                            <div class="section-sublabel">カメラ</div>
+                            <div class="mode-cam-row">
+                                <div class="cam-num-group">
+                                    <input type="radio" id="camera1" name="camera" value="cam1" class="option-input" checked>
+                                    <label for="camera1" class="cam-num-btn"><span>1</span><span class="cam-dot" id="cam1-dot"></span></label>
+                                    <input type="radio" id="camera2" name="camera" value="cam2" class="option-input">
+                                    <label for="camera2" class="cam-num-btn"><span>2</span><span class="cam-dot" id="cam2-dot"></span></label>
+                                    <input type="radio" id="camera3" name="camera" value="cam3" class="option-input" disabled>
+                                    <label for="camera3" class="cam-num-btn disabled"><span>3</span><span class="cam-dot" id="cam3-dot"></span></label>
+                                    <input type="radio" id="camera4" name="camera" value="cam4" class="option-input" disabled>
+                                    <label for="camera4" class="cam-num-btn disabled"><span>4</span><span class="cam-dot" id="cam4-dot"></span></label>
+                                </div>
+                                <select id="camera-count-select" class="cam-count-select" title="使用カメラ台数">
+                                    <option value="1" selected>1台</option>
+                                    <option value="2">2台</option>
+                                    <option value="3">3台</option>
+                                    <option value="4">4台</option>
+                                </select>
                             </div>
-                            <select id="camera-count-select" class="cam-count-select" title="使用カメラ台数">
-                                <option value="1" selected>1台</option>
-                                <option value="2">2台</option>
-                                <option value="3">3台</option>
-                                <option value="4">4台</option>
-                            </select>
                         </div>
-                    </div>
-                    <!-- 動画ファイル情報（選択中のモード+カメラに連動） -->
-                    <div class="section" style="margin-bottom: 2px !important;">
-                        <div class="section-header">動画ファイル情報</div>
-                        <div class="active-file-display file-drop-zone" id="active-file-drop-zone">
-                            <div class="active-file-row" id="active-file-row">
-                                <span class="active-file-badge" id="active-file-badge">キャリブ / Cam1</span>
-                                <span style="flex:1;"></span>
-                                <button class="btn-add" id="active-file-add" onclick="window._addActiveFile();">＋</button>
+                        <!-- 動画ファイル -->
+                        <div class="section-subgroup">
+                            <div class="section-sublabel">動画ファイル</div>
+                            <div class="active-file-display file-drop-zone" id="active-file-drop-zone">
+                                <div class="active-file-row" id="active-file-row">
+                                    <span class="active-file-badge" id="active-file-badge">キャリブ / Cam1</span>
+                                    <span style="flex:1;"></span>
+                                    <button class="btn-add" id="active-file-add" onclick="window._addActiveFile();">＋</button>
+                                </div>
+                                <div class="active-file-list" id="active-file-list-container"></div>
+                                <div class="file-drop-hint">ここにドロップで追加</div>
                             </div>
-                            <div class="active-file-list" id="active-file-list-container"></div>
-                            <div class="file-drop-hint">ここにドロップで追加</div>
+                            <!-- 全file-item（非表示、データ保持用） -->
+                            <div style="display:none;">
+                                <div id="cal-cam1" class="file-item"><div class="file-list" id="cal-cam1-list"></div><div class="file-info"><div class="file-name">未選択</div><div class="file-path"></div></div></div>
+                                <div id="cal-cam2" class="file-item"><div class="file-list" id="cal-cam2-list"></div><div class="file-info"><div class="file-name">未選択</div><div class="file-path"></div></div></div>
+                                <div id="motion-cam1" class="file-item"><div class="file-list" id="motion-cam1-list"></div><div class="file-info"><div class="file-name">未選択</div><div class="file-path"></div></div></div>
+                                <div id="motion-cam2" class="file-item"><div class="file-list" id="motion-cam2-list"></div><div class="file-info"><div class="file-name">未選択</div><div class="file-path"></div></div></div>
+                            </div>
+                            <!-- プログレス（非表示、ID保持用） -->
+                            <div style="display:none;"><div id="progress-fill"></div><div id="progress-text"></div></div>
                         </div>
-                        <!-- 全file-item（非表示、データ保持用） -->
-                        <div style="display:none;">
-                            <div id="cal-cam1" class="file-item"><div class="file-list" id="cal-cam1-list"></div><div class="file-info"><div class="file-name">未選択</div><div class="file-path"></div></div></div>
-                            <div id="cal-cam2" class="file-item"><div class="file-list" id="cal-cam2-list"></div><div class="file-info"><div class="file-name">未選択</div><div class="file-path"></div></div></div>
-                            <div id="motion-cam1" class="file-item"><div class="file-list" id="motion-cam1-list"></div><div class="file-info"><div class="file-name">未選択</div><div class="file-path"></div></div></div>
-                            <div id="motion-cam2" class="file-item"><div class="file-list" id="motion-cam2-list"></div><div class="file-info"><div class="file-name">未選択</div><div class="file-path"></div></div></div>
-                        </div>
-                        <!-- プログレス（非表示、ID保持用） -->
-                        <div style="display:none;"><div id="progress-fill"></div><div id="progress-text"></div></div>
                     </div>
                     <!-- FPS設定は キャリブレーション方法セクション内のバッジに移動 -->
                     <!-- 表示設定 -->
                     <!-- 表示・動作設定 -->
-                    <details class="section section-collapsible" open>
+                    <details class="section section-collapsible" id="display-settings-section" open>
                         <summary class="section-header">
                             <svg class="section-icon" viewBox="0 0 24 24">
                                 <path
