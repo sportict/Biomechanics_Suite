@@ -1,242 +1,120 @@
-# VideoSyncLab 🎬
+# VideoSyncLab
 
-**革新的な二画面動画同期編集アプリケーション**
+二画面動画同期編集アプリ。異なるタイミング・フレームレートで撮影された2本の動画を同期再生・切り出し・スローモーション出力する。
 
-VideoSyncLabは、異なるタイミングで撮影された2つの動画を同期再生し、全フレーム保持スローモーション機能を搭載した高度な動画編集ツールです。
+## 主な機能
 
-## ✨ 主要機能
+### 動画同期
 
-### 🎯 全フレーム保持スローモーション（革新的機能）
+- **二画面同時再生**: 左右2本の動画をフレーム精度で同期
+- **親子制御**: 左画面の操作で両動画が連動(再生・停止・コマ送り)
+- **オフセット調整**: 任意の秒数/フレーム数でタイミング補正(0.5秒以上のズレを自動補正)
+- **一画面/二画面切替**: 同期せず単独で扱うモード
+
+### 切り出し・変換
+
+| モード | 処理時間 | 画質 | 用途 |
+|---|---|---|---|
+| **高速カット** ✂️ | 数秒 | 無劣化(ストリームコピー) | フレーム指定で素早く切り出し |
+| **再エンコード** 🎥 | 数分 | 高品質 | MP4/AVI 変換・スローモーション生成 |
+
+### 全フレーム保持スローモーション
+
+高フレームレート素材を低フレームレートにフレーム間引きなしで出力:
+
+| 入力 | 出力 | 倍速 |
+|---|---|---|
+| 30fps  | 30fps | 等速 |
+| 60fps  | 60fps | 等速 |
+| 120fps | 30fps | 4倍スロー(全フレーム保持) |
+| 240fps | 30fps | 8倍スロー(全フレーム保持) |
+
+### 人物セグメンテーション(ストロボ合成)
+
+- **YOLOv11x-seg(ONNX)** で人物マスクを生成
+- 複数フレームの人物領域を合成した**ストロボ・モーション画像**を生成
+- 背景静止・人物のみ重畳する表現が可能
+
+## ディレクトリ構成
+
 ```
-📊 自動処理システム:
-30fps動画  → 30fps出力 (フレームレート保持)
-60fps動画  → 60fps出力 (フレームレート保持)  
-120fps動画 → 30fps出力 (4倍スロー、全フレーム保持)
-240fps動画 → 30fps出力 (8倍スロー、全フレーム保持)
+VideoSyncLab/
+├── main.js                   # Electron メインプロセス + ffmpeg 呼び出し
+├── preview.html              # プレビューウィンドウ(二画面表示)
+├── index.html                # メイン UI
+├── renderer.js
+├── styles.css
+├── strobe-motion.js / .css   # ストロボモーション合成
+├── onnx-segmentation.js      # ONNX Runtime による人物セグメンテーション
+├── Models/
+│   └── yolo11x_segment.onnx  # YOLOv11x セグメンテーションモデル
+├── shared/                   # ビルド時に /shared からコピー(.gitignore)
+├── build/                    # electron-builder リソース
+├── build-portable.js
+├── CHANGELOG.md
+└── README.md
 ```
 
-**従来の課題を解決:**
-- ❌ フレーム間引きによる動きの不自然さ
-- ❌ 低品質なスローモーション
-- ✅ **全フレーム保持で滑らかなスローモーション**
+## 開発・ビルド
 
-### 🔄 高度な同期機能
-- **親子制御システム**: 左画面で両方の動画を統合制御
-- **フレーム精度同期**: 0.5秒以上のズレを自動補正
-- **リアルタイム連動**: 再生・停止・コマ送りが完全同期
+### 前提
+- Node.js 20+
+- ネイティブ依存パッケージ(`canvas`, `sharp`, `onnxruntime-node`)がプリビルド済みバイナリをダウンロード
 
-### ⚡ スマート処理オプション
-| 機能 | 高速カット（✂️） | 再エンコード（🎥） |
-|------|----------------|------------------|
-| **処理時間** | 数秒 | 数分 |
-| **品質** | 無劣化 | 高品質・最適化 |
-| **形式** | 元形式保持 | MP4/AVI選択 |
-| **特殊機能** | - | スローモーション |
+### 起動
 
-### 🎮 直感的なUI
-- **一画面/二画面表示**: 自動ウィンドウサイズ調整
-- **簡潔なコントロール**: 必要な機能のみに厳選
-- **リアルタイム進捗**: 処理状況を詳細表示
-
-## 🚀 クイックスタート
-
-### インストール
 ```bash
-# リポジトリクローン
-git clone https://github.com/yourusername/video-sync-lab.git
-cd video-sync-lab
-
-# 依存関係インストール
 npm install
-
-# アプリケーション起動
-npm start
+npm start            # 通常起動
+npm run dev-tools    # DevTools 自動起動
 ```
 
-### 基本的な使い方
+### ビルド
 
-#### 1. 動画の読み込み
-- 📁ボタンで動画ファイルを選択
-- 対応形式: MP4, AVI, MKV, MOV, WebM, FLV, M4V
-
-#### 2. 同期設定
-```
-Step 1: 各動画で同期ポイント設定 ⏱️
-Step 2: 自動的に親子制御モード開始
-Step 3: 左画面で両方を統合制御
-```
-
-#### 3. スローモーション作成
-```
-Step 1: 高速動画（60fps超）を読み込み
-Step 2: トリミング範囲設定 |→ →|
-Step 3: 🎥ボタンでスローモーション生成
-→ 全フレーム保持で滑らかなスローモーション完成！
-```
-
-## 🎬 使用例
-
-### スポーツ動作分析
-```
-🏀 バスケットボール シュート分析:
-カメラ1: 正面からの120fps撮影
-カメラ2: 側面からの120fps撮影
-→ 同期再生 + 4倍スローモーション解析
-```
-
-### 技術・研究用途
-```
-🔬 高速現象の観察:
-240fps撮影 → 8倍スローモーション
-全フレーム保持により詳細な動きを解析
-```
-
-### 動画制作
-```
-🎥 映像作品制作:
-複数アングル同期 + 高品質スローモーション
-プロ品質の映像制作をサポート
-```
-
-## 📋 システム要件
-
-### 最小要件
-- **OS**: Windows 10/macOS 10.14/Ubuntu 18.04 以上
-- **Node.js**: v16.0.0 以上
-- **RAM**: 4GB 以上
-- **ストレージ**: 1GB 以上の空き容量
-
-### 推奨要件
-- **OS**: Windows 11/macOS 12/Ubuntu 20.04 以上
-- **Node.js**: v18.0.0 以上
-- **RAM**: 8GB 以上
-- **CPU**: 4コア以上
-- **ストレージ**: 5GB 以上の空き容量（作業用）
-
-## 🛠️ 開発者向け
-
-### 開発環境セットアップ
+**macOS:**
 ```bash
-# 開発モード（DevTools付き）
-npm run dev-tools
-
-# デバッグモード
-npm run debug
-
-# ビルド（全プラットフォーム）
-npm run build
+npm run build:mac
+# → VideoSyncLab/dist/VideoSyncLab-1.0.0-arm64.dmg
 ```
 
-### アーキテクチャ
-```
-Electron App
-├─ Main Process (FFmpeg処理)
-├─ Renderer Process (UI制御)
-└─ IPC Communication (プロセス間通信)
-```
-
-### 核心技術
-- **FFmpeg**: 全フレーム保持スローモーション
-- **Electron**: クロスプラットフォーム対応
-- **Node.js**: バックエンド処理
-
-## 📈 パフォーマンス
-
-### 処理速度（4K/120fps、1分間動画）
-```
-⚡ 高速カット:   5-15秒
-🎥 スローモーション: 2-5分
-📷 フレーム保存: 1-2秒
+**Windows:**
+```powershell
+npm run build          # NSIS インストーラ(.exe)
+npm run build:portable # ポータブル(.exe、インストール不要)
+# → VideoSyncLab\dist\VideoSyncLab-Setup-1.0.0.exe
 ```
 
-### メモリ使用量
-```
-通常動作: 200-400MB
-処理中: 500MB-1GB（動画サイズによる）
-```
+## ファイル関連付け
 
-## 🔧 高度な機能
+`.vsl` 拡張子はプロジェクトファイルとして関連付けされます(動画パス + 同期オフセット + 切り出し範囲を保存)。
 
-### ファイル命名規則
-```
-自動ファイル命名:
-├─ Cam1_cut.mp4     (左画面・高速カット)
-├─ Cam2_cut.mp4     (右画面・高速カット)
-├─ Cam1_encoded.mp4 (左画面・再エンコード)
-└─ Cam2_encoded.mp4 (右画面・再エンコード)
-```
+## サードパーティライセンス表記
 
-### キーボードショートカット
-```
-スペース: 再生/一時停止
-← → : コマ送り/戻し
-Ctrl+1: 動画1を開く
-Ctrl+2: 動画2を開く
-```
+本アプリは以下のライブラリを利用しています。**配布時はライセンス表記の同梱が必要**です。
 
-## ❓ よくある質問
+### FFmpeg (LGPL v2.1+)
 
-### Q: スローモーションの品質はどの程度ですか？
-A: 全フレーム保持により、フレーム間引きのない滑らかなスローモーションを実現。従来の手法と比べて格段に高品質です。
+動画の読み込み・エンコード・フレーム抽出の全工程で **ffmpeg-static** / **ffprobe-static** + **fluent-ffmpeg** 経由で FFmpeg バイナリを呼び出します。
 
-### Q: どのようなフレームレートに対応していますか？
-A: 入力は30-240fps、出力は自動最適化。60fps超の動画は自動的にスローモーション処理されます。
+> This software uses code of [FFmpeg](https://ffmpeg.org) licensed under the [LGPLv2.1](https://www.gnu.org/licenses/old-licenses/lgpl-2.1.html) and its source can be downloaded [here](https://ffmpeg.org/download.html).
 
-### Q: 同期精度はどの程度ですか？
-A: フレーム精度での同期が可能。0.5秒以上のズレは自動補正されます。
+**重要**: 配布パッケージには FFmpeg バイナリと同じディレクトリに以下を含めてください:
+- LGPLv2.1 ライセンス全文(`COPYING.LGPLv2.1` / `LICENSE`)
+- FFmpeg ソースコードの入手方法(URL)
 
-### Q: 大容量動画でも動作しますか？
-A: 4K/120fps動画でも安定動作。ただし、処理時間とメモリ使用量は動画サイズに比例します。
+### YOLOv11 / ultralytics (AGPL v3.0)
 
-## 🤝 コントリビューション
+`Models/yolo11x_segment.onnx` は [Ultralytics YOLOv11](https://github.com/ultralytics/ultralytics) の ONNX エクスポート。
 
-### バグレポート
-Issues セクションでバグ報告をお願いします。以下の情報を含めてください：
-- OS・バージョン
-- 動画ファイル情報（形式・解像度・FPS）
-- エラーメッセージ
-- 再現手順
+> **AGPL v3.0** ライセンス。商用利用する場合は Ultralytics の Enterprise License が必要です。詳細は https://www.ultralytics.com/license を参照。
 
-### 機能リクエスト
-新機能の提案も Issues で受け付けています。
+### その他
 
-### 開発への参加
-1. Fork this repository
-2. Create feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit changes (`git commit -m 'Add amazing feature'`)
-4. Push to branch (`git push origin feature/amazing-feature`)
-5. Open Pull Request
+- **fluent-ffmpeg** (MIT) — ffmpeg コマンドビルダ
+- **ffmpeg-static** / **ffprobe-static** (MIT) — バイナリ同梱(内部は LGPL FFmpeg)
+- **onnxruntime-node** (MIT) — ONNX 推論エンジン
+- **sharp** (Apache License 2.0) — 画像処理(libvips)
+- **canvas** (MIT) — Node 側 Canvas 描画
+- **uuid** (MIT)
 
-## 📄 ライセンス
-
-MIT License - 詳細は [LICENSE](LICENSE) ファイルを参照してください。
-
-## 🔗 リンク
-
-- **Homepage**: https://github.com/yourusername/video-sync-lab
-- **Issues**: https://github.com/yourusername/video-sync-lab/issues
-- **Releases**: https://github.com/yourusername/video-sync-lab/releases
-- **Documentation**: [DEVELOPMENT.md](DEVELOPMENT.md)
-
-## 🏆 実績・特徴
-
-### 🎯 技術的革新
-- **業界初**: 全フレーム保持スローモーション
-- **高精度同期**: フレーム単位での同期制御
-- **スマート処理**: フレームレート自動判定
-
-### 🎮 ユーザビリティ
-- **直感的UI**: 学習コストの最小化
-- **親子制御**: 複雑な操作の簡略化
-- **リアルタイム表示**: 処理状況の透明性
-
-### ⚡ パフォーマンス
-- **高速処理**: 最適化されたFFmpeg活用
-- **軽量設計**: 不要機能削除による効率化
-- **安定動作**: 大容量ファイル対応
-
----
-
-**VideoSyncLab** - *革新的な動画同期・編集ソリューション*
-
-Made with ❤️ by VideoSyncLab Team | Last Updated: 2025年5月31日
+本アプリ本体: MIT License

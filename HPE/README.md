@@ -143,11 +143,31 @@ HPE/
 
 SynthPose の52点定義は [server/utils.py `KEYPOINT_NAMES_SYNTHPOSE`](server/utils.py) を参照。
 
-## ライセンス
+## サードパーティライセンス表記
 
-本アプリ: MIT License
+### FFmpeg (LGPL v2.1+)
 
-同梱ライブラリ/モデルは各々のライセンスに従います:
-- [rtmlib](https://github.com/Tau-J/rtmlib): Apache License 2.0
-- RTMPose / RTMDet(OpenMMLab): Apache License 2.0
-- ViTPose / SynthPose(Stanford MIMI): モデル配布元のライセンスに従う
+動画フレーム抽出に Python 側で **ffmpeg-python** 経由で FFmpeg を呼び出しています(システム/同梱 FFmpeg バイナリ利用)。
+
+> This software uses code of [FFmpeg](https://ffmpeg.org) licensed under the [LGPLv2.1](https://www.gnu.org/licenses/old-licenses/lgpl-2.1.html) and its source can be downloaded [here](https://ffmpeg.org/download.html).
+
+配布パッケージには LGPLv2.1 全文とソース入手先を同梱してください。
+
+### 推論エンジン・モデル
+
+- **ONNX Runtime** (MIT) — Microsoft
+- **[rtmlib](https://github.com/Tau-J/rtmlib)** (Apache License 2.0)
+- **RTMPose / RTMDet** (Apache License 2.0) — OpenMMLab
+- **ViTPose / SynthPose** — 配布元 [StanfordMIMI/OpenCapBench](https://github.com/StanfordMIMI/OpenCapBench) のライセンスに従う(モデル重みは別途入手)
+- **Norfair** (BSD-3-Clause) — 人物追跡
+
+### その他 Python パッケージ
+
+- **numpy** (BSD-3-Clause)
+- **opencv-python** (Apache License 2.0、内部は FFmpeg 連携あり → 上記 LGPL 注意事項参照)
+- **Pillow** (HPND)
+- **scipy** (BSD-3-Clause)
+- **filterpy** (MIT)
+- **tqdm** (MIT)
+
+本アプリ本体: MIT License
