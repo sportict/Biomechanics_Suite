@@ -408,24 +408,39 @@ def _load_model_internal(progress_callback=None, model_type=None, yolo_type=None
         body_model_file = f"{model_type}.onnx"
 
         report(progress + 10, f"{model_type.upper()} モデルを確認中...")
-        try:
-            from rtmpose_estimator import load_rtmpose_estimator
+        from rtmpose_estimator import load_rtmpose_estimator
 
-            report(progress + 20, f"{model_type.upper()} モデルをロード中... ({current_device})")
-            model_instance, vitpose_name, actual_device = load_rtmpose_estimator(
+        # GPU→CPU フォールバック: 指定デバイスで失敗したら CPU で再試行する。
+        # これにより Windows で CUDA ランタイムが不完全な環境でも
+        # 「推定できない」状態にならず CPU モードで続行できる。
+        def _try_load(_device):
+            report(progress + 20, f"{model_type.upper()} モデルをロード中... ({_device})")
+            return load_rtmpose_estimator(
                 models_dir=models_dir,
                 yolo_type=yolo_type,
-                device=current_device,
+                device=_device,
                 body_model=body_model_file,
                 yolo_size=config.yolo_size,
                 conf_threshold=config.confidence_threshold,
                 log_func=log_debug,
             )
+
+        try:
+            model_instance, vitpose_name, actual_device = _try_load(current_device)
             current_device = actual_device
         except Exception as e:
             error_msg = str(e)
-            log_debug(f"RTMPose load error: {error_msg}")
-            raise RuntimeError(f"RTMPose loading failed: {error_msg}")
+            log_debug(f"RTMPose load error on {current_device}: {error_msg}")
+            if current_device != 'cpu':
+                log_debug(f"RTMPose: {current_device} でのロード失敗 → CPU にフォールバックして再試行")
+                try:
+                    model_instance, vitpose_name, actual_device = _try_load('cpu')
+                    current_device = actual_device
+                except Exception as e2:
+                    log_debug(f"RTMPose CPU fallback also failed: {e2}")
+                    raise RuntimeError(f"RTMPose loading failed (both {current_device} and CPU): {e2}")
+            else:
+                raise RuntimeError(f"RTMPose loading failed: {error_msg}")
 
         available_yolo = []
         try:
@@ -485,24 +500,37 @@ def _load_model_internal(progress_callback=None, model_type=None, yolo_type=None
             raise ValueError(f"Invalid synthpose model_type: {model_type}")
 
         report(progress + 10, f"SynthPose-{model_size} モデルを確認中...")
-        try:
-            from synthpose_onnx_estimator import load_synthpose_onnx_estimator
+        from synthpose_onnx_estimator import load_synthpose_onnx_estimator
 
-            report(progress + 20, f"SynthPose-{model_size} モデルをロード中... ({current_device})")
-            model_instance, vitpose_name, actual_device = load_synthpose_onnx_estimator(
+        # GPU→CPU フォールバック
+        def _try_load_sp(_device):
+            report(progress + 20, f"SynthPose-{model_size} モデルをロード中... ({_device})")
+            return load_synthpose_onnx_estimator(
                 models_dir=models_dir,
                 model_size=model_size,
                 yolo_type=yolo_type,
-                device=current_device,
+                device=_device,
                 yolo_size=config.yolo_size,
                 conf_threshold=config.confidence_threshold,
                 log_func=log_debug,
             )
+
+        try:
+            model_instance, vitpose_name, actual_device = _try_load_sp(current_device)
             current_device = actual_device
         except Exception as e:
             error_msg = str(e)
-            log_debug(f"SynthPose load error: {error_msg}")
-            raise RuntimeError(f"SynthPose loading failed: {error_msg}")
+            log_debug(f"SynthPose load error on {current_device}: {error_msg}")
+            if current_device != 'cpu':
+                log_debug(f"SynthPose: {current_device} でのロード失敗 → CPU にフォールバックして再試行")
+                try:
+                    model_instance, vitpose_name, actual_device = _try_load_sp('cpu')
+                    current_device = actual_device
+                except Exception as e2:
+                    log_debug(f"SynthPose CPU fallback also failed: {e2}")
+                    raise RuntimeError(f"SynthPose loading failed (both {current_device} and CPU): {e2}")
+            else:
+                raise RuntimeError(f"SynthPose loading failed: {error_msg}")
 
         available_yolo = []
         try:

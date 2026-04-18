@@ -966,12 +966,19 @@ def detect_device(config_device: str = "auto") -> str:
             return "cpu"
 
     # --- nvcuda.dll が存在する場合のみ onnxruntime で詳細確認 ---
+    # 注意: "CUDAExecutionProvider" が get_available_providers() に列挙されていても
+    # 実際に InferenceSession を作成できるとは限らない(cuDNN/cudart 不一致など)。
+    # そのため極小の in-memory ONNX モデルで CUDA セッションの構築と
+    # ダミー推論まで行い、成功した場合のみ "cuda" と判定する。
     device = "cpu"
     try:
         import onnxruntime as ort
         providers = ort.get_available_providers()
         if "CUDAExecutionProvider" in providers:
-            device = "cuda"
+            if _validate_cuda_runtime():
+                device = "cuda"
+            else:
+                print("[Device] CUDAExecutionProvider is listed but not functional; using CPU", file=sys.stderr)
     except ImportError:
         pass
     except Exception:
@@ -982,6 +989,53 @@ def detect_device(config_device: str = "auto") -> str:
 
     _auto_detected_device = device
     return device
+
+
+def _validate_cuda_runtime() -> bool:
+    """CUDAExecutionProvider が実際に使えるか極小モデルで検証する。
+
+    onnxruntime-gpu が "CUDAExecutionProvider" をリストに載せていても、
+    CUDA ランタイム(cudart*.dll, cudnn64_*.dll)が見つからない環境では
+    セッション作成かダミー推論で失敗する。その場合は CPU にフォールバックする。
+
+    Returns:
+        True: CUDA で最小推論が成功 → 本番利用可能
+        False: 失敗 or 検証ライブラリ不在 → CPU を使うべき
+    """
+    try:
+        import onnxruntime as ort
+        import numpy as np
+        try:
+            import onnx  # type: ignore
+            from onnx import helper, TensorProto  # type: ignore
+        except Exception:
+            # onnx が無い場合は検証を諦め、楽観的に True を返す
+            # (rtmlib が onnx に依存しているので通常は存在する)
+            return True
+
+        # 極小の Identity 1op モデル(float32 x shape [1])
+        x = helper.make_tensor_value_info('x', TensorProto.FLOAT, [1])
+        y = helper.make_tensor_value_info('y', TensorProto.FLOAT, [1])
+        node = helper.make_node('Identity', ['x'], ['y'])
+        graph = helper.make_graph([node], 'cudacheck', [x], [y])
+        model = helper.make_model(graph, producer_name='hpe-device-validator')
+        model.ir_version = 7
+
+        sess = ort.InferenceSession(
+            model.SerializeToString(),
+            providers=[('CUDAExecutionProvider', {'device_id': 0}),
+                       'CPUExecutionProvider']
+        )
+        # 実際に CUDA で走るか確認: active providers が CUDA を含むこと
+        active = sess.get_providers()
+        if 'CUDAExecutionProvider' not in active:
+            return False
+        # ダミー推論
+        _ = sess.run(None, {'x': np.array([1.0], dtype=np.float32)})
+        return True
+    except Exception as e:
+        print(f"[Device] CUDA validation failed: {type(e).__name__}: {e}", file=sys.stderr)
+        return False
 
 
 def get_device_info() -> Dict[str, Any]:
