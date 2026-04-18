@@ -4,15 +4,16 @@ const fs = require('fs').promises;
 const fsSync = require('fs');
 const ffmpegPath = require('ffmpeg-static');
 const { execFile } = require('child_process');
+const {
+  buildMacAppMenu, buildQuitMenuItem,
+  getIconPath: resolveIconPath,
+  getFilePathFromArgs
+} = require('../../shared/electron-utils');
 
 // === アイコンパス解決 ===
+// main.js は src/main/ にあるため、アイコンは2階層上のルートに存在する
 function getIconPath() {
-  const iconFile = process.platform === 'darwin' ? 'MViewer.png' : 'MViewer.ico';
-  if (app.isPackaged) {
-    return path.join(process.resourcesPath, iconFile);
-  } else {
-    return path.join(__dirname, '..', '..', iconFile);
-  }
+  return resolveIconPath(path.join(__dirname, '..', '..'), 'MViewer.png', 'MViewer.ico');
 }
 
 // 追加: 直前に開いたモーションデータのディレクトリを記憶
@@ -55,6 +56,7 @@ class MotionViewerApp {
     });
 
     app.whenReady().then(() => {
+      app.setName('MotionViewer');
       // 起動引数解析
       const args = process.argv;
       const dataPathArg = args.find(arg => arg.startsWith('--data-path='));
@@ -74,6 +76,22 @@ class MotionViewerApp {
 
     app.on('window-all-closed', () => {
       if (process.platform !== 'darwin') app.quit();
+    });
+
+    // アプリ終了時に一時ファイルをクリーンアップ
+    app.on('will-quit', () => {
+      const os = require('os');
+      const tmpDir = os.tmpdir();
+      const prefixes = ['motion-viewer-frames', 'motion-viewer-frames-out'];
+      for (const prefix of prefixes) {
+        const dirPath = path.join(tmpDir, prefix);
+        try {
+          if (fsSync.existsSync(dirPath)) {
+            fsSync.rmSync(dirPath, { recursive: true, force: true });
+            console.log('[MotionViewer] Cleaned up:', prefix);
+          }
+        } catch (e) { /* ignore */ }
+      }
     });
 
     app.on('activate', () => {
@@ -97,22 +115,7 @@ class MotionViewerApp {
    * コマンドライン引数からmvpファイルを探す
    */
   findMvpFileInArgs(args) {
-    console.log('[Main] findMvpFileInArgs called with:', args);
-    for (const arg of args) {
-      // 大文字小文字を区別せず.mvp拡張子をチェック
-      if (arg.toLowerCase().endsWith('.mvp') && !arg.startsWith('-')) {
-        console.log('[Main] Found .mvp argument:', arg);
-        // ファイル存在確認
-        if (fsSync.existsSync(arg)) {
-          console.log('[Main] File exists, returning:', arg);
-          return arg;
-        } else {
-          console.log('[Main] File does not exist:', arg);
-        }
-      }
-    }
-    console.log('[Main] No valid .mvp file found');
-    return null;
+    return getFilePathFromArgs(args, '.mvp');
   }
 
 
@@ -161,15 +164,11 @@ class MotionViewerApp {
    * 図形描写ウィンドウ作成
    */
   createSequenceDrawWindow() {
-    console.log('[DEBUG] createSequenceDrawWindow called');
-
     if (this.sequenceDrawWindow && !this.sequenceDrawWindow.isDestroyed()) {
-      console.log('[DEBUG] window already exists, focusing');
       this.sequenceDrawWindow.focus();
       return this.sequenceDrawWindow;
     }
 
-    console.log('[DEBUG] creating new window');
     this.sequenceDrawWindow = new BrowserWindow({
       width: 1200,
       height: 800,
@@ -187,17 +186,14 @@ class MotionViewerApp {
     });
 
     const htmlPath = path.join(__dirname, '../renderer/sequence-draw-window.html');
-    console.log('[DEBUG] loading html from:', htmlPath);
     this.sequenceDrawWindow.loadFile(htmlPath);
 
     this.sequenceDrawWindow.once('ready-to-show', () => {
-      console.log('[DEBUG] window ready to show');
       this.sequenceDrawWindow.show();
       if (this.isDev) this.sequenceDrawWindow.webContents.openDevTools();
     });
 
     this.sequenceDrawWindow.on('closed', () => {
-      console.log('[DEBUG] window closed');
       this.sequenceDrawWindow = null;
     });
 
@@ -224,8 +220,13 @@ class MotionViewerApp {
         label: 'ファイル',
         submenu: [
           {
-            label: '新規プロジェクト',
-            accelerator: 'CmdOrCtrl+N',
+            label: 'プロジェクトを開く...',
+            accelerator: 'CmdOrCtrl+O',
+            click: () => this.openProjectFile()
+          },
+          {
+            label: 'プロジェクトを閉じる',
+            accelerator: 'CmdOrCtrl+W',
             click: () => {
               currentProjectFilePath = null;
               if (this.mainWindow) {
@@ -233,13 +234,9 @@ class MotionViewerApp {
               }
             }
           },
+          { type: 'separator' },
           {
-            label: 'プロジェクトを開く...',
-            accelerator: 'CmdOrCtrl+Shift+O',
-            click: () => this.openProjectFile()
-          },
-          {
-            label: 'プロジェクトを上書き保存',
+            label: '上書き保存',
             accelerator: 'CmdOrCtrl+S',
             click: () => {
               if (this.mainWindow) {
@@ -248,7 +245,7 @@ class MotionViewerApp {
             }
           },
           {
-            label: 'プロジェクトを別名で保存...',
+            label: '名前を付けて保存...',
             accelerator: 'CmdOrCtrl+Shift+S',
             click: () => {
               if (this.mainWindow) {
@@ -258,18 +255,9 @@ class MotionViewerApp {
           },
           { type: 'separator' },
           {
-            label: 'ファイルを開く...',
-            accelerator: 'CmdOrCtrl+O',
+            label: 'データファイルを開く...',
+            accelerator: 'CmdOrCtrl+Shift+O',
             click: () => this.openFileDialog()
-          },
-          {
-            label: 'ファイルを閉じる',
-            accelerator: 'CmdOrCtrl+R',
-            click: () => {
-              if (this.mainWindow) {
-                this.mainWindow.reload();
-              }
-            }
           },
           { type: 'separator' },
           {
@@ -285,11 +273,8 @@ class MotionViewerApp {
             click: () => this.loadSettingsFile()
           },
           { type: 'separator' },
-          {
-            label: '終了',
-            accelerator: process.platform === 'darwin' ? 'Cmd+Q' : 'Ctrl+Q',
-            click: () => app.quit()
-          }
+          // macOSではアプリメニューのrole:'quit'が担うため非表示
+          ...buildQuitMenuItem()
         ]
       },
       {
@@ -374,24 +359,8 @@ class MotionViewerApp {
       }
     ];
 
-    // macOS用アプリケーションメニュー
-    if (process.platform === 'darwin') {
-      template.unshift({
-        label: 'MotionViewer',
-        submenu: [
-          {
-            label: 'MotionViewerについて',
-            click: () => this.showAbout()
-          },
-          { type: 'separator' },
-          { label: 'MotionViewerを隠す', accelerator: 'Command+H', role: 'hide' },
-          { label: '他を隠す', accelerator: 'Command+Shift+H', role: 'hideothers' },
-          { label: 'すべてを表示', role: 'unhide' },
-          { type: 'separator' },
-          { label: 'MotionViewerを終了', accelerator: 'Command+Q', click: () => app.quit() }
-        ]
-      });
-    }
+    // macOS用アプリケーションメニューを先頭に挿入
+    template.unshift(...buildMacAppMenu());
 
     return template;
   }
@@ -1430,13 +1399,6 @@ class MotionViewerApp {
 
 
 
-    // アプリケーション情報
-    ipcMain.handle('get-app-info', () => ({
-      name: app.getName(),
-      version: app.getVersion(),
-      platform: process.platform
-    }));
-
     // スティックピクチャーメニューのリセット
     ipcMain.handle('reset-stick-picture-menu', () => {
       this.setStickPictureMenu(null);
@@ -1518,15 +1480,10 @@ class MotionViewerApp {
     // 図形描写ウィンドウを開く
     ipcMain.handle('open-sequence-draw-window', async (event, data) => {
       try {
-        console.log('[DEBUG] open-sequence-draw-window called');
-        console.log('[DEBUG] data keys:', Object.keys(data));
-
         const window = this.createSequenceDrawWindow();
-        console.log('[DEBUG] createSequenceDrawWindow returned');
 
         // ウィンドウが準備できたらデータを送信
         window.webContents.once('did-finish-load', () => {
-          console.log('[DEBUG] sequence window loaded, sending data');
           window.webContents.send('draw-sequence-data', data);
         });
 
@@ -1617,18 +1574,6 @@ class MotionViewerApp {
     // プロジェクト保存ダイアログ（ツールバーから呼び出し用）
     ipcMain.handle('trigger-save-project', async () => {
       this.mainWindow.webContents.send('save-project', { isNew: false });
-    });
-  }
-
-  /**
-   * About ダイアログ表示
-   */
-  showAbout() {
-    dialog.showMessageBox(this.mainWindow, {
-      type: 'info',
-      title: 'MotionViewerについて',
-      message: 'MotionViewer v1.0.0',
-      detail: '軽量モーションデータ3D可視化アプリケーション\n\n対応形式: .sd, .rd, .2d, .3d\n\nThree.js + Electron製'
     });
   }
 

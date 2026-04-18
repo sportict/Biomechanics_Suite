@@ -1,5 +1,5 @@
 {
-  "yolo_size": 1280,
+  "yolo_size": 640,
   "confidence_threshold": 0.3,
   "nms_threshold": 0.2,
   "model_type": "synthpose-huge-onnx"

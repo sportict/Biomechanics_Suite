@@ -6,10 +6,11 @@
   "scripts": {
     "start": "electron .",
     "dev": "cross-env NODE_ENV=development electron .",
-    "build": "cross-env NODE_OPTIONS=--max-old-space-size=8192 electron-builder --win --x64",
-    "build:dir": "cross-env NODE_OPTIONS=--max-old-space-size=8192 electron-builder --win --x64 --dir",
-    "build:portable": "cross-env NODE_OPTIONS=--max-old-space-size=8192 electron-builder --win --x64 -c.win.target=portable",
-    "build:mac": "cross-env NODE_OPTIONS=--max-old-space-size=8192 electron-builder --mac --arm64"
+    "copy-shared": "node -e \"require('fs').cpSync('../shared', 'shared', {recursive: true})\"",
+    "build": "npm run copy-shared && cross-env NODE_OPTIONS=--max-old-space-size=8192 electron-builder --win --x64",
+    "build:dir": "npm run copy-shared && cross-env NODE_OPTIONS=--max-old-space-size=8192 electron-builder --win --x64 --dir",
+    "build:portable": "npm run copy-shared && cross-env NODE_OPTIONS=--max-old-space-size=8192 electron-builder --win --x64 -c.win.target=portable",
+    "build:mac": "npm run copy-shared && cross-env NODE_OPTIONS=--max-old-space-size=8192 electron-builder --mac --arm64"
   },
   "keywords": [
     "pose-estimation",
@@ -33,6 +34,7 @@
       "main.js",
       "preload.js",
       "renderer/**/*",
+      "shared/**/*",
       "HPE.ico",
       "HPE.png",
       "HPE.icns"
@@ -107,7 +109,7 @@
         "name": "HPE Project File",
         "description": "Human Pose Estimation Project File",
         "role": "Editor",
-        "icon": "./HPE.png"
+        "icon": "./HPE.icns"
       }
     ],
     "executableName": "HPE"

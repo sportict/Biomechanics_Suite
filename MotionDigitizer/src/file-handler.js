@@ -363,6 +363,10 @@ window.updateFileListUI = function (fileId) {
 
         listContainer.appendChild(item);
     });
+
+    // カメラドットインジケータ + アクティブファイル表示を更新
+    if (typeof window.updateCamDots === 'function') window.updateCamDots();
+    if (typeof window.updateActiveFileDisplay === 'function') window.updateActiveFileDisplay();
 };
 
 /**
@@ -519,16 +523,22 @@ function switchVideoByMode(mode) {
     if (videoFile) {
         showMessage(`${mode === 'calibration' ? 'キャリブレーション' : 'モーション'}動画に切り替え中...`);
 
-        // プレビュープレイヤーに動画を読み込み
-        if (previewPlayer) {
-            // ファイルパスを file:// URL に正規化（macOS/Windows両対応）
-            let p = videoFile.path || '';
-            p = normalizeFileUrl(p);
-            previewPlayer.loadVideo(p);
+        // previewPlayer と digitizeVideo の両方に動画を読み込む
+        // previewPlayer: フッター再生コントロール用
+        // digitizeVideo: キャンバス描画用（seekVideoToFrame で使用）
+        const videoUrl = normalizeFileUrl(videoFile.path || '');
+        const previewPromise = previewPlayer
+            ? previewPlayer.loadVideo(videoUrl)
+            : Promise.resolve(true);
+
+        // digitizeVideo にもソースを事前設定（displayCurrentFrame での初回ロード遅延を防止）
+        if (typeof digitizeVideo !== 'undefined' && digitizeVideo) {
+            digitizeVideo.src = videoUrl;
+            digitizeVideo.load();
         }
 
-        // 動画情報取得を追加
-        getVideoInfoRobust(videoFile.path).then(async info => {
+        // 動画情報取得と並行実行
+        Promise.all([previewPromise, getVideoInfoRobust(videoFile.path)]).then(async ([_loaded, info]) => {
             try {
                 if (typeof info.fps !== 'number' || typeof info.frameCount !== 'number') {
                     throw new Error('動画情報取得に失敗しました（fps/frameCount 不正）');
@@ -903,6 +913,7 @@ function buildProjectDataForSave() {
             camera: currentCamera,
             currentFrame: projectData.settings.currentFrame,
             fps: projectData.settings.fps,
+            cameraType: document.getElementById('camera-type-badge')?.value || 'normal',
             calibrationVideoWidth: projectData.settings.calibrationVideoWidth || 0,
             calibrationVideoHeight: projectData.settings.calibrationVideoHeight || 0
         },
@@ -1461,6 +1472,13 @@ window.loadProject = async function (filePath) {
                     coordinates3D: new Map(Object.entries(data.analysisResults.coordinates3D || {})),
                     standardErrors: new Map(Object.entries(data.analysisResults.standardErrors || {}))
                 };
+            }
+
+            // カメラタイプを復元
+            const cameraType = (data.currentSettings && data.currentSettings.cameraType) || 'normal';
+            const cameraTypeEl = document.getElementById('camera-type-badge');
+            if (cameraTypeEl) {
+                cameraTypeEl.value = cameraType;
             }
 
             // FPS設定を復元
@@ -3570,6 +3588,10 @@ window.updateFileListUI = function (fileId) {
 
         listContainer.appendChild(item);
     });
+
+    // カメラドットインジケータ + アクティブファイル表示を更新
+    if (typeof window.updateCamDots === 'function') window.updateCamDots();
+    if (typeof window.updateActiveFileDisplay === 'function') window.updateActiveFileDisplay();
 };
 
 // メニューからの保存アクションをリッスン

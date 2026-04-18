@@ -26,8 +26,9 @@
                     <!-- プロジェクト名表示 -->
                     <div class="section project-name-section">
                         <div class="section-header"
-                            style="display: flex; justify-content: flex-start; text-align: left; width: 100%;"><span
-                                style="font-size:1.2em; margin-right: 6px;">📋</span>プロジェクトファイル名</div>
+                            style="display: flex; justify-content: flex-start; text-align: left; width: 100%;">
+                            <svg class="section-icon" viewBox="0 0 24 24"><path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z" /></svg>
+                            プロジェクトファイル名</div>
                         <div id="project-name-display" class="project-name">新規プロジェクト</div>
                     </div>
                     <!-- キャリブレーション方法（最上位） -->
@@ -55,186 +56,90 @@
                                     <option value="vicon-xcp-triangulation" hidden>Vicon XCP（三角測量）</option>
                                 </optgroup>
                             </select>
-
+                            <!-- 撮影設定バッジ -->
+                            <div class="shooting-badge">
+                                <div class="shooting-badge-item" onclick="this.querySelector('select').focus();">
+                                    <span class="shooting-badge-label">カメラ</span>
+                                    <select id="camera-type-badge" class="shooting-badge-select" onchange="var f=document.getElementById('fps');f.value=this.value==='highspeed'?240:30;f.dispatchEvent(new Event('change',{bubbles:true}));">
+                                        <option value="normal">通常カメラ</option>
+                                        <option value="highspeed">ハイスピードカメラ</option>
+                                    </select>
+                                </div>
+                                <div class="shooting-badge-item" onclick="this.querySelector('input').focus();">
+                                    <span class="shooting-badge-label">FPS</span>
+                                    <input type="number" id="fps" value="30" min="1" max="1000" step="0.1" class="shooting-badge-input">
+                                </div>
+                            </div>
                         </div>
                     </div>
                     <!-- モード選択 -->
-                    <div class="section">
-                        <div class="section-header">
-                            <svg class="section-icon" viewBox="0 0 24 24">
-                                <path
-                                    d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-                            </svg>
-                            モード選択
-                        </div>
-                        <div class="option-group">
-                            <div class="option">
-                                <input type="radio" id="calibration" name="mode" value="calibration"
-                                    class="option-input">
-                                <label for="calibration" class="option-label">
-                                    <div class="option-indicator"></div>
-                                    キャリブレーション
-                                </label>
-                            </div>
-                            <div class="option">
+                    <div class="section" style="margin-bottom: 2px !important;">
+                        <div class="section-header">モード選択</div>
+                        <div class="mode-cam-row">
+                            <div class="toggle-group">
+                                <input type="radio" id="calibration" name="mode" value="calibration" class="option-input" checked>
+                                <label for="calibration" class="toggle-btn">キャリブレーション</label>
                                 <input type="radio" id="motion" name="mode" value="motion" class="option-input">
-                                <label for="motion" class="option-label">
-                                    <div class="option-indicator"></div>
-                                    モーション
-                                </label>
+                                <label for="motion" class="toggle-btn">モーション</label>
                             </div>
                         </div>
                     </div>
                     <!-- カメラ選択 -->
-                    <div class="section" id="camera-select-section">
-                        <div class="section-header"><span style="font-size:1.2em;">🎥</span> カメラ選択</div>
-                        <div class="option-group">
-                            <div class="option">
-                                <input type="radio" id="camera1" name="camera" value="cam1" class="option-input">
-                                <label for="camera1" class="option-label">
-                                    <div class="option-indicator"></div>
-                                    <div class="option-text">カメラ1</div>
-                                </label>
-                            </div>
-                            <div class="option">
+                    <div class="section" id="camera-select-section" style="margin-bottom: 2px !important;">
+                        <div class="section-header">カメラ選択</div>
+                        <div class="mode-cam-row">
+                            <div class="cam-num-group">
+                                <input type="radio" id="camera1" name="camera" value="cam1" class="option-input" checked>
+                                <label for="camera1" class="cam-num-btn"><span>1</span><span class="cam-dot" id="cam1-dot"></span></label>
                                 <input type="radio" id="camera2" name="camera" value="cam2" class="option-input">
-                                <label for="camera2" class="option-label">
-                                    <div class="option-indicator"></div>
-                                    <div class="option-text">カメラ2</div>
-                                </label>
+                                <label for="camera2" class="cam-num-btn"><span>2</span><span class="cam-dot" id="cam2-dot"></span></label>
+                                <input type="radio" id="camera3" name="camera" value="cam3" class="option-input" disabled>
+                                <label for="camera3" class="cam-num-btn disabled"><span>3</span><span class="cam-dot" id="cam3-dot"></span></label>
+                                <input type="radio" id="camera4" name="camera" value="cam4" class="option-input" disabled>
+                                <label for="camera4" class="cam-num-btn disabled"><span>4</span><span class="cam-dot" id="cam4-dot"></span></label>
                             </div>
+                            <select id="camera-count-select" class="cam-count-select" title="使用カメラ台数">
+                                <option value="1" selected>1台</option>
+                                <option value="2">2台</option>
+                                <option value="3">3台</option>
+                                <option value="4">4台</option>
+                            </select>
                         </div>
                     </div>
-                    <!-- プログレス表示 -->
-                    <div class="section">
-                        <div class="section-header">
-                            <svg class="section-icon" viewBox="0 0 24 24">
-                                <path
-                                    d="M13,9H11V7H13M13,17H11V11H13M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2Z" />
-                            </svg>
-                            進行状況
-                        </div>
-                        <div class="progress-section">
-                            <div class="progress-bar">
-                                <div id="progress-fill" class="progress-fill"></div>
+                    <!-- 動画ファイル情報（選択中のモード+カメラに連動） -->
+                    <div class="section" style="margin-bottom: 2px !important;">
+                        <div class="section-header">動画ファイル情報</div>
+                        <div class="active-file-display file-drop-zone" id="active-file-drop-zone">
+                            <div class="active-file-row" id="active-file-row">
+                                <span class="active-file-badge" id="active-file-badge">キャリブ / Cam1</span>
+                                <span style="flex:1;"></span>
+                                <button class="btn-add" id="active-file-add" onclick="window._addActiveFile();">＋</button>
                             </div>
-                            <div id="progress-text" class="progress-text">0/2 ファイル選択完了</div>
+                            <div class="active-file-list" id="active-file-list-container"></div>
+                            <div class="file-drop-hint">ここにドロップで追加</div>
                         </div>
+                        <!-- 全file-item（非表示、データ保持用） -->
+                        <div style="display:none;">
+                            <div id="cal-cam1" class="file-item"><div class="file-list" id="cal-cam1-list"></div><div class="file-info"><div class="file-name">未選択</div><div class="file-path"></div></div></div>
+                            <div id="cal-cam2" class="file-item"><div class="file-list" id="cal-cam2-list"></div><div class="file-info"><div class="file-name">未選択</div><div class="file-path"></div></div></div>
+                            <div id="motion-cam1" class="file-item"><div class="file-list" id="motion-cam1-list"></div><div class="file-info"><div class="file-name">未選択</div><div class="file-path"></div></div></div>
+                            <div id="motion-cam2" class="file-item"><div class="file-list" id="motion-cam2-list"></div><div class="file-info"><div class="file-name">未選択</div><div class="file-path"></div></div></div>
+                        </div>
+                        <!-- プログレス（非表示、ID保持用） -->
+                        <div style="display:none;"><div id="progress-fill"></div><div id="progress-text"></div></div>
                     </div>
-                    <!-- ファイル選択ワークフロー -->
-                    <div class="section">
-                        <div class="section-header">
-                            <svg class="section-icon" viewBox="0 0 24 24">
-                                <path
-                                    d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z" />
-                            </svg>
-                            ファイル選択
-                        </div>
-                        <div class="file-manager">
-                            <div id="step-1" class="workflow-step active">
-                                <div class="step-header">
-                                    <div class="step-title">
-                                        <div class="step-number">1</div>
-                                        キャリブレーション動画
-                                    </div>
-                                    <div class="step-status">選択中</div>
-                                </div>
-                                <div class="step-content">
-                                    <div id="cal-cam1" class="file-item">
-                                        <div class="file-header"
-                                            style="display: flex; justify-content: space-between; align-items: center;">
-                                            <div class="file-label">カメラ1</div>
-                                            <button class="btn btn-tiny" onclick="selectFile('cal-cam1');"
-                                                title="ファイル追加" style="min-width: 30px;">＋</button>
-                                        </div>
-                                        <div class="file-list" id="cal-cam1-list"></div>
-                                        <div class="file-info">
-                                            <div class="file-name">ファイル未選択</div>
-                                            <div class="file-path">クリックして選択</div>
-                                        </div>
-                                    </div>
-                                    <div id="cal-cam2" class="file-item" style="display: none;">
-                                        <div class="file-header"
-                                            style="display: flex; justify-content: space-between; align-items: center;">
-                                            <div class="file-label">カメラ2</div>
-                                            <button class="btn btn-tiny" onclick="selectFile('cal-cam2');"
-                                                title="ファイル追加" style="min-width: 30px;">＋</button>
-                                        </div>
-                                        <div class="file-list" id="cal-cam2-list"></div>
-                                        <div class="file-info">
-                                            <div class="file-name">ファイル未選択</div>
-                                            <div class="file-path">クリックして選択</div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div id="step-2" class="workflow-step disabled">
-                                <div class="step-header">
-                                    <div class="step-title">
-                                        <div class="step-number">2</div>
-                                        モーション動画
-                                    </div>
-                                    <div class="step-status">待機中</div>
-                                </div>
-                                <div class="step-content">
-                                    <div id="motion-cam1" class="file-item">
-                                        <div class="file-header"
-                                            style="display: flex; justify-content: space-between; align-items: center;">
-                                            <div class="file-label">カメラ1</div>
-                                            <button class="btn btn-tiny" onclick="selectFile('motion-cam1');"
-                                                title="ファイル追加" style="min-width: 30px;">＋</button>
-                                        </div>
-                                        <div class="file-list" id="motion-cam1-list"></div>
-                                        <div class="file-info">
-                                            <div class="file-name">ファイル未選択</div>
-                                            <div class="file-path">クリックして選択</div>
-                                        </div>
-                                    </div>
-                                    <div id="motion-cam2" class="file-item" style="display: none;">
-                                        <div class="file-header"
-                                            style="display: flex; justify-content: space-between; align-items: center;">
-                                            <div class="file-label">カメラ2</div>
-                                            <button class="btn btn-tiny" onclick="selectFile('motion-cam2');"
-                                                title="ファイル追加" style="min-width: 30px;">＋</button>
-                                        </div>
-                                        <div class="file-list" id="motion-cam2-list"></div>
-                                        <div class="file-info">
-                                            <div class="file-name">ファイル未選択</div>
-                                            <div class="file-path">クリックして選択</div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                        </div>
-                    </div>
-                    <!-- 解析設定 -->
-                    <div class="section">
-                        <div class="section-header">
-                            <svg class="section-icon" viewBox="0 0 24 24">
-                                <path
-                                    d="M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.34 19.43,11.03L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.96 19.05,5.05L16.56,6.05C16.04,5.66 15.5,5.32 14.87,5.07L14.5,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.5,2.42L9.13,5.07C8.5,5.32 7.96,5.66 7.44,6.05L4.95,5.05C4.73,4.96 4.46,5.05 4.34,5.27L2.34,8.73C2.22,8.95 2.27,9.22 2.46,9.37L4.57,11.03C4.53,11.34 4.5,11.67 4.5,12C4.5,12.33 4.53,12.65 4.57,12.97L2.46,14.63C2.27,14.78 2.22,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.03 4.95,18.95L7.44,17.94C7.96,18.34 8.5,18.68 9.13,18.93L9.5,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.5,21.58L14.87,18.93C15.5,18.68 16.04,18.34 16.56,17.94L19.05,18.95C19.27,19.03 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.97Z" />
-                            </svg>
-                            解析設定
-                        </div>
-                        <div class="settings-section">
-                            <div class="settings-group">
-                                <div class="settings-label">FPS設定</div>
-                                <input type="number" id="fps" value="30" min="1" max="120" step="0.1"
-                                    class="input-field">
-                            </div>
-                        </div>
-                    </div>
+                    <!-- FPS設定は キャリブレーション方法セクション内のバッジに移動 -->
                     <!-- 表示設定 -->
                     <!-- 表示・動作設定 -->
-                    <div class="section">
-                        <div class="section-header">
+                    <details class="section section-collapsible" open>
+                        <summary class="section-header">
                             <svg class="section-icon" viewBox="0 0 24 24">
                                 <path
                                     d="M12,9A3,3 0 0,0 9,12A3,3 0 0,0 12,15A3,3 0 0,0 15,12A3,3 0 0,0 12,9M12,17A5,5 0 0,1 7,12A5,5 0 0,1 12,7A5,5 0 0,1 17,12A5,5 0 0,1 12,17M12,4.5C7,4.5 2.73,7.61 1,12C2.73,16.39 7,19.5 12,19.5C17,19.5 21.27,16.39 23,12C21.27,7.61 17,4.5 12,4.5Z" />
                             </svg>
                             表示・動作設定
-                        </div>
+                            <span class="section-chevron"></span>
+                        </summary>
                         <div class="settings-section compact-settings">
                             <!-- Row 1: Point Name & Size -->
                             <div class="setting-row">
@@ -275,9 +180,9 @@
                                 </div>
                             </div>
                         </div>
-                    </div>
+                    </details>
 
-                    <!-- 開発・テスト（ChArUcoキャリブレーション設定） -->
+                    <!-- ChArUcoキャリブレーション -->
                     <div class="section" id="charuco-calibration-section">
                         <div class="section-header">
                             <svg class="section-icon" viewBox="0 0 24 24">
@@ -285,32 +190,36 @@
                             </svg>
                             ChArUcoキャリブレーション
                         </div>
-                        <div class="action-section">
-                            <div class="action-group" style="margin-bottom:8px;">
-                                <div style="font-weight:600;margin-bottom:4px;">ChArUcoボード設定</div>
-                                <div style="display:flex;gap:8px;align-items:center;">
-                                    <label>縦数:
-                                        <input type="number" id="charuco-rows" value="5" min="2" max="20"
-                                            style="width:40px;">
-                                    </label>
-                                    <label>横数:
-                                        <input type="number" id="charuco-cols" value="7" min="2" max="20"
-                                            style="width:40px;">
-                                    </label>
-                                </div>
-                                <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-                                    <label>チェッカーサイズ[mm]:
-                                        <input type="number" id="charuco-square-mm" value="165" min="1" max="200"
-                                            step="0.1" style="width:90px;">
-                                    </label>
-                                    <label>マーカーサイズ[mm]:
-                                        <input type="number" id="charuco-marker-mm" value="123" min="1" max="200"
-                                            step="0.1" style="width:90px;">
-                                    </label>
-                                </div>
-                                <div style="margin-top:5px;">
-                                    <label>マーカー辞書:
-                                        <select id="charuco-dictionary" style="width:120px;">
+                        <div class="charuco-workflow">
+                            <!-- Step 1: ボード設定 -->
+                            <details class="cc-step" data-step="1" open>
+                                <summary class="cc-step-head">
+                                    <span class="cc-step-num">1</span>
+                                    <span class="cc-step-title">ボード設定</span>
+                                    <span class="cc-step-chevron"></span>
+                                </summary>
+                                <div class="cc-step-body">
+                                    <div class="cc-field-grid cc-field-grid-4">
+                                        <label class="cc-field">
+                                            <span class="cc-field-label">縦</span>
+                                            <input type="number" id="charuco-rows" value="5" min="2" max="20">
+                                        </label>
+                                        <label class="cc-field">
+                                            <span class="cc-field-label">横</span>
+                                            <input type="number" id="charuco-cols" value="7" min="2" max="20">
+                                        </label>
+                                        <label class="cc-field">
+                                            <span class="cc-field-label">Check mm</span>
+                                            <input type="number" id="charuco-square-mm" value="165" min="1" max="200" step="0.1">
+                                        </label>
+                                        <label class="cc-field">
+                                            <span class="cc-field-label">Mark mm</span>
+                                            <input type="number" id="charuco-marker-mm" value="123" min="1" max="200" step="0.1">
+                                        </label>
+                                    </div>
+                                    <label class="cc-field cc-field-full">
+                                        <span class="cc-field-label">マーカー辞書</span>
+                                        <select id="charuco-dictionary">
                                             <option value="DICT_4X4_50" selected>DICT_4X4</option>
                                             <option value="DICT_5X5_50">DICT_5X5</option>
                                             <option value="DICT_6X6_50">DICT_6X6</option>
@@ -318,44 +227,86 @@
                                         </select>
                                     </label>
                                 </div>
-                            </div>
-                            <div class="action-group">
-                                <button onclick="detectCharucoBoard()"
-                                    class="action-button secondary">自動ChArUcoボード検出</button>
-                            </div>
-                            <div class="charuco-results" style="font-size:0.85em; line-height:1.4; color:#555;">
-                                <div id="charuco-detect-single">
-                                    <span>マーカー数: <b id="charuco-markers">-</b></span>
-                                    <span style="margin-left:8px;">検出コーナー数: <b id="charuco-corners">-</b></span>
+                            </details>
+
+                            <!-- Step 2: 検出テスト -->
+                            <details class="cc-step" data-step="2" open>
+                                <summary class="cc-step-head">
+                                    <span class="cc-step-num">2</span>
+                                    <span class="cc-step-title">検出テスト</span>
+                                    <span class="cc-step-chevron"></span>
+                                </summary>
+                                <div class="cc-step-body">
+                                    <button onclick="detectCharucoBoard()" class="cc-btn cc-btn-ghost cc-btn-block">
+                                        <span class="material-symbols-outlined">search</span>
+                                        現在フレームで検出
+                                    </button>
+                                    <div class="cc-detect-panel">
+                                        <div id="charuco-detect-single" class="cc-detect-single">
+                                            <div class="cc-detect-chip">
+                                                <span class="cc-detect-chip-label">マーカー</span>
+                                                <b id="charuco-markers">-</b>
+                                            </div>
+                                            <div class="cc-detect-chip">
+                                                <span class="cc-detect-chip-label">コーナー</span>
+                                                <b id="charuco-corners">-</b>
+                                            </div>
+                                        </div>
+                                        <div id="charuco-detect-stereo" class="cc-detect-stereo" style="display:none;">
+                                            <div class="cc-detect-cam">
+                                                <span class="cc-detect-cam-label">Cam1</span>
+                                                <span class="cc-detect-chip"><span class="cc-detect-chip-label">マーカー</span><b id="charuco-markers-cam1">-</b></span>
+                                                <span class="cc-detect-chip"><span class="cc-detect-chip-label">コーナー</span><b id="charuco-corners-cam1">-</b></span>
+                                            </div>
+                                            <div class="cc-detect-cam">
+                                                <span class="cc-detect-cam-label">Cam2</span>
+                                                <span class="cc-detect-chip"><span class="cc-detect-chip-label">マーカー</span><b id="charuco-markers-cam2">-</b></span>
+                                                <span class="cc-detect-chip"><span class="cc-detect-chip-label">コーナー</span><b id="charuco-corners-cam2">-</b></span>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div id="charuco-detect-stereo" style="display:none;">
-                                    <div>Cam1: マーカー<b id="charuco-markers-cam1">-</b> / コーナー<b
-                                            id="charuco-corners-cam1">-</b></div>
-                                    <div>Cam2: マーカー<b id="charuco-markers-cam2">-</b> / コーナー<b
-                                            id="charuco-corners-cam2">-</b></div>
+                            </details>
+
+                            <!-- Step 3: サンプル収集 & 実行 -->
+                            <details class="cc-step" data-step="3" open>
+                                <summary class="cc-step-head">
+                                    <span class="cc-step-num">3</span>
+                                    <span class="cc-step-title">収集と実行</span>
+                                    <span class="cc-step-chevron"></span>
+                                </summary>
+                                <div class="cc-step-body">
+                                    <div class="cc-action-row">
+                                        <button id="calib-session-btn" onclick="calibration.toggleSession()"
+                                            class="cc-btn cc-btn-primary">セッション開始</button>
+                                        <button onclick="calibration.capture()" class="cc-btn cc-btn-ghost">
+                                            <span class="material-symbols-outlined">add_photo_alternate</span>
+                                            フレーム追加
+                                        </button>
+                                    </div>
+                                    <button onclick="calibration.compute()" class="cc-btn cc-btn-accent cc-btn-block">
+                                        <span class="material-symbols-outlined">play_arrow</span>
+                                        キャリブレーション実行
+                                    </button>
+                                    <div class="cc-status-row">
+                                        <span class="cc-status-dot" id="cc-status-dot"></span>
+                                        <span id="calibration-inline-status" class="cc-status-text">待機中</span>
+                                    </div>
+                                    <!-- ボード選択（charuco-singleモード用） -->
+                                    <div id="charuco-single-board-select" class="cc-board-select" style="display:none;">
+                                        <label class="cc-field cc-field-full">
+                                            <span class="cc-field-label">分析時のボード選択</span>
+                                            <select id="charuco-board-select">
+                                                <option value="">-- ボードを選択 --</option>
+                                            </select>
+                                        </label>
+                                        <button id="show-selected-board-frame" class="cc-btn cc-btn-ghost cc-btn-small" style="display:none;">
+                                            <span class="material-symbols-outlined">visibility</span>
+                                            選択フレームを表示
+                                        </button>
+                                    </div>
                                 </div>
-                            </div>
-                            <div class="action-group" style="margin-top:8px;">
-                                <button id="calib-session-btn" onclick="calibration.toggleSession()"
-                                    class="action-button primary">セッション開始</button>
-                                <button onclick="calibration.capture()"
-                                    class="action-button secondary">現在フレームを追加</button>
-                                <button onclick="calibration.compute()"
-                                    class="action-button secondary">キャリブレーション実行</button>
-                            </div>
-                            <p id="calibration-inline-status" style="margin-top:6px;color:#555;">待機中</p>
-                            <!-- ボード選択（charuco-singleモード用） -->
-                            <div id="charuco-single-board-select" style="display:none; margin-top:12px;">
-                                <label style="font-size:12px; color:#666;">分析時のボード選択:</label>
-                                <select id="charuco-board-select" class="method-select"
-                                    style="width:100%; margin-top:4px;">
-                                    <option value="">-- ボードを選択 --</option>
-                                </select>
-                                <button id="show-selected-board-frame" class="btn btn-small"
-                                    style="margin-top:8px; display:none;">
-                                    選択したボードのフレームを表示
-                                </button>
-                            </div>
+                            </details>
                         </div>
                     </div>
 
@@ -962,9 +913,6 @@
                                 <!-- アクションボタン -->
                                 <div class="action-group"
                                     style="margin-bottom:12px; display:flex; gap:8px; flex-wrap:wrap;">
-                                    <button onclick="show3DCalibrationView()" class="btn btn-secondary">
-                                        <span class="material-symbols-outlined">3d_rotation</span> 3D表示
-                                    </button>
                                     <button onclick="loadStereoCalibration()" class="btn btn-secondary">
                                         <span class="material-symbols-outlined">folder_open</span> ステレオパラメータ読み込み
                                     </button>
@@ -973,9 +921,16 @@
                                     </button>
                                 </div>
 
+                                <!-- 誤差グラフ（アクションボタンと品質カードの間に配置） -->
+                                <div id="real-length-error-chart" style="width:100%; height:250px; margin-bottom:12px;"></div>
+                                <div id="stereo-error-chart" style="width:100%; height:180px; margin-bottom:12px;"></div>
+
                                 <!-- 品質サマリーカード -->
                                 <div id="stereo-quality-card" class="calib-quality-card">
                                     <div class="calib-quality-header">
+                                        <button onclick="show3DCalibrationView()" class="btn btn-secondary" style="padding:2px 10px; font-size:0.85em; margin-right:8px;">
+                                            <span class="material-symbols-outlined" style="font-size:16px; vertical-align:middle;">3d_rotation</span> 3D表示
+                                        </button>
                                         <span class="material-symbols-outlined calib-quality-icon" id="stereo-quality-icon">help_outline</span>
                                         <div class="calib-quality-title-block">
                                             <div class="calib-quality-title">ステレオキャリブレーション品質</div>
@@ -1088,22 +1043,16 @@
                                         <span id="stereo-T" style="display:none"></span>
                                     </div>
                                 </div>
-
-                                <!-- 実長換算誤差グラフ（Plotly） -->
-                                <div id="real-length-error-chart" style="width:100%; height:250px; margin-top:12px;"></div>
-                                <!-- ステレオ誤差グラフ（Plotly） -->
-                                <div id="stereo-error-chart" style="width:100%; height:180px; margin-top:12px;"></div>
                             </div>
 
-                            <div id="charuco-tables">
-                                <div class="charuco-table-block">
-                                    <h4>Cam1</h4>
-                                    <!-- ChArUcoキャリブレーション操作ボタン -->
+                            <div id="charuco-tables" class="cc-cam-grid">
+                                <div class="charuco-table-block cc-cam-card">
+                                    <header class="cc-cam-head">
+                                        <span class="cc-cam-icon material-symbols-outlined">photo_camera</span>
+                                        <h4 class="cc-cam-title">Cam1</h4>
+                                    </header>
                                     <div class="action-group"
-                                        style="margin-bottom:12px; display:flex; gap:8px; flex-wrap:wrap;">
-                                        <button onclick="show3DCalibrationViewCam1()" class="btn btn-secondary">
-                                            <span class="material-symbols-outlined">3d_rotation</span> 3D表示
-                                        </button>
+                                        style="margin:12px; display:flex; gap:8px; flex-wrap:wrap;">
                                         <button onclick="loadCharucoCalibrationCam1()" class="btn btn-secondary">
                                             <span class="material-symbols-outlined">folder_open</span> カメラパラメータ読み込み
                                         </button>
@@ -1154,14 +1103,13 @@
                                         <div id="charuco-error-chart-cam1" style="width:100%; height:220px;"></div>
                                     </div>
                                 </div>
-                                <div class="charuco-table-block" id="charuco-cam2-block" style="display:none;">
-                                    <h4>Cam2</h4>
-                                    <!-- ChArUcoキャリブレーション操作ボタン（Cam2用） -->
+                                <div class="charuco-table-block cc-cam-card" id="charuco-cam2-block" style="display:none;">
+                                    <header class="cc-cam-head">
+                                        <span class="cc-cam-icon material-symbols-outlined">photo_camera</span>
+                                        <h4 class="cc-cam-title">Cam2</h4>
+                                    </header>
                                     <div class="action-group"
-                                        style="margin-bottom:12px; display:flex; gap:8px; flex-wrap:wrap;">
-                                        <button onclick="show3DCalibrationViewCam2()" class="btn btn-secondary">
-                                            <span class="material-symbols-outlined">3d_rotation</span> 3D表示
-                                        </button>
+                                        style="margin:12px; display:flex; gap:8px; flex-wrap:wrap;">
                                         <button onclick="loadCharucoCalibrationCam2()" class="btn btn-secondary">
                                             <span class="material-symbols-outlined">folder_open</span> カメラパラメータ読み込み
                                         </button>
@@ -1204,6 +1152,9 @@
                             <!-- 品質サマリーカード -->
                             <div id="calib-quality-card" class="calib-quality-card">
                                 <div class="calib-quality-header">
+                                    <button onclick="show3DCalibrationViewCam1()" class="btn btn-secondary" style="padding:2px 10px; font-size:0.85em; margin-right:8px;">
+                                        <span class="material-symbols-outlined" style="font-size:16px; vertical-align:middle;">3d_rotation</span> 3D表示
+                                    </button>
                                     <span class="material-symbols-outlined calib-quality-icon" id="calib-quality-icon">help_outline</span>
                                     <div class="calib-quality-title-block">
                                         <div class="calib-quality-title">キャリブレーション品質</div>

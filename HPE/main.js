@@ -3,13 +3,17 @@ const path = require('path');
 const { spawn, execFile } = require('child_process');
 const fs = require('fs');
 const readline = require('readline');
+const {
+  buildMacAppMenu, buildQuitMenuItem,
+  getIconPath, isDev: getIsDev,
+  getFilePathFromArgs, suppressChromiumLogs
+} = require(app.isPackaged ? './shared/electron-utils' : '../shared/electron-utils');
 
 // アプリ名を設定（メニューバー・Dockに反映）
 app.setName('HPE');
 
-// DevToolsの内部エラーログを抑制
-app.commandLine.appendSwitch('disable-features', 'Autofill');
-app.commandLine.appendSwitch('log-level', '3');  // ERROR レベル以上のみ表示
+// Chromium 内部の不要ログを抑制
+suppressChromiumLogs();
 
 let mainWindow;
 let pythonProcess = null;
@@ -37,7 +41,7 @@ function writeLog(message) {
 }
 
 // 開発モードかどうか
-const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
+const isDev = getIsDev();
 
 // リソースのベースパスを取得
 function getResourcesPath() {
@@ -293,6 +297,20 @@ function sendToPython(action, data, onProgress = null, onInit = null) {
   });
 }
 
+// 保存確認ダイアログ（統一形式）
+async function showSaveConfirmDialog(win, message = 'プロジェクトを保存しますか？') {
+  const result = await dialog.showMessageBox(win, {
+    type: 'question',
+    buttons: ['保存', '保存しない', 'キャンセル'],
+    defaultId: 0,
+    cancelId: 2,
+    title: '保存確認',
+    message: message,
+    noLink: true,
+  });
+  return ['save', 'discard', 'cancel'][result.response];
+}
+
 // Pythonプロセスを停止
 function stopPythonProcess() {
   if (pythonProcess) {
@@ -305,6 +323,41 @@ function stopPythonProcess() {
 
     pythonProcess = null;
     pythonReady = false;
+  }
+}
+
+// 一時キャッシュを削除
+function cleanupTempFiles() {
+  const os = require('os');
+  const tmpDir = os.tmpdir();
+
+  try {
+    const entries = fs.readdirSync(tmpDir);
+    for (const entry of entries) {
+      // HPE が作成した一時ファイル/ディレクトリのみ削除
+      if (entry.startsWith('hpe_frames_') || entry.startsWith('hpe_video_') || entry.startsWith('hpe_redet_')) {
+        const fullPath = require('path').join(tmpDir, entry);
+        try {
+          const stat = fs.statSync(fullPath);
+          if (stat.isDirectory()) {
+            fs.rmSync(fullPath, { recursive: true, force: true });
+          } else {
+            fs.unlinkSync(fullPath);
+          }
+          writeLog(`[Cleanup] Removed: ${entry}`);
+        } catch (e) {
+          // 削除失敗は無視（他プロセスが使用中など）
+        }
+      }
+    }
+    // hpe_cache ディレクトリも削除
+    const hpeCacheDir = require('path').join(tmpDir, 'hpe_cache');
+    if (fs.existsSync(hpeCacheDir)) {
+      fs.rmSync(hpeCacheDir, { recursive: true, force: true });
+      writeLog('[Cleanup] Removed: hpe_cache');
+    }
+  } catch (e) {
+    writeLog(`[Cleanup] Error: ${e.message}`);
   }
 }
 
@@ -346,9 +399,7 @@ ipcMain.handle('start-python-if-needed', async () => {
 // メインウィンドウを作成
 function createWindow() {
   // アイコンパスを設定（macOSはPNG、WindowsはICO）
-  const iconPath = process.platform === 'darwin'
-    ? path.join(__dirname, 'HPE.png')
-    : path.join(__dirname, 'HPE.ico');
+  const iconPath = getIconPath(__dirname, 'HPE.png', 'HPE.ico');
 
   mainWindow = new BrowserWindow({
     width: 1400,
@@ -373,38 +424,19 @@ function createWindow() {
     event.preventDefault();
   });
 
-  // ウィンドウを閉じようとした時のイベント（×ボタンなど）
+  // ウィンドウを閉じようとした時のイベント（×ボタン、Cmd+Q、メニュー終了）
   mainWindow.on('close', async (e) => {
-    // 強制終了フラグが立っている場合はそのまま閉じる
-    if (forceQuit) {
-      return;
-    }
-
-    // 通常の閉じる操作（×ボタンなど）はいったんキャンセル
+    if (forceQuit) return;
     e.preventDefault();
 
-    // 保存確認ダイアログを表示
-    const result = await dialog.showMessageBox(mainWindow, {
-      type: 'question',
-      buttons: ['保存して終了', '保存せずに終了', 'キャンセル'],
-      defaultId: 0,
-      cancelId: 2,
-      title: 'プロジェクトの保存確認',
-      message: '保存せずに終了しますか？',
-      noLink: true,
-      icon: path.join(__dirname, 'resources', 'icon.png') // アイコンがあれば設定（オプション）
-    });
-
-    if (result.response === 0) {
-      // 保存して終了（レンダラープロセスに保存を指示）
-      // 保存完了後にレンダラーから quit-app が呼ばれる
+    const choice = await showSaveConfirmDialog(mainWindow);
+    if (choice === 'save') {
       mainWindow.webContents.send('menu-save-and-quit');
-    } else if (result.response === 1) {
-      // 保存せずに終了
+    } else if (choice === 'discard') {
       forceQuit = true;
       app.quit();
     }
-    // キャンセルの場合は何もしない（ウィンドウは開いたまま）
+    // 'cancel' → 何もしない
   });
 
   mainWindow.on('closed', () => {
@@ -514,6 +546,11 @@ ipcMain.handle('python-request-with-progress', async (event, { action, data }) =
 // ===================================
 // 既存のIPCハンドラー
 // ===================================
+// レンダラーから呼べる保存確認ダイアログ
+ipcMain.handle('show-save-confirm', async (event, message) => {
+  return await showSaveConfirmDialog(mainWindow, message || 'プロジェクトを保存しますか？');
+});
+
 ipcMain.handle('select-file', async (event, options) => {
   const result = await dialog.showOpenDialog(mainWindow, {
     properties: ['openFile'],
@@ -702,98 +739,40 @@ ipcMain.handle('write-file', async (event, { filePath, content, binary }) => {
 
 // メニューバーを作成
 function createMenu() {
-  const isMac = process.platform === 'darwin';
-  const template = [];
-
-  // macOS: アプリメニュー（最初に必須）
-  if (isMac) {
-    template.push({
-      label: app.name,
-      submenu: [
-        { role: 'about', label: `${app.name} について` },
-        { type: 'separator' },
-        { role: 'services', label: 'サービス' },
-        { type: 'separator' },
-        { role: 'hide', label: `${app.name} を隠す` },
-        { role: 'hideOthers', label: 'ほかを隠す' },
-        { role: 'unhide', label: 'すべてを表示' },
-        { type: 'separator' },
-        { role: 'quit', label: `${app.name} を終了` }
-      ]
-    });
-  }
-
-  template.push(
+  const template = [
+    ...buildMacAppMenu(),
     {
       label: 'ファイル',
       submenu: [
         {
-          label: '動画読み込み',
+          label: 'プロジェクトを開く...',
           accelerator: 'CmdOrCtrl+O',
-          click: () => {
-            if (mainWindow) {
-              mainWindow.webContents.send('menu-load-video');
-            }
-          }
-        },
-        {
-          label: 'プロジェクトを読み込み',
-          accelerator: 'CmdOrCtrl+Shift+O',
-          click: () => {
-            if (mainWindow) {
-              mainWindow.webContents.send('menu-load-project');
-            }
-          }
+          click: () => { if (mainWindow) mainWindow.webContents.send('menu-load-project'); }
         },
         {
           label: 'プロジェクトを閉じる',
           accelerator: 'CmdOrCtrl+W',
-          click: () => {
-            if (mainWindow) {
-              mainWindow.webContents.send('menu-close-project');
-            }
-          }
+          click: () => { if (mainWindow) mainWindow.webContents.send('menu-close-project'); }
         },
         { type: 'separator' },
         {
           label: '上書き保存',
           accelerator: 'CmdOrCtrl+S',
-          click: () => {
-            if (mainWindow) {
-              mainWindow.webContents.send('menu-save-project');
-            }
-          }
+          click: () => { if (mainWindow) mainWindow.webContents.send('menu-save-project'); }
         },
         {
-          label: '名前を付けて保存',
+          label: '名前を付けて保存...',
           accelerator: 'CmdOrCtrl+Shift+S',
-          click: () => {
-            if (mainWindow) {
-              mainWindow.webContents.send('menu-save-project-as');
-            }
-          }
+          click: () => { if (mainWindow) mainWindow.webContents.send('menu-save-project-as'); }
         },
         { type: 'separator' },
         {
           label: 'バッチ処理...',
           accelerator: 'CmdOrCtrl+B',
-          click: () => {
-            if (mainWindow) {
-              mainWindow.webContents.send('menu-batch-process');
-            }
-          }
+          click: () => { if (mainWindow) mainWindow.webContents.send('menu-batch-process'); }
         },
         { type: 'separator' },
-        // macOSではアプリメニューのrole:'quit'が担うため非表示
-        ...(!isMac ? [{
-          label: '終了',
-          accelerator: 'CmdOrCtrl+Q',
-          click: () => {
-            if (mainWindow) {
-              mainWindow.close();
-            }
-          }
-        }] : [])
+        ...buildQuitMenuItem(() => { if (mainWindow) mainWindow.close(); })
       ]
     },
     {
@@ -857,7 +836,7 @@ function createMenu() {
         }
       ]
     }
-  );
+  ];
 
   const menu = Menu.buildFromTemplate(template);
   Menu.setApplicationMenu(menu);
@@ -865,16 +844,7 @@ function createMenu() {
 
 // 起動引数からファイルパスを取得（--フラグでないもの）
 function getFilePathFromArgv(argv) {
-  // 開発モードだと "electron ." 等で引数がずれる場合があるが、
-  // パッケージ版では executable path が 0 番目、ファイルパスが 1 番目に来ることが多い
-  // Windowsのエクスプローラーから開いた場合、ファイルパスが引数として渡される
-  for (let i = 1; i < argv.length; i++) {
-    const arg = argv[i];
-    if (!arg.startsWith('--') && arg.toLowerCase().endsWith('.hpe')) {
-      return arg;
-    }
-  }
-  return null;
+  return getFilePathFromArgs(argv, '.hpe');
 }
 
 // 単一インスタンスロック
@@ -1007,6 +977,7 @@ app.on('window-all-closed', () => {
 // アプリ終了時
 app.on('quit', () => {
   stopPythonProcess();
+  cleanupTempFiles();
 });
 
 // 予期しない終了時もPythonプロセスを停止

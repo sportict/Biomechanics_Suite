@@ -748,87 +748,38 @@ POST /load-model      <span class="comment"># モデルの明示的ロード</sp
                     <tr><td>推論形式</td><td>ONNX Runtime (CUDA/CPU)</td></tr>
                 </table>
 
-                <h4>HALPE 26点 → 23点マッピング（RTMPoseモード）</h4>
-                <p>RTMPose の HALPE 26点出力から、バイオメカニクス分析に必要な 23 関節を選択・統合する:</p>
+                <h4>HPE 23点キーポイント定義</h4>
+                <p>RTMPose (HALPE 26点) + Hand モデルの出力を統合し、バイオメカニクス分析用の 23 関節を定義:</p>
                 <table class="param-table">
                     <tr>
                         <th>#</th>
-                        <th>関節名</th>
-                        <th>HALPE元ID</th>
+                        <th>内部名</th>
+                        <th>関節名（日本語）</th>
                         <th>備考</th>
                     </tr>
-                    <tr>
-                        <td>0</td>
-                        <td>鼻 (Nose)</td>
-                        <td>0</td>
-                        <td>頭部基準</td>
-                    </tr>
-                    <tr>
-                        <td>1-2</td>
-                        <td>左右目</td>
-                        <td>1, 2</td>
-                        <td>頭部方向の推定</td>
-                    </tr>
-                    <tr>
-                        <td>3-4</td>
-                        <td>左右耳</td>
-                        <td>3, 4</td>
-                        <td>頭部幅の推定</td>
-                    </tr>
-                    <tr>
-                        <td>5-6</td>
-                        <td>左右肩</td>
-                        <td>5, 6</td>
-                        <td>上肢の起点</td>
-                    </tr>
-                    <tr>
-                        <td>7-8</td>
-                        <td>左右肘</td>
-                        <td>7, 8</td>
-                        <td>—</td>
-                    </tr>
-                    <tr>
-                        <td>9-10</td>
-                        <td>左右手首</td>
-                        <td>9, 10</td>
-                        <td>—</td>
-                    </tr>
-                    <tr>
-                        <td>11-12</td>
-                        <td>左右股関節</td>
-                        <td>11, 12</td>
-                        <td>下肢の起点</td>
-                    </tr>
-                    <tr>
-                        <td>13-14</td>
-                        <td>左右膝</td>
-                        <td>13, 14</td>
-                        <td>—</td>
-                    </tr>
-                    <tr>
-                        <td>15-16</td>
-                        <td>左右足首</td>
-                        <td>15, 16</td>
-                        <td>—</td>
-                    </tr>
-                    <tr>
-                        <td>17-18</td>
-                        <td>左右つま先</td>
-                        <td>17, 20 (foot)</td>
-                        <td>大指先端</td>
-                    </tr>
-                    <tr>
-                        <td>19-20</td>
-                        <td>左右かかと</td>
-                        <td>19, 22 (foot)</td>
-                        <td>踵骨後端</td>
-                    </tr>
-                    <tr>
-                        <td>21-22</td>
-                        <td>左右手指先</td>
-                        <td>mid-finger tip</td>
-                        <td>中指先端</td>
-                    </tr>
+                    <tr><td>1</td><td>right_hand_tip</td><td>右手先</td><td>Hand モデル中指MCP / 前腕延長</td></tr>
+                    <tr><td>2</td><td>right_wrist</td><td>右手首</td><td>HALPE #10</td></tr>
+                    <tr><td>3</td><td>right_elbow</td><td>右肘</td><td>HALPE #8</td></tr>
+                    <tr><td>4</td><td>right_shoulder</td><td>右肩</td><td>HALPE #6</td></tr>
+                    <tr><td>5</td><td>left_hand_tip</td><td>左手先</td><td>Hand モデル中指MCP / 前腕延長</td></tr>
+                    <tr><td>6</td><td>left_wrist</td><td>左手首</td><td>HALPE #9</td></tr>
+                    <tr><td>7</td><td>left_elbow</td><td>左肘</td><td>HALPE #7</td></tr>
+                    <tr><td>8</td><td>left_shoulder</td><td>左肩</td><td>HALPE #5</td></tr>
+                    <tr><td>9</td><td>right_toe_tip</td><td>右足先</td><td>HALPE #20 (大趾先端)</td></tr>
+                    <tr><td>10</td><td>right_small_toe</td><td>右小趾</td><td>HALPE #21 (第5中足骨)</td></tr>
+                    <tr><td>11</td><td>right_heel</td><td>右踵</td><td>HALPE #24</td></tr>
+                    <tr><td>12</td><td>right_ankle</td><td>右足首</td><td>HALPE #16</td></tr>
+                    <tr><td>13</td><td>right_knee</td><td>右膝</td><td>HALPE #14</td></tr>
+                    <tr><td>14</td><td>right_hip</td><td>右股関節</td><td>HALPE #12</td></tr>
+                    <tr><td>15</td><td>left_toe_tip</td><td>左足先</td><td>HALPE #17 (大趾先端)</td></tr>
+                    <tr><td>16</td><td>left_small_toe</td><td>左小趾</td><td>HALPE #18 (第5中足骨)</td></tr>
+                    <tr><td>17</td><td>left_heel</td><td>左踵</td><td>HALPE #23</td></tr>
+                    <tr><td>18</td><td>left_ankle</td><td>左足首</td><td>HALPE #15</td></tr>
+                    <tr><td>19</td><td>left_knee</td><td>左膝</td><td>HALPE #13</td></tr>
+                    <tr><td>20</td><td>left_hip</td><td>左股関節</td><td>HALPE #11</td></tr>
+                    <tr><td>21</td><td>head_top</td><td>頭頂</td><td>HALPE #25</td></tr>
+                    <tr><td>22</td><td>tragus_point</td><td>耳珠点</td><td>左右耳の中点 (HALPE #3, #4)</td></tr>
+                    <tr><td>23</td><td>suprasternal_notch</td><td>胸骨上切痕</td><td>左右肩の中点 (HALPE #5, #6)</td></tr>
                 </table>
             </div>
 

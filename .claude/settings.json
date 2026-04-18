@@ -38,7 +38,8 @@
       "Bash(grep -l \"graph\\\\|chart\\\\|グラフ\" /Users/k-murata/pro/Biomechanics_Suite/MotionViewer/src/renderer/*.js)",
       "Bash(rm -f MotionViewer_ROADMAP.md MotionViewer_ROADMAP.html)",
       "Bash(rm -f MotionViewer_ExternalData_Ideas.md MotionViewer_ExternalData_Ideas.html)",
-      "Bash(rm -f SBM_Project_Manager_Spec.md SBM_Project_Manager_Spec.html)"
+      "Bash(rm -f SBM_Project_Manager_Spec.md SBM_Project_Manager_Spec.html)",
+      "Bash(.venv/bin/python -c ' *)"
     ]
   }
 }

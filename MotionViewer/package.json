@@ -7,10 +7,11 @@
     "start": "electron .",
     "dev": "cross-env NODE_ENV=development electron . --dev",
     "prebuild": "npm run clean",
-    "build": "cross-env NODE_ENV=production electron-builder --win --x64",
-    "build:dir": "cross-env NODE_ENV=production electron-builder --win --x64 --dir",
-    "build:portable": "cross-env NODE_ENV=production electron-builder --win portable --x64",
-    "build:mac": "cross-env NODE_ENV=production electron-builder --mac --arm64",
+    "copy-shared": "node -e \"require('fs').cpSync('../shared', 'shared', {recursive: true})\"",
+    "build": "npm run copy-shared && cross-env NODE_ENV=production electron-builder --win --x64",
+    "build:dir": "npm run copy-shared && cross-env NODE_ENV=production electron-builder --win --x64 --dir",
+    "build:portable": "npm run copy-shared && cross-env NODE_ENV=production electron-builder --win portable --x64",
+    "build:mac": "npm run copy-shared && cross-env NODE_ENV=production electron-builder --mac --arm64",
     "postinstall": "electron-builder install-app-deps",
     "clean": "rimraf dist node_modules/.cache"
   },
@@ -43,6 +44,7 @@
     },
     "files": [
       "src/**/*",
+      "shared/**/*",
       "package.json",
       "!src/**/*.map",
       "!**/*.md",
@@ -84,7 +86,7 @@
         "ext": "mvp",
         "name": "MotionViewer Project",
         "description": "MotionViewer Project File",
-        "icon": "build/icon.ico",
+        "icon": "./MViewer.icns",
         "role": "Editor"
       }
     ],

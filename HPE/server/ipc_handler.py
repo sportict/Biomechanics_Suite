@@ -71,12 +71,6 @@ from utils import (
     get_device_info as utils_get_device_info
 )
 
-# ONNX Integration (Deferred)
-ONNXPoseEstimator = None
-check_onnx_models_available = None
-load_onnx_pose_estimator = None
-ONNX_INTEGRATION_AVAILABLE = False # Will be checked in load_model
-
 class LazyLoader:
     def __init__(self, lib_name):
         self.lib_name = lib_name
@@ -335,15 +329,12 @@ def load_model(progress_callback=None, model_type=None, yolo_type=None, progress
             
         return instance
 
-def _get_available_models_list(models_dir: Path, base_list: list) -> list:
-    """base_list に存在するファイルに基づいて rtmpose/vitpose モデルを追加した完全なリストを返す"""
-    result = list(base_list)
+def _get_available_models_list(models_dir: Path) -> list:
+    """Models/ に存在する rtmpose モデルのリストを返す"""
+    result = []
     for name in ('rtmpose-x', 'rtmpose-m'):
-        if (models_dir / f"{name}.onnx").exists() and name not in result:
+        if (models_dir / f"{name}.onnx").exists():
             result.append(name)
-    if (models_dir / "vitpose-h-wholebody" / "vitpose-h-wholebody.onnx").exists():
-        if 'vitpose-h-wholebody' not in result:
-            result.append('vitpose-h-wholebody')
     return result
 
 
@@ -357,28 +348,58 @@ def _load_model_internal(progress_callback=None, model_type=None, yolo_type=None
         else:
             report_progress(p, msg)
 
-    global ONNX_INTEGRATION_AVAILABLE, ONNXPoseEstimator, check_onnx_models_available, load_onnx_pose_estimator
-
     report(progress, message or "初期化中...")
 
     # 遅延ロードとCUDNNパス設定
     ensure_cudnn_paths()
 
     # model_type 未指定時: デバイスに応じてデフォルトプリセットを自動選択
-    # GPU → 高精度 (rtmpose-x + yolo11x), CPU → 高速 (rtmpose-m + yolo11s)
+    #
+    # M5 ベンチマーク結果 (2026-04):
+    #   YOLO: CoreMLはCPUより遅い (パーティション分割+転送コスト) → 全デバイスでCPU実行
+    #     yolo11s CPU: 42ms,  yolox_x CPU: 271ms  → yolo11s が最速
+    #   RTMPose: CoreMLで5倍高速 → mps時はCoreML
+    #     rtmpose-x CoreML: 10ms vs CPU: 52ms
+    #
+    # mps  → rtmpose-x(CoreML) + yolo11s(CPU最速)
+    # cuda → rtmpose-x(CUDA)   + yolo11x(CUDA)
+    # cpu  → rtmpose-m(CPU)    + yolo11s(CPU)
     if model_type is None:
         _auto_device = detect_device()
         _models_dir = PROJECT_ROOT / "Models"
-        if _auto_device == 'cuda' and (_models_dir / 'rtmpose-x.onnx').exists():
+
+        def _pick_yolo(*names):
+            """存在するファイルを先頭から優先して返す。どれもなければ先頭名を返す。"""
+            for n in names:
+                if (_models_dir / n).exists():
+                    return n
+            return names[0]
+
+        if _auto_device in ('cuda', 'mps') and (_models_dir / 'rtmpose-x.onnx').exists():
             model_type = 'rtmpose-x'
             if yolo_type is None:
-                _yolo_x = _models_dir / 'yolo11x.onnx'
-                yolo_type = 'yolo11x.onnx' if _yolo_x.exists() else 'yolo11s.onnx'
+                # YOLO26m を全デバイスで統一（mAP=53.4, M5 CPU 97ms）
+                yolo_type = _pick_yolo('yolo26m.onnx', 'yolo26x.onnx', 'yolo11x.onnx', 'yolo11s.onnx')
         else:
             model_type = 'rtmpose-m'
             if yolo_type is None:
-                yolo_type = 'yolo11s.onnx'
+                yolo_type = _pick_yolo('yolo26m.onnx', 'yolo26s.onnx', 'yolo11s.onnx')
         print(json.dumps({"type": "log", "data": f"[AutoPreset] device={_auto_device} → model={model_type}, yolo={yolo_type}"}), flush=True)
+
+    # mps デバイスで旧来の大型YOLOが明示指定された場合、yolo26m に自動切替
+    # ベンチマーク (M5 CPU): yolox_x 271ms, yolo11x 232ms, yolo26m 97ms
+    _MPS_SLOW_YOLO = {'yolo11x.onnx', 'yolo11l.onnx', 'yolo11m.onnx',
+                      'yolo26x.onnx', 'yolo26l.onnx',
+                      'yolox_x.onnx', 'yolox_m.onnx'}
+    if (yolo_type is not None
+            and Path(yolo_type).name in _MPS_SLOW_YOLO
+            and detect_device() == 'mps'):
+        _models_dir = PROJECT_ROOT / "Models"
+        _better = _pick_yolo('yolo26m.onnx', 'yolo11s.onnx')
+        if (_models_dir / _better).exists() and _better != Path(yolo_type).name:
+            print(json.dumps({"type": "log", "data":
+                f"[AutoSwitch] {Path(yolo_type).name} → {_better} に自動切替"}), flush=True)
+            yolo_type = _better
 
     # ========== RTMPose Branch ==========
     if model_type in ('rtmpose-x', 'rtmpose-m'):
@@ -416,121 +437,29 @@ def _load_model_internal(progress_callback=None, model_type=None, yolo_type=None
 
         report(90, "モデル初期化完了...")
 
-        config.model_loaded = True
-        config.loaded_models = {
-            "vitpose":          vitpose_name,
-            "vitpose_type":     model_type,
-            "available_models": _get_available_models_list(models_dir, ['h', 'b', 'synthpose-base', 'synthpose-huge', 'synthpose-base-onnx', 'synthpose-huge-onnx']),
-            "yolo":             Path(yolo_type).name if yolo_type else "auto",
-            "yolo_model":       Path(yolo_type).name if yolo_type else "auto",
-            "available_yolo":   available_yolo,
-            "device":           current_device,
-            "warnings":         [],
-        }
-
-        report(100, "完了")
-        model_loading_complete.set()
-        return model_instance
-    # ========== End RTMPose Branch ==========
-
-    # ========== ViTPose-H Wholebody (rtmlib) Branch ==========
-    if model_type == 'vitpose-h-wholebody':
-        models_dir = PROJECT_ROOT / "Models"
-        current_device = detect_device()
-
-        report(progress + 10, "ViTPose-H モデルを確認中...")
-        try:
-            from vitpose_rtmlib_estimator import load_vitpose_estimator
-
-            report(progress + 20, f"ViTPose-H モデルをロード中... ({current_device})")
-            model_instance, vitpose_name, actual_device = load_vitpose_estimator(
-                models_dir=models_dir,
-                yolo_type=yolo_type,
-                device=current_device,
-                yolo_size=config.yolo_size,
-                conf_threshold=config.confidence_threshold,
-                log_func=log_debug,
-            )
-            current_device = actual_device
-        except Exception as e:
-            error_msg = str(e)
-            log_debug(f"ViTPose-H load error: {error_msg}")
-            raise RuntimeError(f"ViTPose-H loading failed: {error_msg}")
-
-        available_yolo = []
-        try:
-            yolo_files = list((PROJECT_ROOT / "Models").glob("yolo*.onnx"))
-            available_yolo = [f.name for f in yolo_files]
-            available_yolo.sort()
-        except Exception as e:
-            log_debug(f"Failed to list YOLO models: {e}")
-
-        report(90, "モデル初期化完了...")
-
-        config.model_loaded = True
-        config.loaded_models = {
-            "vitpose":          vitpose_name,
-            "vitpose_type":     model_type,
-            "available_models": _get_available_models_list(models_dir, ['h', 'b', 'synthpose-base', 'synthpose-huge', 'synthpose-base-onnx', 'synthpose-huge-onnx']),
-            "yolo":             Path(yolo_type).name if yolo_type else "auto",
-            "yolo_model":       Path(yolo_type).name if yolo_type else "auto",
-            "available_yolo":   available_yolo,
-            "device":           current_device,
-            "warnings":         [],
-        }
-
-        report(100, "完了")
-        model_loading_complete.set()
-        return model_instance
-    # ========== End ViTPose-H Wholebody Branch ==========
-
-    # ========== SynthPose ONNX Branch ==========
-    synthpose_onnx_size = None
-    if model_type == 'synthpose-base-onnx':
-        synthpose_onnx_size = 'base'
-    elif model_type == 'synthpose-huge-onnx':
-        synthpose_onnx_size = 'huge'
-
-    if synthpose_onnx_size is not None:
-        models_dir = PROJECT_ROOT / "Models"
-        current_device = detect_device()
+        # プロバイダー情報をログ出力（YOLO は意図的に CPU 実行）
         load_warnings = []
-
-        report(progress + 10, f"SynthPose-{synthpose_onnx_size.capitalize()} ONNX モデルを確認中...")
         try:
-            from synthpose_onnx_estimator import load_synthpose_onnx_estimator
-
-            report(progress + 20, f"ONNX モデルをロード中... ({current_device})")
-            model_instance, vitpose_name, actual_device = load_synthpose_onnx_estimator(
-                models_dir=models_dir,
-                model_size=synthpose_onnx_size,
-                yolo_type=yolo_type,
-                device=current_device,
-                yolo_size=config.yolo_size,
-                conf_threshold=config.confidence_threshold,
-                log_func=log_debug,
-            )
-            current_device = actual_device
+            active_providers = model_instance.get_active_providers()
+            yolo_providers = active_providers.get('yolo', [])
+            body_providers = active_providers.get('vitpose', [])
+            log_debug(f"[Info] YOLO providers: {yolo_providers}")
+            log_debug(f"[Info] RTMPose providers: {body_providers}")
+            # M5 ベンチマーク結果: YOLO は CoreML より CPU の方が速い（パーティション分割コスト）
+            # そのため mps 時の YOLO CPU 実行は意図的な最適化であり、警告は不要
+            if current_device == 'cuda' and yolo_providers == ['CPUExecutionProvider']:
+                yolo_model_name = Path(yolo_type).name if yolo_type else "YOLO"
+                warn_msg = f"YOLO 検出器が CPU で動作しています（{yolo_model_name} の CUDA ロードに失敗）。"
+                load_warnings.append(warn_msg)
+                log_debug(f"[Warning] {warn_msg}")
         except Exception as e:
-            error_msg = str(e)
-            log_debug(f"SynthPose ONNX load error: {error_msg}")
-            raise RuntimeError(f"SynthPose ONNX loading failed: {error_msg}")
-
-        available_yolo = []
-        try:
-            yolo_files = list((PROJECT_ROOT / "Models").glob("yolo*.onnx"))
-            available_yolo = [f.name for f in yolo_files]
-            available_yolo.sort()
-        except Exception as e:
-            log_debug(f"Failed to list YOLO models: {e}")
-
-        report(90, "モデル初期化完了...")
+            log_debug(f"[Warning] provider check failed: {e}")
 
         config.model_loaded = True
         config.loaded_models = {
             "vitpose":          vitpose_name,
-            "vitpose_type":     model_type,   # 'synthpose-base-onnx' or 'synthpose-huge-onnx'
-            "available_models": _get_available_models_list(models_dir, ['h', 'b', 'synthpose-base', 'synthpose-huge', 'synthpose-base-onnx', 'synthpose-huge-onnx']),
+            "vitpose_type":     model_type,
+            "available_models": _get_available_models_list(models_dir),
             "yolo":             Path(yolo_type).name if yolo_type else "auto",
             "yolo_model":       Path(yolo_type).name if yolo_type else "auto",
             "available_yolo":   available_yolo,
@@ -541,28 +470,28 @@ def _load_model_internal(progress_callback=None, model_type=None, yolo_type=None
         report(100, "完了")
         model_loading_complete.set()
         return model_instance
-    # ========== End SynthPose ONNX Branch ==========
+    # ========== End RTMPose Branch ==========
 
-    # ========== SynthPose PyTorch Branch ==========
-    synthpose_size = None
-    if model_type == 'synthpose-base':
-        synthpose_size = 'base'
-    elif model_type == 'synthpose-huge':
-        synthpose_size = 'huge'
-
-    if synthpose_size is not None:
+    # ========== SynthPose ONNX Branch ==========
+    # 対応モデル例: 'synthpose-huge-onnx', 'synthpose-base-onnx'
+    #   → Models/synthpose-vitpose-{size}-hf.onnx をロード
+    if isinstance(model_type, str) and model_type.startswith('synthpose-') and model_type.endswith('-onnx'):
         models_dir = PROJECT_ROOT / "Models"
         current_device = detect_device()
-        load_warnings = []
 
-        report(progress + 10, f"SynthPose-{synthpose_size.capitalize()} モデルを確認中...")
+        # 'synthpose-huge-onnx' → size='huge'
+        model_size = model_type[len('synthpose-'):-len('-onnx')]
+        if not model_size:
+            raise ValueError(f"Invalid synthpose model_type: {model_type}")
+
+        report(progress + 10, f"SynthPose-{model_size} モデルを確認中...")
         try:
-            from synthpose_torch_estimator import load_synthpose_estimator
+            from synthpose_onnx_estimator import load_synthpose_onnx_estimator
 
-            report(progress + 20, f"PyTorch モデルをロード中... ({current_device})")
-            model_instance, vitpose_name, actual_device = load_synthpose_estimator(
+            report(progress + 20, f"SynthPose-{model_size} モデルをロード中... ({current_device})")
+            model_instance, vitpose_name, actual_device = load_synthpose_onnx_estimator(
                 models_dir=models_dir,
-                model_size=synthpose_size,
+                model_size=model_size,
                 yolo_type=yolo_type,
                 device=current_device,
                 yolo_size=config.yolo_size,
@@ -575,7 +504,6 @@ def _load_model_internal(progress_callback=None, model_type=None, yolo_type=None
             log_debug(f"SynthPose load error: {error_msg}")
             raise RuntimeError(f"SynthPose loading failed: {error_msg}")
 
-        # YOLOモデルリスト (UI用)
         available_yolo = []
         try:
             yolo_files = list((PROJECT_ROOT / "Models").glob("yolo*.onnx"))
@@ -586,202 +514,40 @@ def _load_model_internal(progress_callback=None, model_type=None, yolo_type=None
 
         report(90, "モデル初期化完了...")
 
+        # プロバイダー情報をログ出力（CoreML使用可否の確認用）
+        load_warnings = []
+        try:
+            active_providers = model_instance.get_active_providers()
+            yolo_providers = active_providers.get('yolo', [])
+            vit_providers  = active_providers.get('vitpose', [])
+            log_debug(f"[Info] YOLO providers: {yolo_providers}")
+            log_debug(f"[Info] SynthPose providers: {vit_providers}")
+            if current_device == 'mps' and vit_providers and 'CoreMLExecutionProvider' not in vit_providers[0]:
+                # ViTPose の transformer op は CoreML が対応しきれずCPUフォールバックする既知の挙動
+                warn_msg = "SynthPose は CoreML ではなく CPU で動作しています（ViTPose op が一部非対応）。"
+                load_warnings.append(warn_msg)
+                log_debug(f"[Warning] {warn_msg}")
+        except Exception as e:
+            log_debug(f"[Warning] provider check failed: {e}")
+
         config.model_loaded = True
         config.loaded_models = {
-            "vitpose":           vitpose_name,
-            "vitpose_type":      model_type,   # 'synthpose-base' or 'synthpose-huge'
-            "available_models":  _get_available_models_list(models_dir, ['h', 'b', 'synthpose-base', 'synthpose-huge', 'synthpose-base-onnx', 'synthpose-huge-onnx']),
-            "yolo":              Path(yolo_type).name if yolo_type else "auto",
-            "yolo_model":        Path(yolo_type).name if yolo_type else "auto",
-            "available_yolo":    available_yolo,
-            "device":            current_device,
-            "warnings":          load_warnings,
+            "vitpose":          vitpose_name,
+            "vitpose_type":     model_type,
+            "available_models": _get_available_models_list(models_dir),
+            "yolo":             Path(yolo_type).name if yolo_type else "auto",
+            "yolo_model":       Path(yolo_type).name if yolo_type else "auto",
+            "available_yolo":   available_yolo,
+            "device":           current_device,
+            "warnings":         load_warnings,
         }
 
         report(100, "完了")
         model_loading_complete.set()
         return model_instance
-    # ========== End SynthPose Branch ==========
+    # ========== End SynthPose ONNX Branch ==========
 
-    if not ONNX_INTEGRATION_AVAILABLE:
-        try:
-            from onnx_vitpose_integration import (
-                ONNXPoseEstimator as _ONNXPoseEstimator,
-                check_onnx_models_available as _check_onnx_models_available,
-                load_onnx_pose_estimator as _load_onnx_pose_estimator
-            )
-            ONNXPoseEstimator = _ONNXPoseEstimator
-            check_onnx_models_available = _check_onnx_models_available
-            load_onnx_pose_estimator = _load_onnx_pose_estimator
-            ONNX_INTEGRATION_AVAILABLE = True
-        except ImportError as e:
-            raise ImportError(f"onnx_vitpose_integration module missing or failed to import: {e}")
-
-
-    models_dir = PROJECT_ROOT / "Models"
-    current_device = detect_device()
-    load_warnings = []
-    
-    report(progress + 10, "ONNXモデルを確認中...")
-    # デバイスに応じて推奨モデルを選択（GPU: ViTPose-H、CPU: ViTPose-B）
-    onnx_available = check_onnx_models_available(models_dir, device=current_device)
-    
-    has_yolo = onnx_available['recommended']['yolo'] is not None
-    has_vitpose = onnx_available['recommended']['vitpose'] is not None
-    
-    if not has_yolo:
-        # Try to find any yolo*.onnx
-        if not onnx_available['yolo']:
-             raise FileNotFoundError("YOLO ONNX model (yolo*.onnx) not found in Models/ directory.")
-    if not has_vitpose:
-        if not onnx_available['vitpose']:
-             raise FileNotFoundError("ViTPose ONNX model (vitpose*.onnx) not found in Models/ directory.")
-        
-    report(progress + 20, f"ONNXモデルをロード中... ({current_device})")
-    
-    yolo_path = (str(models_dir / yolo_type) if yolo_type else onnx_available['recommended']['yolo'])
-    if not yolo_path: # Fallback
-         yolo_path = onnx_available['yolo'][0]
-
-    vitpose_path = onnx_available['recommended']['vitpose']
-    if not vitpose_path: # Fallback
-         vitpose_path = onnx_available['vitpose'][0]
-
-    log_debug(f"ONNX YOLO: {yolo_path}")
-    log_debug(f"ONNX ViTPose: {vitpose_path}")
-
-    yolo_name = Path(yolo_path).name
-
-    # モデルタイプを先に検出（表示名用）
-    vitpose_type_label = 'B'  # default
-    vp_str = vitpose_path.lower()
-    if 'vitpose-h' in vp_str: vitpose_type_label = 'H'
-    elif 'vitpose-l' in vp_str: vitpose_type_label = 'L'
-    elif 'vitpose-s' in vp_str: vitpose_type_label = 'S'
-    elif 'vitpose-g' in vp_str: vitpose_type_label = 'G'
-
-    vitpose_name = "ViTPose (Loading...)"
-
-    try:
-        import time
-        t0 = time.time()
-        model_instance = ONNXPoseEstimator(
-            yolo_onnx_path=yolo_path,
-            vitpose_onnx_path=vitpose_path,
-            device=current_device,
-            yolo_size=config.yolo_size,
-            conf_threshold=config.confidence_threshold,
-            log_func=log_debug
-        )
-        t1 = time.time()
-        log_debug(f"[Profiling] ONNXPoseEstimator initialization took: {t1 - t0:.4f} sec")
-
-        vitpose_name = f"ViTPose-{vitpose_type_label} ONNX"
-        
-        # [Validation] 実際にCUDAが使われているか確認 (ONNX Runtime silent fallback対策)
-        try:
-            active = model_instance.get_active_providers()
-            yolo_prov = active.get('yolo', [])
-            vitpose_prov = active.get('vitpose', [])
-            
-            log_debug(f"Active providers: YOLO={yolo_prov}, ViTPose={vitpose_prov}")
-            
-            if current_device == 'cuda':
-                # CUDAが有効ならリストの先頭にあるはず
-                yolo_cuda_ok = len(yolo_prov) > 0 and 'CUDAExecutionProvider' in yolo_prov[0]
-                vitpose_cuda_ok = len(vitpose_prov) > 0 and 'CUDAExecutionProvider' in vitpose_prov[0]
-                
-                if not yolo_cuda_ok or not vitpose_cuda_ok:
-                    warn_msg = "GPU Requested but running on CPU. Missing correct cuDNN/CUDA DLLs?"
-                    log_debug(f"[WARN] {warn_msg}")
-                    load_warnings.append(warn_msg)
-                    if not yolo_cuda_ok: load_warnings.append(f"YOLO fell back to: {yolo_prov[0]}")
-                    if not vitpose_cuda_ok: load_warnings.append(f"ViTPose fell back to: {vitpose_prov[0]}")
-                    
-                    # UI表示をCPUに強制変更
-                    current_device = 'cpu'
-                    vitpose_name = f"ViTPose-{vitpose_type_label} ONNX (CPU Fallback)"
-        except Exception as check_e:
-            log_debug(f"Provider check failed: {check_e}")
-
-    except Exception as e:
-        error_msg = str(e)
-        log_debug(f"ONNX load error ({current_device}): {error_msg}")
-        load_warnings.append(f"ONNX ({current_device}): {error_msg}")
-        
-        # Fallback to CPU if CUDA failed
-        if current_device == 'cuda':
-            report(progress + 40, "GPUロード失敗、CPUで再試行中...")
-            try:
-                model_instance = ONNXPoseEstimator(
-                    yolo_onnx_path=yolo_path,
-                    vitpose_onnx_path=vitpose_path,
-                    device='cpu',
-                    yolo_size=config.yolo_size,
-                    conf_threshold=config.confidence_threshold,
-                    log_func=log_debug
-                )
-                vitpose_name = f"ViTPose-{vitpose_type_label} ONNX (CPU)"
-                current_device = 'cpu'
-                load_warnings.append("Switched to CPU due to GPU error")
-            except Exception as e2:
-                raise RuntimeError(f"ONNX loading failed (CPU fallback also failed): {e2}")
-        else:
-            raise RuntimeError(f"ONNX loading failed: {e}")
-
-    # モデルタイプをファイル名から推定 (UI互換性のため)
-    v_type = 'b' # default fallback
-    p_str = vitpose_path.lower()
-    if 'vitpose-h' in p_str: v_type = 'h'
-    elif 'vitpose-l' in p_str: v_type = 'l'
-    elif 'vitpose-s' in p_str: v_type = 's'
-    elif 'vitpose-g' in p_str: v_type = 'g'
-
-    # 利用可能なViTPoseモデルタイプを検出
-    available_vitpose_types = []
-    vitpose_check = [
-        ('h', ['vitpose-h-wholebody.onnx', 'vitpose-h-wholebody/vitpose-h-wholebody.onnx']),
-        ('b', ['vitpose-b-wholebody.onnx']),
-    ]
-    for model_type, paths in vitpose_check:
-        for path in paths:
-            if (models_dir / path).exists():
-                available_vitpose_types.append(model_type)
-                break
-
-    # デバイスに応じてソート（GPU: H優先、CPU: B優先）
-    if current_device == 'cuda':
-        type_order = {'h': 0, 'b': 1}
-    else:
-        type_order = {'b': 0, 'h': 1}
-    available_vitpose_types.sort(key=lambda x: type_order.get(x, 99))
-
-    report(90, "モデル初期化完了...")
-
-    # YOLOモデルリストの取得 (UI用)
-    available_yolo = []
-    try:
-        yolo_files = list(models_dir.glob("yolo*.onnx"))
-        available_yolo = [f.name for f in yolo_files]
-        available_yolo.sort()
-    except Exception as e:
-        log_debug(f"Failed to list YOLO models: {e}")
-
-    config.model_loaded = True
-    config.loaded_models = {
-        "vitpose": vitpose_name,
-        "vitpose_type": v_type,
-        "available_models": _get_available_models_list(models_dir, available_vitpose_types),
-        "yolo": yolo_name,
-        "yolo_model": yolo_name,
-        "available_yolo": available_yolo,
-        "device": current_device,
-        "warnings": load_warnings
-    }
-    
-    report(100, "完了")
-    model_loading_complete.set()
-    return model_instance
+    raise ValueError(f"Unsupported model_type: {model_type}")
 
 
 
@@ -1001,25 +767,37 @@ def handle_status(request_id: str, data: Dict):
 
 def handle_detect_image(request_id: str, data: Dict):
     """画像からポーズ推定"""
-    
+
     start_time = time.time()
-    
+
     try:
         file_path = data.get("file_path")
         if not file_path or not os.path.exists(file_path):
             send_response(request_id, "error", {"error": "ファイルが見つかりません"})
             return
-        
+
         # 日本語パスに対応するため、np.fromfileとcv2.imdecodeを使用
         img = cv2.imdecode(np.fromfile(file_path, dtype=np.uint8), cv2.IMREAD_COLOR)
         if img is None:
             send_response(request_id, "error", {"error": "画像の読み込みに失敗しました"})
             return
-        
+
         img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        
+
         model = get_model()
-        frame_keypoints = model.inference(img_rgb)
+
+        # 信頼度閾値の一時変更（フレーム再推定で使用）
+        confidence_threshold = data.get("confidence_threshold")
+        original_threshold = None
+        if confidence_threshold is not None:
+            original_threshold = model.detector.conf_threshold
+            model.detector.conf_threshold = float(confidence_threshold)
+
+        try:
+            frame_keypoints = model.inference(img_rgb)
+        finally:
+            if original_threshold is not None:
+                model.detector.conf_threshold = original_threshold
         
         output_format = data.get("output_format", "23pts")
         _vtype = config.loaded_models.get('vitpose_type', '') if config.loaded_models else ''
@@ -1080,9 +858,28 @@ def handle_detect_frame(request_id: str, data: Dict):
             send_response(request_id, "error", {"error": "ファイルが見つかりません"})
             return
 
+        # Google Drive / 日本語パス対応: 一時パスにコピー
+        _actual_path = file_path
+        _temp_copy = None
+        try:
+            _has_non_ascii = any(ord(c) > 127 for c in file_path)
+            _is_network = any(seg in file_path for seg in ['CloudStorage', 'GoogleDrive', 'OneDrive', 'Dropbox'])
+            if _has_non_ascii or _is_network:
+                _suffix = os.path.splitext(file_path)[1]
+                _fd, _temp_copy = tempfile.mkstemp(prefix="hpe_redet_", suffix=_suffix)
+                os.close(_fd)
+                import shutil
+                shutil.copy2(file_path, _temp_copy)
+                _actual_path = _temp_copy
+        except Exception:
+            _actual_path = file_path
+            _temp_copy = None
+
         # 動画を開いてフレームを取得
-        cap = cv2.VideoCapture(file_path)
+        cap = cv2.VideoCapture(_actual_path)
         if not cap.isOpened():
+            if _temp_copy and os.path.exists(_temp_copy):
+                os.remove(_temp_copy)
             send_response(request_id, "error", {"error": "動画を開けませんでした"})
             return
 
@@ -1090,6 +887,13 @@ def handle_detect_frame(request_id: str, data: Dict):
         cap.set(cv2.CAP_PROP_POS_FRAMES, frame_number - 1)
         ret, frame = cap.read()
         cap.release()
+
+        # 一時ファイルを削除
+        if _temp_copy and os.path.exists(_temp_copy):
+            try:
+                os.remove(_temp_copy)
+            except Exception:
+                pass
 
         if not ret or frame is None:
             send_response(request_id, "error", {"error": f"フレーム {frame_number} の読み込みに失敗しました"})
@@ -1163,6 +967,20 @@ def handle_detect_video(request_id: str, data: Dict):
     """動画からポーズ推定（進捗付き、キャンセル対応）"""
     global current_detection_request_id
 
+    # 受信ログ（フロントエンドのDevToolsコンソールに表示される）
+    log_debug(f"[detect_video] 開始 request_id={request_id[:8]}... file={data.get('file_path','?')}")
+
+    # 既に別のリクエストが実行中の場合はキャンセルして待機
+    if current_detection_request_id is not None and current_detection_request_id != request_id:
+        log_debug(f"[detect_video] 別リクエスト実行中 ({current_detection_request_id[:8]}...) → キャンセル後に続行")
+        cancel_detection_flag.set()
+        import time as _time_mod
+        _wait = 0
+        while current_detection_request_id is not None and _wait < 30:
+            _time_mod.sleep(0.1)
+            _wait += 1
+        log_debug(f"[detect_video] 前リクエスト終了確認 ({_wait * 100}ms待機)")
+
     # キャンセルフラグをリセットし、現在のリクエストIDを記録
     cancel_detection_flag.clear()
     current_detection_request_id = request_id
@@ -1208,8 +1026,31 @@ def handle_detect_video(request_id: str, data: Dict):
             send_response(request_id, "error", {"error": "ファイルが見つかりません"})
             return
 
-        cap = cv2.VideoCapture(file_path)
+        # Google Drive / 日本語パス対応: まず一時パスにコピーしてから開く
+        _actual_path = file_path
+        _temp_copy_path = None
+        try:
+            import unicodedata
+            _has_non_ascii = any(ord(c) > 127 for c in file_path)
+            _is_network_mount = any(seg in file_path for seg in ['CloudStorage', 'GoogleDrive', 'OneDrive', 'Dropbox'])
+            if _has_non_ascii or _is_network_mount:
+                import shutil
+                _suffix = os.path.splitext(file_path)[1]
+                _tmp_fd, _temp_copy_path = tempfile.mkstemp(prefix="hpe_video_", suffix=_suffix)
+                os.close(_tmp_fd)
+                log_debug(f"[detect_video] 日本語/ネットワークパス検出 → 一時ファイルにコピー中...")
+                shutil.copy2(file_path, _temp_copy_path)
+                _actual_path = _temp_copy_path
+                log_debug(f"[detect_video] コピー完了: {_temp_copy_path}")
+        except Exception as _copy_err:
+            log_debug(f"[detect_video] 一時コピー失敗 ({_copy_err})、元パスで続行")
+            _actual_path = file_path
+            _temp_copy_path = None
+
+        cap = cv2.VideoCapture(_actual_path)
         if not cap.isOpened():
+            if _temp_copy_path and os.path.exists(_temp_copy_path):
+                os.remove(_temp_copy_path)
             send_response(request_id, "error", {"error": "動画の読み込みに失敗しました"})
             return
 
@@ -1218,6 +1059,8 @@ def handle_detect_video(request_id: str, data: Dict):
 
         width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+
+        log_debug(f"[detect_video] VideoCapture OK: fps={fps}, total_frames={total_frames}, size={width}x{height}")
 
         frame_output_dir = None
         if extract_frames:
@@ -1230,6 +1073,11 @@ def handle_detect_video(request_id: str, data: Dict):
         })
 
         model = get_model()
+        if model is None:
+            log_debug("[detect_video] モデルのロードに失敗しました。再試行してください。")
+            send_response(request_id, "error", {"error": "モデルが未ロードです。アプリを再起動してください。"})
+            return
+        log_debug(f"[detect_video] モデル取得OK: {type(model).__name__}")
         model.reset()
 
         # モデルロード後に vitpose_type を再判定（モデル未ロード状態で detect_video が呼ばれた場合の修正）
@@ -1274,7 +1122,14 @@ def handle_detect_video(request_id: str, data: Dict):
         all_results = []
         last_keypoints = {}
 
+        # JPEG書き出し用スレッドプール（メインスレッドをブロックしない）
+        from concurrent.futures import ThreadPoolExecutor
+        _jpeg_pool = ThreadPoolExecutor(max_workers=2) if (extract_frames and frame_output_dir) else None
+        _jpeg_futures = []
+        _jpeg_params = [cv2.IMWRITE_JPEG_QUALITY, frame_quality]
+
         frame_idx = 0
+        _first_read_logged = False
         while cap.isOpened():
             # キャンセルチェック
             if cancel_detection_flag.is_set():
@@ -1283,12 +1138,18 @@ def handle_detect_video(request_id: str, data: Dict):
                 break
 
             ret, frame = cap.read()
+            if not _first_read_logged:
+                _first_read_logged = True
+                log_debug(f"[detect_video] 第1フレーム読み取り: ret={ret}, frame={'OK' if frame is not None else 'None'}")
             if not ret:
+                log_debug(f"[detect_video] cap.read() failed at frame_idx={frame_idx} (total={total_frames})")
                 break
 
-            if extract_frames and frame_output_dir:
-                frame_filename = os.path.join(frame_output_dir, f"frame_{frame_idx + 1:05d}.jpg")
-                cv2.imwrite(frame_filename, frame, [cv2.IMWRITE_JPEG_QUALITY, frame_quality])
+            # JPEG書き出し: バックグラウンドスレッドで非同期実行
+            if _jpeg_pool is not None:
+                _fn = os.path.join(frame_output_dir, f"frame_{frame_idx + 1:05d}.jpg")
+                # frame をコピーしてスレッドに渡す（cap.read() が上書きする可能性）
+                _jpeg_futures.append(_jpeg_pool.submit(cv2.imwrite, _fn, frame.copy(), _jpeg_params))
 
             if frame_skip <= 1 or frame_idx % frame_skip == 0:
                 img_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
@@ -1296,27 +1157,20 @@ def handle_detect_video(request_id: str, data: Dict):
 
                 converted_data = {}
                 for person_id, pdata in frame_results.items():
-                    # 新しい形式: {'keypoints': kpts, 'bbox': bbox}
                     if isinstance(pdata, dict) and 'keypoints' in pdata:
-                        kpts = pdata['keypoints']
-                        bbox = pdata.get('bbox')
-                        kpts_out = convert_kpts(kpts)
+                        kpts_out = convert_kpts(pdata['keypoints'])
                         converted_data[str(person_id)] = {
                             'keypoints': kpts_out,
-                            'bbox': bbox
+                            'bbox': pdata.get('bbox')
                         }
-                    # 古い形式互換 (numpy arrayのみ)
                     else:
-                        kpts = pdata
-                        kpts_out = convert_kpts(kpts)
-                        converted_data[str(person_id)] = kpts_out
+                        converted_data[str(person_id)] = convert_kpts(pdata)
 
                 stable_keypoints = norfair_tracker.track(converted_data)
                 last_keypoints = stable_keypoints
 
                 frame_result = {
                     "frame": frame_idx + 1,
-                    # stable_keypointsは常に {id: kpts_array} 形式で返される
                     "keypoints": {pid: kpts.tolist() for pid, kpts in stable_keypoints.items()}
                 }
             else:
@@ -1333,17 +1187,32 @@ def handle_detect_video(request_id: str, data: Dict):
 
         cap.release()
 
+        # JPEG書き出し完了を待機
+        if _jpeg_pool is not None:
+            _jpeg_pool.shutdown(wait=True)
+
+        # 一時コピーファイルを削除
+        if _temp_copy_path and os.path.exists(_temp_copy_path):
+            try:
+                os.remove(_temp_copy_path)
+            except Exception:
+                pass
+
+        log_debug(f"[detect_video] フレームループ完了: frame_idx={frame_idx}, all_results={len(all_results)}, cancelled={was_cancelled}")
+
         # 推定直後にID統合を実行（断片化したIDを統合）
         id_mapping = {}
         if len(all_results) > 0 and not was_cancelled:
             try:
                 from filtering import consolidate_person_ids
                 max_gap_frames = int(fps * 2.0)  # 2秒分のギャップまで統合
-                distance_threshold = 150.0  # 150px以内なら同一人物
+                # 解像度に応じた距離閾値（画像対角線の15%）
+                _diag = (width**2 + height**2) ** 0.5
+                distance_threshold = _diag * 0.15
                 all_results, id_mapping = consolidate_person_ids(
                     all_results,
                     max_gap_frames=max_gap_frames,
-                    distance_threshold=distance_threshold
+                    distance_threshold=distance_threshold,
                 )
                 if id_mapping:
                     log_debug(f"[Detect] ID consolidation: merged {len(id_mapping)} IDs")
@@ -1635,79 +1504,15 @@ def handle_get_model_info(request_id: str, data: Dict):
         models_dir = PROJECT_ROOT / "Models"
         current_device = config.loaded_models.get('device', detect_device()) if config.model_loaded else detect_device()
 
-        # check_onnx_models_available が使えるようにインポート
-        if check_onnx_models_available is None:
-            try:
-                from onnx_vitpose_integration import check_onnx_models_available as _check
-                # グローバルには代入しない（他で整合性が崩れるのを防ぐため、ここだけのローカル使用にするか、
-                # あるいは ensure_cudnn_paths などを呼ばないとDLLエラーになる可能性もあるが、
-                # check_onnx_models_available 自体は glob するだけなので軽量なはず）
-                # ただし onnx_vitpose_integration 自体が numpy/cv2 をトップレベルでインポートしているため
-                # ここでインポートすると少し時間がかかる。
-                # ensure_cudnn_paths は不要（実行しないので）。
-                pass
-            except ImportError:
-                 _check = None
-        else:
-             _check = check_onnx_models_available
-
-        # 利用可能なViTPoseモデルを検索
-        # _check があるならそれを使う（推奨モデル判定ロジックを活用）
-        if _check:
-             onnx_available = _check(models_dir, device=current_device)
-             # _checkの結果から構築
-             available = []
-             # vitpose
-             # ... (logic to convert onnx_available to list) ...
-             # しかし既存コードは glob を自前でやっている部分もある?
-             # いえ、既存コードは自前でリストを作っている (lines 1125-1128)
-             
-             # ここでは既存ロジックを生かしつつ、推奨モデル情報を付加するのが筋だが
-             # _check を使うと推奨モデルがわかる。
-             pass
-
-        # 既存ロジック
+        # RTMPose モデルのみを検出
         available = []
-
-        # ViTPose ONNX モデル
-        vitpose_models = [
-            ('h', 'ViTPose-H (ONNX)', ['vitpose-h-wholebody.onnx', 'vitpose-h-wholebody/vitpose-h-wholebody.onnx']),
-            ('b', 'ViTPose-B (ONNX)', ['vitpose-b-wholebody.onnx']),
+        rtmpose_models = [
+            ('rtmpose-x', 'RTMPose-X (高精度)', 'rtmpose-x.onnx'),
+            ('rtmpose-m', 'RTMPose-M (高速)', 'rtmpose-m.onnx'),
         ]
-        for vit_type, model_name, paths in vitpose_models:
-            for path in paths:
-                if (models_dir / path).exists():
-                    available.append({'type': vit_type, 'name': model_name, 'path': path})
-                    break
-
-        # SynthPose ONNX モデル（PyTorch不要）
-        synthpose_onnx_models = [
-            ('synthpose-base-onnx', 'SynthPose-Base (ONNX)', 'synthpose-vitpose-base-hf.onnx'),
-            ('synthpose-huge-onnx', 'SynthPose-Huge (ONNX)', 'synthpose-vitpose-huge-hf.onnx'),
-        ]
-        for sp_type, model_name, filename in synthpose_onnx_models:
+        for model_type, model_name, filename in rtmpose_models:
             if (models_dir / filename).exists():
-                available.append({'type': sp_type, 'name': model_name, 'path': filename})
-
-        # SynthPose PyTorch モデル
-        synthpose_models = [
-            ('synthpose-base', 'SynthPose-Base (PyTorch)', 'synthpose-vitpose-base-hf.safetensors'),
-            ('synthpose-huge', 'SynthPose-Huge (PyTorch)', 'synthpose-vitpose-huge-hf.safetensors'),
-        ]
-        for sp_type, model_name, filename in synthpose_models:
-            if (models_dir / filename).exists():
-                available.append({'type': sp_type, 'name': model_name, 'path': filename})
-
-        # デバイスに応じてソート（GPU: H優先、CPU: B優先、SynthPose ONNX → PyTorch の順）
-        if current_device == 'cuda':
-            type_order = {'h': 0, 'b': 1,
-                          'synthpose-base-onnx': 2, 'synthpose-huge-onnx': 3,
-                          'synthpose-base': 4, 'synthpose-huge': 5}
-        else:
-            type_order = {'b': 0, 'h': 1,
-                          'synthpose-base-onnx': 2, 'synthpose-huge-onnx': 3,
-                          'synthpose-base': 4, 'synthpose-huge': 5}
-        available.sort(key=lambda x: type_order.get(x['type'], 99))
+                available.append({'type': model_type, 'name': model_name, 'path': filename})
 
         available_yolo = []
         try:

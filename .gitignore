@@ -59,6 +59,12 @@ desktop.ini
 **/dist/builder-debug.yml
 **/dist/builder-effective-config.yaml
 
+# ビルド前に shared/ を各アプリへコピーしたもの(本体は /shared/ のみ)
+MotionDigitizer/shared/
+HPE/shared/
+MotionViewer/shared/
+VideoSyncLab/shared/
+
 # ===========================
 # バックアップ
 # ===========================

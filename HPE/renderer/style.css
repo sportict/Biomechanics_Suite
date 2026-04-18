@@ -888,6 +888,81 @@ input[type="checkbox"] {
   gap: 0.5rem;
 }
 
+/* 動画/骨格モード用 編集ツールバー */
+.video-edit-toolbar {
+  background: #1e2533;
+  border-bottom: 1px solid #374151;
+  padding: 0.4rem 0.75rem;
+}
+
+.video-edit-toolbar-inner {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.video-edit-separator {
+  width: 1px;
+  height: 1.4rem;
+  background: #4b5563;
+  margin: 0 0.25rem;
+}
+
+/* アコーディオン */
+.accordion { border: none; }
+.accordion-header {
+  font-size: 0.75rem; font-weight: 600; color: #e2e8f0;
+  cursor: pointer; list-style: none; padding: 0.25rem 0;
+  display: flex; align-items: center; gap: 0.3rem;
+  user-select: none;
+}
+.accordion-header::-webkit-details-marker { display: none; }
+.accordion-header::before {
+  content: ''; display: inline-block; width: 0; height: 0;
+  border-left: 4px solid #6b7280; border-top: 3px solid transparent;
+  border-bottom: 3px solid transparent; transition: transform 0.15s;
+  flex-shrink: 0;
+}
+details[open] > .accordion-header::before { transform: rotate(90deg); }
+.accordion-body { padding: 0.3rem 0 0 0.25rem; }
+
+/* スライダー行（コンパクト） */
+.slider-row {
+  display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.3rem;
+}
+.slider-row label {
+  font-size: 0.7rem; color: #9ca3af; min-width: 5rem; width: auto; margin: 0;
+}
+.slider-row input[type="range"] { flex: 1; height: 1.25rem; }
+
+/* クレンジングタブ */
+.cleansing-tabs {
+  display: flex; gap: 0; margin-bottom: 0.4rem;
+  border-bottom: 1px solid #374151;
+}
+.cleansing-tab {
+  flex: 1; padding: 0.3rem 0; font-size: 0.7rem;
+  background: none; border: none; border-bottom: 2px solid transparent;
+  color: #6b7280; cursor: pointer; text-align: center; transition: all 0.15s;
+}
+.cleansing-tab:hover { color: #d1d5db; }
+.cleansing-tab.active {
+  color: #60a5fa; border-bottom-color: #3b82f6;
+}
+.cleansing-tab-content { display: none; }
+.cleansing-tab-content.active { display: block; }
+
+/* フィルタ2列グリッド */
+.filter-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 0.2rem 0.5rem;
+}
+.filter-check {
+  font-size: 0.7rem; color: #d1d5db; display: flex; align-items: center;
+  gap: 0.25rem; width: auto !important; white-space: nowrap;
+}
+.filter-check input[type="checkbox"] { margin: 0; }
+
 .graph-canvas-wrapper {
   flex: 1;
   position: relative;

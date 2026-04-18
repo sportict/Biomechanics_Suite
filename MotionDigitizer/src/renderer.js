@@ -222,18 +222,87 @@ function initializeApp() {
  * 起動時のデフォルト選択を設定する関数
  */
 function setDefaultSelections() {
-    // キャリブレーションモードを選択しない（全未選択）
+    // デフォルト: キャリブレーション + カメラ1
     const calibrationRadio = document.getElementById('calibration');
     const motionRadio = document.getElementById('motion');
-    if (calibrationRadio) calibrationRadio.checked = false;
+    if (calibrationRadio) calibrationRadio.checked = true;
     if (motionRadio) motionRadio.checked = false;
 
-    // カメラを選択しない（全未選択）
     const camera1Radio = document.getElementById('camera1');
     const camera2Radio = document.getElementById('camera2');
-    if (camera1Radio) camera1Radio.checked = false;
+    if (camera1Radio) camera1Radio.checked = true;
     if (camera2Radio) camera2Radio.checked = false;
+
+    window.currentMode = 'calibration';
+    window.currentCamera = 'cam1';
+
+    // カメラ台数セレクト（デフォルト1台）
+    const camCountSelect = document.getElementById('camera-count-select');
+    if (camCountSelect) {
+        camCountSelect.addEventListener('change', () => {
+            updateCameraCountUI(parseInt(camCountSelect.value));
+        });
+        updateCameraCountUI(1);
+    }
+
+    // 起動時のファイル表示更新
+    setTimeout(() => { if (typeof updateActiveFileDisplay === 'function') updateActiveFileDisplay(); }, 100);
 }
+
+// シングルカメラのキャリブレーション方法
+const SINGLE_CAM_METHODS = ['4-point', '2d-dlt-single', 'charuco-single'];
+
+/**
+ * キャリブレーション方法に応じてカメラ台数を自動設定
+ */
+function applyCameraCountForMethod(method) {
+    const camCountSelect = document.getElementById('camera-count-select');
+    if (!camCountSelect) return;
+
+    if (SINGLE_CAM_METHODS.includes(method)) {
+        // シングル系: 1台固定
+        camCountSelect.value = '1';
+        camCountSelect.disabled = true;
+        updateCameraCountUI(1);
+    } else if (method) {
+        // 3D系: デフォルト2台、変更可能
+        camCountSelect.disabled = false;
+        const current = parseInt(camCountSelect.value);
+        if (current < 2) {
+            camCountSelect.value = '2';
+            updateCameraCountUI(2);
+        }
+    } else {
+        // 未選択
+        camCountSelect.disabled = false;
+    }
+}
+window.applyCameraCountForMethod = applyCameraCountForMethod;
+
+/**
+ * カメラ台数に応じてボタンの有効/無効を制御
+ */
+function updateCameraCountUI(count) {
+    const camIds = ['camera1', 'camera2', 'camera3', 'camera4'];
+    camIds.forEach((id, i) => {
+        const radio = document.getElementById(id);
+        const label = radio ? radio.nextElementSibling : null;
+        if (radio && label) {
+            const enabled = i < count;
+            radio.disabled = !enabled;
+            label.classList.toggle('disabled', !enabled);
+        }
+    });
+    // 選択中のカメラが範囲外なら1に戻す
+    const currentCam = parseInt((window.currentCamera || 'cam1').replace('cam', ''));
+    if (currentCam > count) {
+        const cam1Radio = document.getElementById('camera1');
+        if (cam1Radio) { cam1Radio.checked = true; window.currentCamera = 'cam1'; }
+        if (typeof updateActiveFileDisplay === 'function') updateActiveFileDisplay();
+        applyVideoIfConditionsMet();
+    }
+}
+window.updateCameraCountUI = updateCameraCountUI;
 
 /**
  * カメラ選択の有効/無効を現在の状態に応じて制御
@@ -257,6 +326,74 @@ function updateCameraSelectState() {
 window.updateCameraSelectState = updateCameraSelectState;
 
 /**
+ * 動画ファイル情報表示を現在のモード+カメラに連動して更新
+ */
+function updateActiveFileDisplay() {
+    const mode = (typeof getCurrentMode === 'function') ? getCurrentMode() : 'calibration';
+    const cam = (typeof getCurrentCamera === 'function') ? getCurrentCamera() : 'cam1';
+    const modeLabel = mode === 'calibration' ? 'キャリブ' : 'モーション';
+    const camLabel = cam.replace('cam', 'Cam');
+
+    // バッジ更新
+    const badge = document.getElementById('active-file-badge');
+    if (badge) badge.textContent = `${modeLabel} / ${camLabel}`;
+
+    // ファイル名更新
+    const fileKey = mode === 'calibration' ? `cal-${cam}` : `motion-${cam}`;
+    const fileData = window.fileState ? window.fileState[fileKey] : null;
+    const nameEl = document.getElementById('active-file-name');
+    if (nameEl) {
+        if (fileData) {
+            const name = typeof fileData === 'string' ? fileData.split(/[/\\]/).pop() : (fileData.name || '');
+            nameEl.textContent = name || 'ファイル';
+            nameEl.classList.remove('empty');
+        } else {
+            nameEl.textContent = '未選択';
+            nameEl.classList.add('empty');
+        }
+    }
+
+    // ＋ボタンのonclick更新
+    window._addActiveFile = function() {
+        if (typeof selectFile === 'function') selectFile(fileKey);
+    };
+
+    // ファイルリスト表示（ソースリストをそのまま移動して表示）
+    const listContainer = document.getElementById('active-file-list-container');
+    const sourceList = document.getElementById(`${fileKey}-list`);
+    if (listContainer) {
+        // 以前表示していたリストを元の場所に戻す
+        const prevList = listContainer.firstElementChild;
+        if (prevList && prevList._originalParent) {
+            prevList._originalParent.appendChild(prevList);
+        }
+        listContainer.innerHTML = '';
+        // ソースリストをそのまま移動（イベントハンドラを維持）
+        if (sourceList) {
+            sourceList._originalParent = sourceList.parentElement;
+            listContainer.appendChild(sourceList);
+        }
+    }
+
+    updateCamDots();
+}
+window.updateActiveFileDisplay = updateActiveFileDisplay;
+
+/**
+ * カメラドットインジケータを更新
+ */
+function updateCamDots() {
+    ['cam1', 'cam2', 'cam3', 'cam4'].forEach(cam => {
+        const dot = document.getElementById(`${cam}-dot`);
+        if (!dot) return;
+        const calFile = window.fileState && window.fileState[`cal-${cam}`];
+        const motFile = window.fileState && window.fileState[`motion-${cam}`];
+        dot.classList.toggle('has-file', !!(calFile || motFile));
+    });
+}
+window.updateCamDots = updateCamDots;
+
+/**
  * イベントリスナーの設定
  */
 function setupEventListeners() {
@@ -271,7 +408,7 @@ function setupEventListeners() {
     // フレームスライダー（最適化版）
     const frameSlider = document.getElementById('frame-slider');
     let lastSliderUpdateTime = 0;
-    const SLIDER_UPDATE_INTERVAL = 100; // ms (Max 10fps drawing during drag)
+    const SLIDER_UPDATE_INTERVAL = 50; // ms (Max 20fps drawing during drag)
 
     // スライダードラッグ中フラグ（ドラッグ中は自動検出を無効化）
     window.__sliderDragging = false;
@@ -510,6 +647,50 @@ function setupDragAndDropListeners() {
             }
         });
     });
+
+    // ドロップゾーン: ファイル情報エリア + キャンバス
+    const dropZoneEl = document.getElementById('active-file-drop-zone');
+    const canvasEl = document.getElementById('digitize-canvas');
+    [dropZoneEl, canvasEl].filter(Boolean).forEach(target => {
+        target.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (dropZoneEl) dropZoneEl.classList.add('drag-active');
+        });
+        target.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (dropZoneEl) dropZoneEl.classList.remove('drag-active');
+        });
+        target.addEventListener('drop', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (dropZoneEl) dropZoneEl.classList.remove('drag-active');
+
+            const mode = (typeof getCurrentMode === 'function') ? getCurrentMode() : 'calibration';
+            const cam = (typeof getCurrentCamera === 'function') ? getCurrentCamera() : 'cam1';
+            const fileId = mode === 'calibration' ? `cal-${cam}` : `motion-${cam}`;
+
+            const files = e.dataTransfer.files;
+            if (!files || files.length === 0) return;
+
+            let count = 0;
+            for (let i = 0; i < files.length; i++) {
+                let filePath = files[i].path;
+                if (!filePath && typeof webUtils !== 'undefined' && webUtils.getPathForFile) {
+                    try { filePath = webUtils.getPathForFile(files[i]); } catch (_) {}
+                }
+                if (filePath && typeof window.processSelectedFile === 'function') {
+                    window.processSelectedFile(fileId, { name: files[i].name, path: filePath });
+                    count++;
+                }
+            }
+            if (count > 0 && typeof showMessage === 'function') {
+                const label = mode === 'calibration' ? 'キャリブレーション' : 'モーション';
+                showMessage(`${label}(${cam}) に ${count}件追加しました`);
+            }
+        });
+    });
 }
 
 /**
@@ -709,6 +890,7 @@ function setupUnifiedEventListeners() {
             }
 
             applyVideoIfConditionsMet();
+            updateActiveFileDisplay();
 
             // デジタイズ間隔の表示/非表示を更新
             try { toggleDigitizeIntervalVisibility(); } catch (_) { }
@@ -730,6 +912,7 @@ function setupUnifiedEventListeners() {
 
             // 既存の処理も実行
             applyVideoIfConditionsMet();
+            updateActiveFileDisplay();
         });
     });
 
@@ -738,6 +921,8 @@ function setupUnifiedEventListeners() {
     if (methodSelect) {
         methodSelect.addEventListener('change', () => {
             toggleCalibrationPanels(methodSelect.value);
+            // キャリブレーション方法に応じてカメラ台数を自動設定
+            applyCameraCountForMethod(methodSelect.value);
             // ChArUcoボード選択UIの表示切替
             if (typeof window.updateCharucoBoardSelectUI === 'function') {
                 window.updateCharucoBoardSelectUI();
@@ -2138,22 +2323,27 @@ window.updateCharucoBoardSelectUI = function updateCharucoBoardSelectUI() {
                 boardSelect.value = currentValue;
             }
 
-            // ボード選択変更時に「選択したボードのフレームを表示」ボタンの表示/非表示を更新
+            // サイドバー「選択フレームを表示」ボタンは廃止（選択 = 即フレーム表示）
             const showBtn = document.getElementById('show-selected-board-frame');
-            if (showBtn) {
-                // 既存のイベントリスナーを削除してから追加（重複を防ぐ）
-                const newHandler = () => {
-                    const selectedIndex = parseInt(boardSelect.value || '-1', 10);
-                    showBtn.style.display = (selectedIndex >= 0) ? 'block' : 'none';
-                };
-                // 既存のリスナーを削除
-                boardSelect.removeEventListener('change', boardSelect._charucoBoardChangeHandler);
-                // 新しいハンドラーを保存して追加
-                boardSelect._charucoBoardChangeHandler = newHandler;
-                boardSelect.addEventListener('change', newHandler);
-                // 初期状態を更新
-                newHandler();
-            }
+            if (showBtn) showBtn.style.display = 'none';
+
+            // サイドバーのボード選択も、変更即フレーム移動
+            const sidebarHandler = () => {
+                const selectedIndex = parseInt(boardSelect.value || '-1', 10);
+                if (selectedIndex >= 0 && typeof window.jumpToCharucoBoardFrame === 'function') {
+                    if (!window.__suppressBoardSelectCascade) {
+                        window.__suppressBoardSelectCascade = true;
+                        try {
+                            window.jumpToCharucoBoardFrame(selectedIndex);
+                        } finally {
+                            window.__suppressBoardSelectCascade = false;
+                        }
+                    }
+                }
+            };
+            boardSelect.removeEventListener('change', boardSelect._charucoBoardChangeHandler);
+            boardSelect._charucoBoardChangeHandler = sidebarHandler;
+            boardSelect.addEventListener('change', sidebarHandler);
         } else {
             // キャリブレーション結果がない場合のメッセージ
             const noCalibOpt = document.createElement('option');
@@ -2250,6 +2440,7 @@ window.updateAnalysisBoardSelectUI = function updateAnalysisBoardSelectUI() {
         }
 
         // ボード選択変更時の処理
+        // 選択と同時にそのボードのフレームへ自動移動する（別途のフレーム表示ボタンは廃止）
         const updateExtrinsicInfo = () => {
             const selectedIndex = parseInt(boardSelect.value || '-1', 10);
             if (selectedIndex >= 0 && selectedIndex < calib.rvecs.length) {
@@ -2274,54 +2465,41 @@ window.updateAnalysisBoardSelectUI = function updateAnalysisBoardSelectUI() {
                 }
 
                 if (infoDiv) infoDiv.style.display = 'block';
-                if (showBtn) showBtn.style.display = 'block';
             } else {
                 if (infoDiv) infoDiv.style.display = 'none';
-                if (showBtn) showBtn.style.display = 'none';
+            }
+            // ボタンは廃止したので常に非表示
+            if (showBtn) showBtn.style.display = 'none';
+        };
+
+        // change: 情報表示更新 + 即フレーム移動
+        const onBoardSelectChange = () => {
+            updateExtrinsicInfo();
+            const selectedIndex = parseInt(boardSelect.value || '-1', 10);
+            if (selectedIndex >= 0 && typeof window.jumpToCharucoBoardFrame === 'function') {
+                // change イベントの無限ループ防止: jumpToCharucoBoardFrame は analysis-board-select に
+                // change を再発火するので、再入ガードで止める
+                if (!window.__suppressBoardSelectCascade) {
+                    window.__suppressBoardSelectCascade = true;
+                    try {
+                        window.jumpToCharucoBoardFrame(selectedIndex);
+                    } finally {
+                        window.__suppressBoardSelectCascade = false;
+                    }
+                }
             }
         };
 
         // 既存のイベントリスナーを削除してから追加（重複を防ぐ）
         boardSelect.removeEventListener('change', boardSelect._analysisBoardChangeHandler);
-        boardSelect._analysisBoardChangeHandler = updateExtrinsicInfo;
-        boardSelect.addEventListener('change', updateExtrinsicInfo);
+        boardSelect._analysisBoardChangeHandler = onBoardSelectChange;
+        boardSelect.addEventListener('change', onBoardSelectChange);
 
         // 初期状態を更新
         updateExtrinsicInfo();
 
-        // フレーム表示ボタンのイベントハンドラー
-        if (showBtn) {
-            showBtn.onclick = () => {
-                const selectedIndex = parseInt(boardSelect.value || '-1', 10);
-                if (selectedIndex < 0) {
-                    if (typeof window.showError === 'function') {
-                        window.showError('ボードを選択してください');
-                    }
-                    return;
-                }
-
-                if (!calib.frameNumbers || !calib.frameNumbers[selectedIndex]) {
-                    if (typeof window.showError === 'function') {
-                        window.showError('選択したボードのフレーム番号が記録されていません');
-                    }
-                    return;
-                }
-
-                const frameNumber = calib.frameNumbers[selectedIndex];
-
-                // デジタイズモードに切り替え
-                const digitizeModeRadio = document.querySelector('input[name="mode"][value="digitize"]');
-                if (digitizeModeRadio) {
-                    digitizeModeRadio.checked = true;
-                    digitizeModeRadio.dispatchEvent(new Event('change'));
-                }
-
-                // フレーム番号を設定
-                if (typeof window.setCurrentFrameNumber === 'function') {
-                    window.setCurrentFrameNumber(frameNumber);
-                }
-            };
-        }
+        // 「選択フレームを表示」ボタンは廃止（選択 = 即フレーム表示）
+        if (showBtn) showBtn.style.display = 'none';
     } else {
         extrinsicSection.style.display = 'none';
     }
@@ -2333,6 +2511,13 @@ function setCalibStatus(text, type = 'info') {
     if (type === 'error') el.style.color = '#c33';
     else if (type === 'success') el.style.color = '#0a5';
     else el.style.color = '#555';
+    // 親ステータス行のトーンを状態に同期
+    const row = el.closest('.cc-status-row');
+    if (row) {
+        row.classList.remove('active', 'error');
+        if (type === 'error') row.classList.add('error');
+        else if (window.__calibSessionActive) row.classList.add('active');
+    }
 }
 
 // 収集セッション状態（自動追加のON/OFF判定用）
@@ -2399,54 +2584,38 @@ async function captureCalibrationSample() {
             legacyPattern: true
         };
 
-        // 検出時に保存した元フレーム画像を使用（アノテーション描画前の状態）
-        // Canvas上のアノテーション（緑枠、シアン円等）が検出を妨害するため、
-        // 最新の未加工フレームを確保するため detectCharucoBoard を先に実行する
-        let imageBase64 = null;
-        // ★型を統一して比較（string vs number の不一致を防ぐ）
-        const frameMatchesDetect = window.__originalFrameBase64 &&
+        // 検出時に保存した元フレーム ImageData を使用（アノテーション描画前の状態）
+        let imageData = null;
+        const frameMatchesDetect = window.__originalFrameImageData &&
             Number(window.__originalFrameNumber) === Number(frameNumber);
         if (!frameMatchesDetect && typeof window.detectCharucoBoard === 'function') {
-            // フレーム番号が一致しない場合は detectCharucoBoard を先に実行して
-            // __originalFrameBase64 を最新化する
-            console.log('[CALIB-CAPTURE] Pre-running detectCharucoBoard to refresh original frame...');
+            // 最新の未加工フレームを確保するため detectCharucoBoard を先に実行
             await window.detectCharucoBoard();
         }
-        if (window.__originalFrameBase64 &&
+        if (window.__originalFrameImageData &&
             Number(window.__originalFrameNumber) === Number(frameNumber)) {
-            imageBase64 = window.__originalFrameBase64;
-            console.log('[CALIB-CAPTURE] Using saved original frame (pre-annotation)');
+            imageData = window.__originalFrameImageData;
         } else {
-            // フォールバック: canvas.currentImage（未加工の元フレーム）を使用
-            // canvas.toDataURL()はアノテーション付きなので使わない
+            // フォールバック: canvas.currentImage の生ピクセル
             const canvas = document.getElementById('digitize-canvas');
             if (canvas && canvas.currentImage) {
                 try {
-                    const srcImage = canvas.currentImage;
-                    const tempCanvas = document.createElement('canvas');
-                    tempCanvas.width = srcImage.width;
-                    tempCanvas.height = srcImage.height;
-                    tempCanvas.getContext('2d').drawImage(srcImage, 0, 0);
-                    imageBase64 = tempCanvas.toDataURL('image/jpeg', 0.95);
-                    console.log('[CALIB-CAPTURE] Fallback: using canvas.currentImage (clean frame), size:', srcImage.width, 'x', srcImage.height);
+                    imageData = canvasToImageDataObj(canvas.currentImage);
                 } catch (e) {
                     console.warn('[CALIB-CAPTURE] currentImage取得失敗:', e);
                 }
             }
-            if (!imageBase64) {
+            if (!imageData) {
                 console.warn('[CALIB-CAPTURE] No clean frame available, skipping capture');
             }
         }
 
         setCalibStatus(`サンプル追加中… (F:${frameNumber})`);
-        console.log('[CALIB-CAPTURE-RENDERER] boardConfig:', JSON.stringify(boardConfig));
-        console.log('[CALIB-CAPTURE-RENDERER] imageBase64 length:', imageBase64 ? imageBase64.length : 0);
-        console.log('[CALIB-CAPTURE-RENDERER] using original frame:', Number(window.__originalFrameNumber) === Number(frameNumber));
         const res = await ipcRenderer.invoke('calib-capture', {
             videoPath,
             frameNumber,
             boardConfig,
-            imageBase64
+            imageData
         });
         if (res && res.success) {
             showMessage(`サンプルを追加しました（フレーム: ${frameNumber}、ポイント: ${res.points}、累計: ${res.samples}件）`);
@@ -2495,10 +2664,17 @@ async function computeCalibration() {
                 viewErrors: res.viewErrors || [],
                 cornerCounts: res.cornerCounts || [],
                 markerCounts: res.markerCounts || [],
-                frameNumbers: res.frameNumbers || [], // 各サンプルのフレーム番号
-                // 点群データ（除外計算用）
+                frameNumbers: res.frameNumbers || [], // 各サンプルのフレーム番号（表示用・フィルタ反映）
+                // 現在のビュー配列 → 元の g_allImagePoints インデックス のマップ
+                // 初回計算時は除外がないので [0, 1, ..., N-1]
+                originalSampleIndices: (res.rvecs || []).map((_, i) => i),
+                // 点群データ（除外計算用）— フル長のオリジナル
                 allImagePoints: res.allImagePoints || [],
                 allObjectPoints: res.allObjectPoints || [],
+                // 復元用フル長コピー: 除外を繰り返してもネイティブに常にフル原本を渡せるよう保持
+                allCornerCounts: (res.cornerCounts || []).slice(),
+                allMarkerCounts: (res.markerCounts || []).slice(),
+                allFrameNumbers: (res.frameNumbers || []).slice(),
                 imageWidth: res.imageWidth || 0,
                 imageHeight: res.imageHeight || 0
             };
@@ -2554,35 +2730,46 @@ window.excludeCharucoViewAndRecompute = async function (viewIndex) {
     try {
         if (!Number.isFinite(viewIndex) || viewIndex < 0) return;
 
-        // 点群データが存在しない（古い保存ファイル等）場合は事前に復元を試みる
         const calib = window.projectData?.calibration;
-        if (calib && calib.allImagePoints && calib.allImagePoints.length > 0 &&
-            calib.allObjectPoints && calib.allObjectPoints.length > 0) {
-            try {
-                await ipcRenderer.invoke('restore-calibration-buffers', {
-                    allImagePoints: calib.allImagePoints,
-                    allObjectPoints: calib.allObjectPoints,
-                    cornerCounts: calib.cornerCounts || [],
-                    markerCounts: calib.markerCounts || [],
-                    frameNumbers: calib.frameNumbers || [],
-                    imageWidth: calib.imageWidth || window.projectData?.settings?.calibrationVideoWidth || 1920,
-                    imageHeight: calib.imageHeight || window.projectData?.settings?.calibrationVideoHeight || 1080
-                });
-            } catch (_) {}
-        } else if (!calib?.allImagePoints?.length) {
+        if (!calib?.allImagePoints?.length) {
             showError('除外再計算には点群データが必要です。キャリブレーションを再実行してから保存してください。');
             return;
         }
 
+        // クリックされたのは「現在表示中のビュー配列上のインデックス」。
+        // これを元の g_allImagePoints 上の sample index に変換する。
+        // originalSampleIndices が未設定な古い計算結果の場合は、そのまま viewIndex を使う。
+        const originalIdx = (Array.isArray(calib.originalSampleIndices) &&
+            calib.originalSampleIndices.length === calib.rvecs.length &&
+            viewIndex < calib.originalSampleIndices.length)
+            ? calib.originalSampleIndices[viewIndex]
+            : viewIndex;
+
+        // 除外累積リスト(元のサンプルインデックス基準)を更新
         if (!Array.isArray(window.projectData.charucoExcludedViews)) {
             window.projectData.charucoExcludedViews = [];
         }
-        if (!window.projectData.charucoExcludedViews.includes(viewIndex)) {
-            window.projectData.charucoExcludedViews.push(viewIndex);
+        if (!window.projectData.charucoExcludedViews.includes(originalIdx)) {
+            window.projectData.charucoExcludedViews.push(originalIdx);
         }
         const exclude = window.projectData.charucoExcludedViews.slice().sort((a, b) => a - b);
 
-        setCalibStatus(`ビュー #${viewIndex + 1} を除外して再計算中…`);
+        // ネイティブ側のバッファを毎回フル原本で復元
+        // calib.cornerCounts/frameNumbers は除外後のフィルタ済みなので、
+        // 復元には allCornerCounts/allMarkerCounts/allFrameNumbers(フル原本)を使う
+        try {
+            await ipcRenderer.invoke('restore-calibration-buffers', {
+                allImagePoints: calib.allImagePoints,
+                allObjectPoints: calib.allObjectPoints,
+                cornerCounts: calib.allCornerCounts || calib.cornerCounts || [],
+                markerCounts: calib.allMarkerCounts || calib.markerCounts || [],
+                frameNumbers: calib.allFrameNumbers || calib.frameNumbers || [],
+                imageWidth: calib.imageWidth || window.projectData?.settings?.calibrationVideoWidth || 1920,
+                imageHeight: calib.imageHeight || window.projectData?.settings?.calibrationVideoHeight || 1080
+            });
+        } catch (_) {}
+
+        setCalibStatus(`サンプル #${originalIdx + 1} を除外して再計算中…`);
         const res = await ipcRenderer.invoke('calib-compute-exclude', { exclude });
         if (!res || !res.success) {
             const msg = res && res.error ? res.error : '除外付きキャリブレーション計算に失敗しました';
@@ -2591,7 +2778,14 @@ window.excludeCharucoViewAndRecompute = async function (viewIndex) {
             return;
         }
 
+        // 元のフル点群バッファ(allImagePoints/allObjectPoints 等)は温存する。
+        // 一方で、rvecs/tvecs/viewErrors/cornerCounts/markerCounts/frameNumbers は
+        // 除外後のフィルタ済み配列で上書きする(長さが縮む)。
+        // originalSampleIndices は「現在のビュー番号 → 元 g_allImagePoints インデックス」のマップ。
+        const prevCalib = window.projectData.calibration || {};
         window.projectData.calibration = {
+            // 先に旧データを展開して allImagePoints/allObjectPoints を温存
+            ...prevCalib,
             cameraMatrix: res.cameraMatrix,
             distCoeffs: res.distCoeffs,
             reprojectionError: res.reprojectionError,
@@ -2602,7 +2796,10 @@ window.excludeCharucoViewAndRecompute = async function (viewIndex) {
             viewErrors: res.viewErrors || [],
             cornerCounts: res.cornerCounts || [],
             markerCounts: res.markerCounts || [],
-            frameNumbers: res.frameNumbers || [] // 各サンプルのフレーム番号
+            frameNumbers: res.frameNumbers || [],
+            originalSampleIndices: Array.isArray(res.originalIndices) && res.originalIndices.length
+                ? res.originalIndices
+                : (res.rvecs || []).map((_, i) => i)
         };
 
         // UI更新
@@ -3217,6 +3414,40 @@ function updateExtrinsicResultUI(calib, idx) {
  * ChArUcoボードをcanvas現在画像から検出し結果をオーバーレイ描画する。
  * シングルモード（charuco-single）とステレオモード（charuco-stereo）両対応。
  */
+
+// ---- Canvas → RGBA 生ピクセル Buffer への変換（モジュール共通ヘルパー） ----
+// JPEG エンコード/デコードを完全にバイパスして検出速度を向上。
+// Electron 33+ は Node Buffer を IPC でゼロコピー転送する。
+function canvasToImageDataObj(source) {
+    try {
+        const w = source.width || source.videoWidth;
+        const h = source.height || source.videoHeight;
+        if (!w || !h) return null;
+
+        let srcCanvas = source;
+        if (!(source instanceof HTMLCanvasElement)) {
+            const tmp = document.createElement('canvas');
+            tmp.width = w;
+            tmp.height = h;
+            tmp.getContext('2d').drawImage(source, 0, 0);
+            srcCanvas = tmp;
+        }
+        const ctx = srcCanvas.getContext('2d');
+        const imageData = ctx.getImageData(0, 0, w, h);
+        const buffer = Buffer.from(imageData.data.buffer, imageData.data.byteOffset, imageData.data.byteLength);
+        return {
+            width: w,
+            height: h,
+            channels: 4,
+            stride: w * 4,
+            buffer
+        };
+    } catch (e) {
+        console.error('[canvasToImageDataObj] error:', e);
+        return null;
+    }
+}
+
 async function detectCharucoBoard() {
     // 重複実行防止
     if (window.__charucoDetectionInProgress) {
@@ -3278,19 +3509,19 @@ async function detectCharucoBoard() {
     /**
      * 1枚の画像に対して検出し、canvasの指定領域にオーバーレイ描画する。
      * @param {string} videoPath  - 動画ファイルパス（IPC用）
-     * @param {string} imageBase64 - canvas画像（data:image/...;base64,...）
+     * @param {object|null} imageData - { width, height, channels, buffer } or null
      * @param {object} boardConfig  - ボード設定
      * @param {number} frameOffsetX - ステレオ時の左ビューX開始位置（フレーム座標）
      * @param {number} frameW       - ビューの幅（フレーム座標）
      * @param {number} frameH       - ビューの高さ（フレーム座標）
      * @returns {{ corners, markerCorners, ids }} 検出結果
      */
-    async function detectAndDrawSingle(videoPath, imageBase64, boardConfig, frameOffsetX, frameW, frameH) {
+    async function detectAndDrawSingle(videoPath, imageData, boardConfig, frameOffsetX, frameW, frameH) {
         const res = await ipcRenderer.invoke('detect-charuco-board', {
             videoPath,
             frameNumber,
             boardConfig,
-            imageBase64
+            imageData
         });
 
         if (!res || !res.success) {
@@ -3440,14 +3671,12 @@ async function detectCharucoBoard() {
         return res;
     }
 
-    // ---- 元フレーム画像を取得するヘルパー ----
-    // 動画要素(digitizeVideo等)から常に最新の未加工フレームを取得し、キャッシュに保存して返す
-    function getOriginalBase64ForCamera(camKey) {
-        // camKey 例: 'cam1', 'cam2', 'single'
+    // ---- 元フレーム画像(ImageData形式)を取得するヘルパー ----
+    function getOriginalImageDataForCamera(camKey) {
         const keyMap = {
-            'cam1': window.__originalFrameBase64_cam1,
-            'cam2': window.__originalFrameBase64_cam2,
-            'single': window.__originalFrameBase64
+            'cam1': window.__originalFrameImageData_cam1,
+            'cam2': window.__originalFrameImageData_cam2,
+            'single': window.__originalFrameImageData
         };
         const frameMap = {
             'cam1': window.__originalFrameNumber_cam1,
@@ -3462,60 +3691,40 @@ async function detectCharucoBoard() {
             return stored;
         }
 
-        // フォールバック: ビデオ要素または元画像ソースから直接未加工フレームを取得
         try {
             const v1 = (typeof digitizeVideo !== 'undefined') ? digitizeVideo : null;
             const v2 = (typeof digitizeVideo2 !== 'undefined') ? digitizeVideo2 : null;
             let targetVideo = null;
+            if (camKey === 'cam1' || camKey === 'single') targetVideo = v1;
+            else if (camKey === 'cam2') targetVideo = v2;
 
-            if (camKey === 'cam1' || camKey === 'single') {
-                targetVideo = v1;
-            } else if (camKey === 'cam2') {
-                targetVideo = v2;
+            let obj = null;
+            if (targetVideo && targetVideo.videoWidth > 0 && targetVideo.readyState >= 2) {
+                obj = canvasToImageDataObj(targetVideo);
+            } else if (canvas.currentImage && !(canvas.currentImage instanceof HTMLCanvasElement)) {
+                obj = canvasToImageDataObj(canvas.currentImage);
             }
 
-            if (targetVideo && targetVideo.videoWidth > 0 && targetVideo.readyState >= 2) {
-                const tempCanvas = document.createElement('canvas');
-                tempCanvas.width = targetVideo.videoWidth;
-                tempCanvas.height = targetVideo.videoHeight;
-                tempCanvas.getContext('2d').drawImage(targetVideo, 0, 0);
-                const cleanBase64 = tempCanvas.toDataURL('image/jpeg', 0.95);
-
-                // キャッシュを更新して次回以降も使えるようにする
+            if (obj) {
                 if (camKey === 'cam1') {
-                    window.__originalFrameBase64_cam1 = cleanBase64;
+                    window.__originalFrameImageData_cam1 = obj;
                     window.__originalFrameNumber_cam1 = currentFrame;
                     window.__originalFrameNumber_stereo = currentFrame;
                 } else if (camKey === 'cam2') {
-                    window.__originalFrameBase64_cam2 = cleanBase64;
+                    window.__originalFrameImageData_cam2 = obj;
                     window.__originalFrameNumber_cam2 = currentFrame;
                     window.__originalFrameNumber_stereo = currentFrame;
                 } else if (camKey === 'single') {
-                    window.__originalFrameBase64 = cleanBase64;
+                    window.__originalFrameImageData = obj;
                     window.__originalFrameNumber = currentFrame;
                 }
-                return cleanBase64;
+                return obj;
             }
 
-            // ビデオ要素がない場合（画像ファイルなど）、canvas.currentImageが未加工（HTMLImageElementやHTMLVideoElement）なら使用
-            if (canvas.currentImage && !(canvas.currentImage instanceof HTMLCanvasElement)) {
-                const tempCanvas = document.createElement('canvas');
-                tempCanvas.width = canvas.currentImage.width || canvas.currentImage.videoWidth;
-                tempCanvas.height = canvas.currentImage.height || canvas.currentImage.videoHeight;
-                tempCanvas.getContext('2d').drawImage(canvas.currentImage, 0, 0);
-                const cleanBase64 = tempCanvas.toDataURL('image/jpeg', 0.95);
-
-                if (camKey === 'single') {
-                    window.__originalFrameBase64 = cleanBase64;
-                    window.__originalFrameNumber = currentFrame;
-                }
-                return cleanBase64;
-            }
-
-            console.warn(`[getOriginalBase64ForCamera] Unable to get clean frame for ${camKey}, falling back to annotated canvas`);
-            return canvas.toDataURL('image/jpeg', 0.95);
+            console.warn(`[getOriginalImageDataForCamera] Unable to get clean frame for ${camKey}`);
+            return null;
         } catch (e) {
-            console.error('[getOriginalBase64ForCamera] Error:', e);
+            console.error('[getOriginalImageDataForCamera] error:', e);
             return null;
         }
     }
@@ -3557,12 +3766,12 @@ async function detectCharucoBoard() {
 
             console.log('[detectCharucoBoard] stereo sizes: cam1=' + cam1W + 'x' + cam1H + ' cam2=' + cam2W + 'x' + cam2H);
 
-            // 各カメラ画像を切り出す（srcImg=stereoCanvas が最善、なければビデオ要素から直接描画）
-            function extractCam(camIdx) {
+            // 各カメラ画像を ImageData 形式で切り出す（生ピクセル、JPEGエンコードなし）
+            function extractCamImageData(camIdx) {
                 try {
                     const w = (camIdx === 1) ? cam1W : cam2W;
                     const h = (camIdx === 1) ? cam1H : cam2H;
-                    const offsetX = (camIdx === 1) ? 0 : cam1W; // stereoCanvas上の左端X
+                    const offsetX = (camIdx === 1) ? 0 : cam1W;
                     const vElem = (camIdx === 1) ? v1 : v2;
 
                     if (w <= 0 || h <= 0) {
@@ -3576,30 +3785,26 @@ async function detectCharucoBoard() {
                     const tctx = tmp.getContext('2d');
 
                     if (srcImg && (srcImg.width > 0 || srcImg.videoWidth > 0)) {
-                        // stereoCanvas から切り出し（最善ケース）
                         tctx.drawImage(srcImg, offsetX, 0, w, h, 0, 0, w, h);
                     } else if (vElem && vElem.videoWidth > 0 && vElem.readyState >= 2) {
-                        // ビデオ要素が ready なら直接描画
                         tctx.drawImage(vElem, 0, 0, vElem.videoWidth, vElem.videoHeight, 0, 0, w, h);
                     } else {
                         console.warn('[detectCharucoBoard] cam' + camIdx + ': no valid source image');
                         return null;
                     }
-                    return tmp.toDataURL('image/jpeg', 0.95);
+                    return canvasToImageDataObj(tmp);
                 } catch (e) {
-                    console.error('[detectCharucoBoard] extractCam error:', e);
+                    console.error('[detectCharucoBoard] extractCamImageData error:', e);
                     return null;
                 }
             }
 
-            // ステレオ時は必ず左右分割画像を使用する
-            // （getOriginalBase64ForCameraのフォールバックは合成画像全体を返すため使わない）
-            const stored1 = (window.__originalFrameBase64_cam1 && window.__originalFrameNumber_stereo === frameNumber)
-                ? window.__originalFrameBase64_cam1 : null;
-            const stored2 = (window.__originalFrameBase64_cam2 && window.__originalFrameNumber_stereo === frameNumber)
-                ? window.__originalFrameBase64_cam2 : null;
-            const img1 = stored1 || extractCam(1);
-            const img2 = stored2 || extractCam(2);
+            const stored1 = (window.__originalFrameImageData_cam1 && window.__originalFrameNumber_stereo === frameNumber)
+                ? window.__originalFrameImageData_cam1 : null;
+            const stored2 = (window.__originalFrameImageData_cam2 && window.__originalFrameNumber_stereo === frameNumber)
+                ? window.__originalFrameImageData_cam2 : null;
+            const img1 = stored1 || extractCamImageData(1);
+            const img2 = stored2 || extractCamImageData(2);
 
             if (!img1 || !img2) {
                 showMessage('ChArUcoボード検出: カメラ映像が準備できていません。フレームを再表示してから再試行してください。');
@@ -3608,13 +3813,9 @@ async function detectCharucoBoard() {
             }
 
             // 元フレーム画像を保存（フレーム追加時に使用）
-            window.__originalFrameBase64_cam1 = img1;
-            window.__originalFrameBase64_cam2 = img2;
+            window.__originalFrameImageData_cam1 = img1;
+            window.__originalFrameImageData_cam2 = img2;
             window.__originalFrameNumber_stereo = frameNumber;
-            console.log('[detectCharucoBoard] Saved original frames for stereo capture',
-                'frameNumber:', frameNumber,
-                'img1 length:', img1 ? img1.length : 0,
-                'img2 length:', img2 ? img2.length : 0);
 
             showMessage('ChArUcoボード検出中（ステレオ）…');
 
@@ -3670,14 +3871,14 @@ async function detectCharucoBoard() {
                 return;
             }
 
-            const imageBase64 = getOriginalBase64ForCamera('single');
+            const imageData = getOriginalImageDataForCamera('single');
 
             const srcImg = canvas.currentImage;
             const frameW = srcImg ? (srcImg.width || srcImg.videoWidth || canvas.width) : canvas.width;
             const frameH = srcImg ? (srcImg.height || srcImg.videoHeight || canvas.height) : canvas.height;
 
             showMessage('ChArUcoボード検出中…');
-            const res = await detectAndDrawSingle(path, imageBase64, boardConfig, 0, frameW, frameH);
+            const res = await detectAndDrawSingle(path, imageData, boardConfig, 0, frameW, frameH);
 
             if (res) {
                 const corners = (res.charucoCorners || []).length || res.cornerCount || 0;
@@ -3864,58 +4065,43 @@ window.stereoCalibration = {
         const videoPath1 = typeof cam1 === 'string' ? cam1 : cam1.path;
         const videoPath2 = typeof cam2 === 'string' ? cam2 : cam2.path;
 
-        // 検出時に保存した元フレーム画像を使用（アノテーション描画前の状態）
-        let imageBase64_1 = null;
-        let imageBase64_2 = null;
+        // 検出時に保存した元フレーム ImageData を使用（アノテーション描画前の状態）
+        let imageData1 = null;
+        let imageData2 = null;
 
-        const frameMatchesDetectStereo = window.__originalFrameBase64_cam1 && window.__originalFrameBase64_cam2 &&
+        const frameMatchesDetectStereo =
+            window.__originalFrameImageData_cam1 && window.__originalFrameImageData_cam2 &&
             Number(window.__originalFrameNumber_stereo) === Number(frameNumber);
 
         if (!frameMatchesDetectStereo && typeof window.detectCharucoBoard === 'function') {
-            console.log('[CHARUCO-STEREO-CAPTURE] Pre-running detectCharucoBoard to refresh original frame...');
             await window.detectCharucoBoard();
         }
 
-        if (window.__originalFrameBase64_cam1 && window.__originalFrameBase64_cam2 &&
+        if (window.__originalFrameImageData_cam1 && window.__originalFrameImageData_cam2 &&
             Number(window.__originalFrameNumber_stereo) === Number(frameNumber)) {
-            imageBase64_1 = window.__originalFrameBase64_cam1;
-            imageBase64_2 = window.__originalFrameBase64_cam2;
-            console.log('[CHARUCO-STEREO-CAPTURE] Using saved original frames (pre-annotation)',
-                'frameNumber:', frameNumber,
-                'savedFrame:', window.__originalFrameNumber_stereo,
-                'img1 length:', imageBase64_1 ? imageBase64_1.length : 0,
-                'img2 length:', imageBase64_2 ? imageBase64_2.length : 0);
+            imageData1 = window.__originalFrameImageData_cam1;
+            imageData2 = window.__originalFrameImageData_cam2;
         } else {
-            // フォールバック: canvas.currentImageから左右を切り出す（アノテーションなし）
+            // フォールバック: canvas.currentImage から左右を切り出す（アノテーションなし・生ピクセル）
             const canvas = document.getElementById('digitize-canvas');
             if (canvas && canvas.currentImage) {
                 try {
                     const srcImage = canvas.currentImage;
                     const halfWidth = Math.floor(srcImage.width / 2);
                     const srcHeight = srcImage.height;
-                    // Cam1: 左半分
                     const canvas1 = document.createElement('canvas');
                     canvas1.width = halfWidth;
                     canvas1.height = srcHeight;
                     canvas1.getContext('2d').drawImage(srcImage, 0, 0, halfWidth, srcHeight, 0, 0, halfWidth, srcHeight);
-                    imageBase64_1 = canvas1.toDataURL('image/jpeg', 0.95);
-                    // Cam2: 右半分
+                    imageData1 = canvasToImageDataObj(canvas1);
                     const canvas2 = document.createElement('canvas');
                     canvas2.width = srcImage.width - halfWidth;
                     canvas2.height = srcHeight;
                     canvas2.getContext('2d').drawImage(srcImage, halfWidth, 0, srcImage.width - halfWidth, srcHeight, 0, 0, srcImage.width - halfWidth, srcHeight);
-                    imageBase64_2 = canvas2.toDataURL('image/jpeg', 0.95);
-                    console.log('[CHARUCO-STEREO-CAPTURE] Fallback: using canvas.currentImage (clean frame), cam1:', halfWidth, 'x', srcHeight);
+                    imageData2 = canvasToImageDataObj(canvas2);
                 } catch (e) {
                     console.warn('[CHARUCO-STEREO-CAPTURE] currentImage切り出し失敗:', e);
                 }
-            }
-            if (!imageBase64_1 || !imageBase64_2) {
-                console.warn('[CHARUCO-STEREO-CAPTURE] No clean frames available, native will try to open video directly',
-                    'frameNumber:', frameNumber,
-                    'savedFrame:', window.__originalFrameNumber_stereo,
-                    'has cam1:', !!window.__originalFrameBase64_cam1,
-                    'has cam2:', !!window.__originalFrameBase64_cam2);
             }
         }
 
@@ -3925,8 +4111,8 @@ window.stereoCalibration = {
             videoPath2,
             frameNumber,
             boardConfig,
-            imageBase64_1,
-            imageBase64_2
+            imageData1,
+            imageData2
         });
         if (!res || !res.success) {
             let msg = res && res.error ? res.error : 'ステレオサンプルの追加に失敗しました';
@@ -4425,16 +4611,23 @@ function updateSessionButtonUI(isActive) {
 
     if (isActive) {
         btn.textContent = 'セッション終了';
-        btn.classList.remove('primary');
+        btn.classList.remove('primary', 'cc-btn-primary');
         btn.classList.add('danger');
-        btn.style.backgroundColor = '#dc3545';
-        btn.style.borderColor = '#dc3545';
+        btn.style.backgroundColor = '';
+        btn.style.borderColor = '';
     } else {
         btn.textContent = 'セッション開始';
         btn.classList.remove('danger');
-        btn.classList.add('primary');
+        btn.classList.add('primary', 'cc-btn-primary');
         btn.style.backgroundColor = '';
         btn.style.borderColor = '';
+    }
+
+    // ステータス行のアクティブ状態を同期
+    const row = document.querySelector('.cc-status-row');
+    if (row) {
+        row.classList.remove('active', 'error');
+        if (isActive) row.classList.add('active');
     }
 }
 
@@ -5138,6 +5331,8 @@ function toggleCalibrationPanels(method) {
             charuco.style.display = '';
         }
         if (cam2) cam2.style.display = (method === 'charuco-stereo') ? '' : 'none';
+        const camGrid = document.getElementById('charuco-tables');
+        if (camGrid) camGrid.classList.toggle('cc-cam-grid-stereo', method === 'charuco-stereo');
         if (dlt2d) dlt2d.style.display = 'none';
         if (dlt3d) dlt3d.style.display = 'none';
         // ステレオモードでは内部・外部パラメータコンテナを非表示（Cam1/Cam2に個別表示するため）
@@ -5963,18 +6158,173 @@ function buildCharucoTable(calib, tbodyId) {
         }
         const corners = calib.cornerCounts ? (calib.cornerCounts[i] ?? '-') : '-';
         const markers = calib.markerCounts ? (calib.markerCounts[i] ?? '-') : '-';
+        const frameNum = (calib.frameNumbers && calib.frameNumbers[i]) ? calib.frameNumbers[i] : null;
         const tr = document.createElement('tr');
+        tr.dataset.boardIndex = String(i);
+        if (frameNum) tr.dataset.frameNumber = String(frameNum);
+        tr.style.cursor = 'pointer';
+        tr.title = frameNum
+            ? `クリック: フレーム ${frameNum} に移動し、実長換算ボードとして選択`
+            : `クリック: このボード(#${i + 1})を実長換算ボードとして選択`;
         tr.innerHTML = `
-            <td>${i + 1}</td>
+            <td>${i + 1}${frameNum ? ` <span class="cc-row-frame">[F:${frameNum}]</span>` : ''}</td>
             <td>${corners}</td>
             <td>${markers}</td>
             <td>${dOrigin.toFixed(6)}</td>
             <td>${tz.toFixed(6)}</td>
             <td>${dPlane}</td>
         `;
+        tr.addEventListener('click', () => {
+            if (typeof window.jumpToCharucoBoardFrame === 'function') {
+                window.jumpToCharucoBoardFrame(i);
+            }
+            // 視覚的なハイライト
+            body.querySelectorAll('tr.cc-row-selected').forEach(r => r.classList.remove('cc-row-selected'));
+            tr.classList.add('cc-row-selected');
+        });
         body.appendChild(tr);
     }
 }
+
+/**
+ * 指定したキャリブレーションボード(index) に対応するフレームへ移動し、
+ * 実長換算用のボード選択 (analysis-board-select / charuco-board-select) を同期する。
+ *
+ * ChArUco 結果テーブルの行クリック時と、
+ * 既存「選択したボードのフレームを表示」ボタンの両方から呼ばれる共通処理。
+ */
+window.jumpToCharucoBoardFrame = function jumpToCharucoBoardFrame(boardIndex) {
+    const calib = window.projectData && window.projectData.calibration;
+    if (!calib || !calib.rvecs || boardIndex < 0 || boardIndex >= calib.rvecs.length) {
+        if (typeof window.showError === 'function') {
+            window.showError('選択されたボードのキャリブレーション結果が見つかりません');
+        }
+        return;
+    }
+
+    const frameNumber = (calib.frameNumbers && calib.frameNumbers[boardIndex])
+        ? calib.frameNumbers[boardIndex] : null;
+
+    // 実長換算用ボード選択を同期
+    const analysisSelect = document.getElementById('analysis-board-select');
+    if (analysisSelect) {
+        analysisSelect.value = String(boardIndex);
+        analysisSelect.dispatchEvent(new Event('change'));
+    }
+    const sidebarSelect = document.getElementById('charuco-board-select');
+    if (sidebarSelect) {
+        const hasOption = Array.from(sidebarSelect.options).some(o => o.value === String(boardIndex));
+        if (hasOption) {
+            sidebarSelect.value = String(boardIndex);
+            sidebarSelect.dispatchEvent(new Event('change'));
+        }
+    }
+
+    if (!frameNumber) {
+        if (typeof window.showMessage === 'function') {
+            window.showMessage(`ボード #${boardIndex + 1} を実長換算用に選択しました（対応フレーム番号なし）`);
+        }
+        return;
+    }
+
+    // キャリブレーションモードへ切替
+    const calibrationModeRadio = document.querySelector('input[name="mode"][value="calibration"]');
+    if (calibrationModeRadio && !calibrationModeRadio.checked) {
+        calibrationModeRadio.checked = true;
+        calibrationModeRadio.dispatchEvent(new Event('change'));
+    }
+
+    // フレーム番号を設定
+    if (typeof window.setCurrentFrameNumber === 'function') {
+        window.setCurrentFrameNumber(frameNumber);
+    } else if (window.projectData && window.projectData.settings) {
+        window.projectData.settings.calibrationFrame = frameNumber;
+        window.projectData.settings.currentFrame = frameNumber;
+    }
+
+    // フレームスライダーを同期
+    const frameSlider = document.getElementById('frame-slider');
+    if (frameSlider) {
+        frameSlider.value = frameNumber;
+    }
+    if (typeof window.updateFrameInfo === 'function') {
+        window.updateFrameInfo();
+    }
+    // 次フレーム描画までキャンバスサイズ再計算のタイミングを譲る
+    setTimeout(() => {
+        if (typeof window.displayCurrentFrame === 'function') {
+            window.displayCurrentFrame();
+        }
+    }, 80);
+
+    // デジタイズタブを開く（キャリブレーション動画はそこに表示される）
+    if (typeof window.switchTab === 'function') {
+        window.switchTab('digitize');
+    }
+
+    if (typeof window.showMessage === 'function') {
+        window.showMessage(`ボード #${boardIndex + 1} / フレーム ${frameNumber} に移動しました`);
+    }
+};
+
+/**
+ * 現在のフレーム番号と一致する ChArUco ボードがあれば、
+ * analysis-board-select および結果テーブルのハイライトを同期する。
+ *
+ * frame slider 操作・矢印キーでフレーム移動しても、
+ * 「選択中のボード」表示が追従するようにするためのフック。
+ * updateFrameInfo() から呼ばれる。
+ */
+window.syncCharucoSelectionToCurrentFrame = function () {
+    // 再入防止: jumpToCharucoBoardFrame 経由のフレーム変更では同期処理をスキップ
+    if (window.__suppressBoardSelectCascade) return;
+
+    const methodSelect = document.getElementById('calibration-method');
+    const method = methodSelect ? methodSelect.value : '';
+    if (method !== 'charuco-single') return;
+
+    const calib = window.projectData && window.projectData.calibration;
+    if (!calib || !Array.isArray(calib.frameNumbers) || calib.frameNumbers.length === 0) return;
+
+    const currentFrame = (window.projectData && window.projectData.settings &&
+        (window.projectData.settings.currentFrame || window.projectData.settings.calibrationFrame)) || null;
+    if (!currentFrame) return;
+
+    const matchIdx = calib.frameNumbers.findIndex(f => Number(f) === Number(currentFrame));
+    if (matchIdx < 0) return;
+
+    // analysis-board-select の値を同期（change イベントは発火しない＝フレーム再移動ループを防止）
+    const sel = document.getElementById('analysis-board-select');
+    if (sel && sel.value !== String(matchIdx)) {
+        sel.value = String(matchIdx);
+        // 情報パネルだけは更新したいので、updateAnalysisBoardSelectUI 内の updateExtrinsicInfo 相当を手動で呼ぶ
+        const boardNameEl = document.getElementById('selected-board-name');
+        const rvecEl = document.getElementById('selected-rvec');
+        const tvecEl = document.getElementById('selected-tvec');
+        const infoDiv = document.getElementById('selected-extrinsic-info');
+        const rvec = calib.rvecs && calib.rvecs[matchIdx];
+        const tvec = calib.tvecs && calib.tvecs[matchIdx];
+        if (boardNameEl) boardNameEl.textContent = `ボード #${matchIdx + 1} [F:${currentFrame}]`;
+        if (rvecEl && rvec) rvecEl.textContent = `[${rvec.map(v => Number(v).toFixed(6)).join(', ')}]`;
+        if (tvecEl && tvec) tvecEl.textContent = `[${tvec.map(v => Number(v).toFixed(6)).join(', ')}]`;
+        if (infoDiv) infoDiv.style.display = 'block';
+    }
+
+    // サイドバーのボード選択も同期
+    const sidebarSel = document.getElementById('charuco-board-select');
+    if (sidebarSel && sidebarSel.value !== String(matchIdx)) {
+        const hasOption = Array.from(sidebarSel.options).some(o => o.value === String(matchIdx));
+        if (hasOption) sidebarSel.value = String(matchIdx);
+    }
+
+    // 結果テーブルの行ハイライト
+    const tbody = document.getElementById('charuco-table-body-cam1');
+    if (tbody) {
+        tbody.querySelectorAll('tr.cc-row-selected').forEach(r => r.classList.remove('cc-row-selected'));
+        const target = tbody.querySelector(`tr[data-board-index="${matchIdx}"]`);
+        if (target) target.classList.add('cc-row-selected');
+    }
+};
 
 function updateErrorBarChart(errors, containerId, title) {
     if (!Array.isArray(errors)) return;

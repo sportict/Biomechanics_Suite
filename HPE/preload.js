@@ -14,6 +14,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   loadProject: () => ipcRenderer.invoke('load-project'),
   loadProjectFromPath: (filePath) => ipcRenderer.invoke('load-project-from-path', filePath),
 
+  // 保存確認ダイアログ（OS ネイティブ）
+  showSaveConfirm: (message) => ipcRenderer.invoke('show-save-confirm', message),
+
   // ファイル/ディレクトリの存在確認
   checkPathExists: (path) => ipcRenderer.invoke('check-path-exists', path),
 

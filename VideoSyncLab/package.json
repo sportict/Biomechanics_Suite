@@ -8,10 +8,11 @@
         "dev": "cross-env NODE_ENV=development electron .",
         "dev-tools": "cross-env NODE_ENV=development electron . --dev-tools",
         "prebuild": "npm run clean",
-        "build": "cross-env NODE_ENV=production electron-builder --win --x64",
-        "build:dir": "cross-env NODE_ENV=production electron-builder --win --x64 --dir",
-        "build:portable": "cross-env NODE_ENV=production electron-builder --win portable --x64",
-        "build:mac": "cross-env NODE_ENV=production electron-builder --mac --arm64",
+        "copy-shared": "node -e \"require('fs').cpSync('../shared', 'shared', {recursive: true})\"",
+        "build": "npm run copy-shared && cross-env NODE_ENV=production electron-builder --win --x64",
+        "build:dir": "npm run copy-shared && cross-env NODE_ENV=production electron-builder --win --x64 --dir",
+        "build:portable": "npm run copy-shared && cross-env NODE_ENV=production electron-builder --win portable --x64",
+        "build:mac": "npm run copy-shared && cross-env NODE_ENV=production electron-builder --mac --arm64",
         "postinstall": "electron-builder install-app-deps",
         "clean": "rimraf dist node_modules/.cache"
     },
@@ -127,7 +128,8 @@
                 "ext": "vsl",
                 "name": "VideoSyncLab Project",
                 "description": "VideoSyncLab Project File",
-                "icon": "build/icon.ico"
+                "icon": "./VSL.icns",
+                "role": "Editor"
             }
         ]
     },

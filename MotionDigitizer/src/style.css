@@ -48,8 +48,8 @@
     background: #d6ecff;
 }
 
-/* 驥崎､｡ｨ遉ｺ髦ｲ豁｢: 荳矩Κ縺ｮ繝輔ぃ繧､繝ｫ諠ｱ縺ｯ髱櫁｡ｨ遉ｺ井ｸ企Κ繝ｪ繧ｹ繝医縺ｿ陦ｨ遉ｺ/* 重複表示防止: 下部のファイル情報は非表示（上部のリストのみ表示） */
-.file-item .file-info {
+/* 重複表示防止: file-list にアイテムがある時のみ file-info を非表示 */
+.file-item .file-list:not(:empty) ~ .file-info {
     display: none;
 }
 
@@ -2919,14 +2919,7 @@ body {
     margin-bottom: 4px;
 }
 
-/* 騾ｲ陦檎憾豕√そ繧ｯ繧ｷ繝ｧ繝ｳ繧帝撼陦ｨ遉ｺ */
-.progress-section,
-.section:has(.progress-section),
-.section:has([id*="progress"]) {
-    display: none !important;
-    visibility: hidden !important;
-    height: 0 !important;
-    overflow: hidden !important;
+/* 旧プログレスセクション非表示（独立セクション時のみ。統合されたセクションは除外） */
 }
 
 /* 蜍慕判驕ｸ謚朸I縺ｮ縺輔ｉ縺ｪ繧九さ繝ｳ繝代け繝亥喧 */
@@ -3833,9 +3826,27 @@ body {
     background-color: white;
 }
 
-/* .calibration-table tbody tr:hover {
-    background-color: #e3f2fd !important;
-} Removed */
+/* クリック可能な行のホバー/選択 */
+.calibration-table tbody tr[data-board-index]:hover {
+    background-color: #eef2ff !important;
+    transition: background-color .12s ease;
+}
+.calibration-table tbody tr.cc-row-selected {
+    background-color: #dbeafe !important;
+    box-shadow: inset 3px 0 0 #667eea;
+}
+.calibration-table .cc-row-frame {
+    display: inline-block;
+    padding: 0 4px;
+    margin-left: 4px;
+    background: #e0e7ff;
+    color: #4338ca;
+    border-radius: 3px;
+    font-size: 0.75em;
+    font-family: 'Courier New', monospace;
+    font-weight: 500;
+    vertical-align: 1px;
+}
 
 .calibration-table td {
     padding: 10px 8px;
@@ -5423,3 +5434,921 @@ body {
 .cc-params-table tr:hover td:first-child {
     background: #eef1f5;
 }
+
+/* ===================================
+   Sidebar UI Refinement (2026-04)
+   最終上書き — !important で既存の散在ルールに勝つ
+   =================================== */
+
+/* サイドバー全体 */
+.sidebar-content {
+    padding: 6px 0 !important;
+}
+
+/* セクション共通 */
+.sidebar-content .section {
+    margin-bottom: 4px !important;
+    padding-bottom: 2px !important;
+}
+
+/* セクションヘッダー */
+.sidebar-content .section-header {
+    padding: 2px 10px 3px !important;
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    text-transform: none !important;
+    letter-spacing: 0.02em !important;
+    color: #475569 !important;
+    border-bottom: 1px solid #e2e8f0;
+    margin-bottom: 4px !important;
+    gap: 5px !important;
+}
+.sidebar-content .section-icon {
+    width: 13px !important;
+    height: 13px !important;
+    opacity: 0.65;
+}
+
+/* プロジェクト名 */
+.project-name-section { margin-bottom: 4px !important; }
+.project-name {
+    font-size: 12px !important;
+    padding: 5px 10px !important;
+    border-radius: 5px !important;
+}
+
+/* キャリブレーション方法 */
+.calibration-method-section {
+    padding: 0 10px !important;
+    margin-bottom: 2px !important;
+}
+.method-select {
+    padding: 5px 8px !important;
+    font-size: 11px !important;
+    margin-bottom: 2px !important;
+    border-radius: 5px !important;
+}
+
+/* モード・カメラ ラジオボタン */
+.option-group { padding: 0 10px !important; }
+.option { margin-bottom: 0 !important; }
+.option-label {
+    padding: 3px 8px !important;
+    font-size: 12px !important;
+    border-radius: 4px !important;
+}
+
+/* ファイル選択ワークフロー — 折りたたみ対応 */
+.file-manager { padding: 0 8px !important; }
+.workflow-step { margin-bottom: 3px !important; border-radius: 5px !important; }
+.step-header { padding: 4px 8px !important; cursor: pointer; }
+.step-title { font-size: 11px !important; }
+.step-number {
+    width: 16px !important; height: 16px !important;
+    font-size: 10px !important; line-height: 16px !important;
+}
+.step-status { font-size: 10px !important; }
+.step-content { padding: 2px 6px 4px !important; }
+.file-item { padding: 3px 6px !important; margin-bottom: 2px !important; border-radius: 4px !important; }
+.file-label { font-size: 11px !important; }
+.file-info .file-name { font-size: 11px !important; }
+.file-info .file-path { font-size: 9px !important; }
+/* 折りたたみトグル */
+.step-header .step-toggle {
+    display: inline-block; width: 0; height: 0;
+    border-left: 5px solid #94a3b8; border-top: 4px solid transparent;
+    border-bottom: 4px solid transparent;
+    transition: transform 0.15s; margin-right: 4px; flex-shrink: 0;
+}
+.step-header.expanded .step-toggle { transform: rotate(90deg); }
+.step-content.collapsed { display: none; }
+
+/* 進行状況 */
+.progress-section { padding: 0 10px !important; }
+.progress-bar { height: 3px !important; border-radius: 2px !important; }
+.progress-text { font-size: 10px !important; margin-top: 2px !important; }
+
+/* 解析設定 — FPSをインラインに */
+.settings-section { padding: 0 10px !important; }
+.settings-group { margin-bottom: 3px !important; }
+.settings-label { font-size: 11px !important; }
+.input-field, .small-input {
+    padding: 3px 6px !important; font-size: 12px !important;
+    height: 24px !important; border-radius: 4px !important;
+}
+
+/* 表示・動作設定 */
+.compact-settings .setting-row { margin-bottom: 1px !important; }
+.compact-settings .checkbox-option label,
+.compact-settings .input-group label { font-size: 11px !important; }
+.compact-settings .small-input { width: 40px !important; }
+
+/* ChArUco セクション */
+#charuco-calibration-section .action-section { padding: 0 8px !important; }
+#charuco-calibration-section .action-button {
+    padding: 4px 8px !important; font-size: 11px !important;
+    min-height: 26px !important; border-radius: 4px !important;
+}
+#charuco-calibration-section label { font-size: 11px !important; }
+#charuco-calibration-section input[type="number"] { width: 36px !important; }
+
+/* 3D計算ボタン */
+#sidebar-3d-section .action-button {
+    padding: 4px 8px !important; font-size: 11px !important;
+    min-height: 26px !important;
+}
+
+/* モード+カメラ統合UI */
+.mode-cam-row {
+    display: flex;
+    gap: 6px;
+    padding: 0 10px;
+    align-items: center;
+    margin-bottom: 4px;
+}
+.toggle-group {
+    display: flex;
+    border: 1px solid #cbd5e1;
+    border-radius: 5px;
+    overflow: hidden;
+}
+.toggle-group .option-input { display: none; }
+.toggle-btn {
+    font-size: 11px !important;
+    font-weight: 600;
+    padding: 4px 8px;
+    color: #64748b;
+    background: #f8fafc;
+    cursor: pointer;
+    border: none;
+    border-right: 1px solid #cbd5e1;
+    transition: all 0.15s;
+    white-space: nowrap;
+    width: auto !important;
+    margin: 0 !important;
+}
+.toggle-btn:last-of-type { border-right: none; }
+.toggle-btn:hover { background: #e2e8f0; }
+.option-input:checked + .toggle-btn {
+    background: #3b82f6;
+    color: #fff;
+}
+
+/* カメラ番号ボタン */
+.cam-num-group {
+    display: flex;
+    gap: 3px;
+}
+.cam-count-select {
+    font-size: 10px !important;
+    font-weight: 600;
+    color: #64748b;
+    background: #f1f5f9;
+    border: 1px solid #cbd5e1;
+    border-radius: 4px;
+    padding: 2px 4px !important;
+    height: 24px !important;
+    margin-left: 6px;
+    cursor: pointer;
+}
+.cam-num-group .option-input { display: none; }
+.cam-num-btn {
+    width: 24px; height: 24px;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700;
+    color: #64748b; background: #f1f5f9;
+    border: 1px solid #cbd5e1; border-radius: 4px;
+    cursor: pointer; transition: all 0.15s;
+    line-height: 1; gap: 1px;
+    position: relative;
+}
+.cam-num-btn:hover { background: #e2e8f0; border-color: #94a3b8; }
+.cam-num-btn.disabled {
+    opacity: 0.3; cursor: default; pointer-events: none;
+}
+.option-input:checked + .cam-num-btn {
+    background: #3b82f6; color: #fff; border-color: #2563eb;
+}
+.cam-dot {
+    width: 4px; height: 4px; border-radius: 50%;
+    background: #cbd5e1; display: block;
+}
+.cam-dot.has-file { background: #10b981; }
+.option-input:checked + .cam-num-btn .cam-dot.has-file { background: #86efac; }
+
+/* 動画ファイル情報表示 */
+.active-file-display {
+    padding: 0 10px;
+}
+.active-file-row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 0;
+}
+.active-file-display .file-list-item {
+    font-size: 10px !important;
+    padding: 1px 4px !important;
+}
+.active-file-badge {
+    font-size: 8px;
+    font-weight: 700;
+    color: #fff;
+    background: #3b82f6;
+    padding: 2px 6px;
+    border-radius: 3px;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+.active-file-name {
+    flex: 1;
+    font-size: 10px;
+    font-weight: 500;
+    color: #334155;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+}
+.active-file-name.empty {
+    color: #94a3b8;
+    font-style: italic;
+}
+.active-file-list-container {
+    padding: 0;
+}
+
+/* ドロップゾーン */
+.file-drop-zone {
+    border: 1px dashed #cbd5e1;
+    border-radius: 6px;
+    padding: 4px 8px 6px !important;
+    transition: all 0.2s;
+    position: relative;
+}
+.file-drop-zone.drag-active {
+    border-color: #3b82f6;
+    background: rgba(59, 130, 246, 0.06);
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
+}
+.file-drop-hint {
+    font-size: 9px;
+    color: #94a3b8;
+    text-align: center;
+    padding: 1px 0 0;
+    transition: color 0.2s;
+}
+.file-drop-zone.drag-active .file-drop-hint {
+    color: #3b82f6;
+    font-weight: 600;
+}
+.btn-add {
+    font-size: 11px;
+    font-weight: 700;
+    color: #64748b;
+    background: #f1f5f9;
+    border: 1px solid #cbd5e1;
+    border-radius: 3px;
+    padding: 1px 5px;
+    cursor: pointer;
+    line-height: 1.2;
+    flex-shrink: 0;
+    transition: all 0.15s;
+}
+.btn-add:hover {
+    background: #e2e8f0;
+    color: #3b82f6;
+    border-color: #93c5fd;
+}
+
+/* カメラ選択ヘッダーアイコン */
+#camera-select-section .section-header span { font-size: 1em; }
+
+/* ファイル選択ヘッダー: ラベル左 + ＋ボタン右寄せ */
+.file-header-compact {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1px 0;
+}
+.file-header-compact .file-label {
+    font-size: 10px !important;
+    font-weight: 600;
+    color: #64748b;
+}
+.file-header-compact .btn-tiny {
+    padding: 0 5px !important;
+    min-width: 18px !important;
+    min-height: 16px !important;
+    font-size: 10px !important;
+    line-height: 1;
+}
+
+/* 撮影設定バッジ */
+.shooting-badge {
+    display: flex;
+    gap: 0;
+    margin-top: 4px;
+    border: 1px solid #cbd5e1;
+    border-radius: 5px;
+    overflow: hidden;
+}
+.shooting-badge-item {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    cursor: pointer;
+}
+.shooting-badge-item + .shooting-badge-item {
+    border-left: 1px solid #cbd5e1;
+}
+.shooting-badge-label {
+    font-size: 10px;
+    font-weight: 700;
+    color: #fff;
+    background: #64748b;
+    padding: 5px 7px;
+    letter-spacing: 0.04em;
+    line-height: 1;
+    white-space: nowrap;
+}
+.shooting-badge-input {
+    border: none !important;
+    background: #f8fafc !important;
+    font-size: 12px !important;
+    font-weight: 600 !important;
+    color: #334155 !important;
+    width: 50px !important;
+    height: auto !important;
+    padding: 4px 5px !important;
+    text-align: center;
+    outline: none;
+    border-radius: 0 !important;
+    -moz-appearance: textfield;
+}
+.shooting-badge-input::-webkit-inner-spin-button,
+.shooting-badge-input::-webkit-outer-spin-button {
+    -webkit-appearance: none; margin: 0;
+}
+.shooting-badge-select {
+    border: none !important;
+    background: #f8fafc !important;
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    color: #334155 !important;
+    padding: 4px 18px 4px 5px !important;
+    height: auto !important;
+    outline: none;
+    cursor: pointer;
+    border-radius: 0 !important;
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2'%3e%3cpolyline points='6 9 12 15 18 9'/%3e%3c/svg%3e") !important;
+    background-repeat: no-repeat !important;
+    background-position: right 2px center !important;
+    background-size: 12px !important;
+    -webkit-appearance: none !important;
+}
+
+/* ============================================================ */
+/* セクション折りたたみ (details/summary)                        */
+/* `.section-collapsible` クラスでオプトイン                     */
+/* ============================================================ */
+details.section-collapsible > summary.section-header {
+    list-style: none;
+    cursor: pointer;
+    user-select: none;
+}
+details.section-collapsible > summary.section-header::-webkit-details-marker { display: none; }
+details.section-collapsible > summary.section-header::marker { content: ''; }
+details.section-collapsible > summary.section-header:hover {
+    color: #475569;
+}
+.section-chevron {
+    margin-left: auto;
+    width: 7px;
+    height: 7px;
+    border-right: 1.5px solid #94a3b8;
+    border-bottom: 1.5px solid #94a3b8;
+    transform: rotate(45deg) translate(-2px, -2px);
+    transition: transform .15s ease;
+    flex: 0 0 auto;
+}
+details.section-collapsible[open] > summary.section-header .section-chevron {
+    transform: rotate(-135deg) translate(-2px, -2px);
+}
+
+/* ============================================================ */
+/* ChArUcoキャリブレーション — コンパクト版                     */
+/* 他の action-group セクションと視覚的トーンを統一              */
+/* <details>/<summary> で折りたたみ可能                          */
+/* ============================================================ */
+
+/* Workflow container (sidebar) */
+.charuco-workflow {
+    padding: 0 10px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+/* Step card — details/summary で折りたたみ */
+details.cc-step {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 5px;
+    overflow: hidden;
+}
+
+/* summary のデフォルト三角マーカーを抑制 */
+details.cc-step > summary.cc-step-head {
+    list-style: none;
+    cursor: pointer;
+    user-select: none;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 8px;
+    background: transparent;
+    transition: background-color .12s ease;
+}
+details.cc-step > summary.cc-step-head::-webkit-details-marker { display: none; }
+details.cc-step > summary.cc-step-head::marker { content: ''; }
+details.cc-step > summary.cc-step-head:hover {
+    background: #f1f5f9;
+}
+details.cc-step[open] > summary.cc-step-head {
+    border-bottom: 1px solid #e2e8f0;
+}
+
+/* Chevron indicator (下向き ▼ → 開いたら上向き) */
+.cc-step-chevron {
+    margin-left: auto;
+    width: 7px;
+    height: 7px;
+    border-right: 1.5px solid #94a3b8;
+    border-bottom: 1.5px solid #94a3b8;
+    transform: rotate(45deg) translate(-2px, -2px);
+    transition: transform .15s ease;
+    flex: 0 0 auto;
+}
+details.cc-step[open] > summary.cc-step-head .cc-step-chevron {
+    transform: rotate(-135deg) translate(-2px, -2px);
+}
+
+.cc-step-num {
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: #fff;
+    font-weight: 700;
+    font-size: 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    line-height: 1;
+}
+.cc-step-title {
+    font-weight: 600;
+    font-size: 12px;
+    color: #334155;
+}
+
+.cc-step-body {
+    padding: 6px 8px 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+/* Form fields */
+.cc-field-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px 6px;
+}
+.cc-field-grid-4 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 3px 4px;
+}
+/* 4列グリッド時は数値スピナーを隠して幅を確保 */
+.cc-field-grid-4 input[type="number"]::-webkit-inner-spin-button,
+.cc-field-grid-4 input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+.cc-field-grid-4 input[type="number"] {
+    -moz-appearance: textfield;
+    text-align: center;
+    padding-left: 2px;
+    padding-right: 2px;
+}
+.cc-field {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
+}
+.cc-field-full {
+    grid-column: 1 / -1;
+}
+.cc-field-label {
+    font-size: 10px;
+    font-weight: 500;
+    color: #64748b;
+    line-height: 1.2;
+}
+.cc-field input,
+.cc-field select {
+    width: 100%;
+    min-width: 0;
+    padding: 3px 5px;
+    border: 1px solid #cbd5e1;
+    border-radius: 3px;
+    font-size: 12px;
+    color: #1e293b;
+    background: #fff;
+    transition: border-color .15s ease, box-shadow .15s ease;
+    box-sizing: border-box;
+}
+.cc-field input:focus,
+.cc-field select:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.15);
+}
+.cc-field input[type="number"] {
+    font-variant-numeric: tabular-nums;
+}
+
+/* Buttons */
+.cc-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 5px 8px;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color .15s ease, border-color .15s ease, transform .1s ease, box-shadow .15s ease;
+    white-space: nowrap;
+}
+.cc-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+.cc-btn .material-symbols-outlined {
+    font-size: 14px;
+    line-height: 1;
+}
+.cc-btn-block {
+    width: 100%;
+}
+.cc-btn-small {
+    padding: 3px 6px;
+    font-size: 11px;
+}
+
+.cc-btn-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: #fff;
+    box-shadow: 0 1px 2px rgba(102, 126, 234, 0.35);
+}
+.cc-btn-primary:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 3px 8px rgba(102, 126, 234, 0.4);
+}
+
+.cc-btn-accent {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: #fff;
+    box-shadow: 0 1px 2px rgba(16, 185, 129, 0.35);
+    flex: 1 1 auto;
+}
+.cc-btn-accent:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 3px 8px rgba(16, 185, 129, 0.4);
+}
+
+.cc-btn-ghost {
+    background: #fff;
+    border-color: #cbd5e1;
+    color: #475569;
+    flex: 1 1 auto;
+}
+.cc-btn-ghost:hover:not(:disabled) {
+    background: #f8fafc;
+    border-color: #94a3b8;
+    color: #1e293b;
+}
+
+/* Session danger state (active session) */
+#calib-session-btn.cc-btn.danger,
+#calib-session-btn.danger {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%) !important;
+    border-color: transparent !important;
+    color: #fff !important;
+    box-shadow: 0 1px 2px rgba(239, 68, 68, 0.35) !important;
+}
+
+.cc-action-row {
+    display: flex;
+    gap: 4px;
+}
+.cc-action-row > .cc-btn {
+    flex: 1 1 0;
+    min-width: 0;
+}
+
+/* Status indicator */
+.cc-status-row {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 7px;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 3px;
+    font-size: 11px;
+}
+.cc-status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #94a3b8;
+    flex: 0 0 auto;
+    box-shadow: 0 0 0 2px rgba(148, 163, 184, 0.2);
+}
+.cc-status-row.active .cc-status-dot {
+    background: #10b981;
+    box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.25);
+    animation: cc-pulse 1.6s ease-in-out infinite;
+}
+.cc-status-row.error .cc-status-dot {
+    background: #ef4444;
+    box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.25);
+}
+.cc-status-text {
+    color: #475569;
+    flex: 1;
+    line-height: 1.3;
+    margin: 0;
+}
+@keyframes cc-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.55; }
+}
+
+/* Detection result panel */
+.cc-detect-panel {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 3px;
+    padding: 5px;
+}
+.cc-detect-single {
+    display: flex;
+    gap: 5px;
+    justify-content: center;
+}
+.cc-detect-chip {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 3px;
+    padding: 1px 7px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 999px;
+    font-size: 11px;
+    color: #475569;
+}
+.cc-detect-chip-label {
+    font-size: 10px;
+    font-weight: 500;
+    color: #94a3b8;
+}
+.cc-detect-chip b {
+    font-size: 12px;
+    font-weight: 700;
+    color: #1e293b;
+    font-variant-numeric: tabular-nums;
+    min-width: 12px;
+    text-align: center;
+}
+.cc-detect-stereo {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.cc-detect-cam {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-wrap: wrap;
+}
+.cc-detect-cam-label {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 36px;
+    padding: 1px 5px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    border-radius: 3px;
+}
+
+/* Board select (single mode) */
+.cc-board-select {
+    padding-top: 6px;
+    border-top: 1px dashed #e2e8f0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+/* ============================================================ */
+/* Right panel: Camera card                                     */
+/* ============================================================ */
+.cc-cam-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+}
+@media (min-width: 1280px) {
+    .cc-cam-grid.cc-cam-grid-stereo {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+.cc-cam-card {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.cc-cam-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+}
+.cc-cam-icon {
+    color: #667eea;
+    font-size: 18px !important;
+}
+.cc-cam-title {
+    margin: 0;
+    padding: 0;
+    border: none;
+    font-size: 13px;
+    font-weight: 700;
+    color: #1e293b;
+    flex: 1 1 auto;
+}
+.cc-cam-toolbar {
+    display: inline-flex;
+    gap: 3px;
+}
+
+/* Cam card 下のアクションボタン行 (テキストラベル付き) */
+.cc-cam-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 8px 10px 0;
+}
+.cc-cam-actions .cc-btn {
+    flex: 1 1 auto;
+}
+.cc-icon-btn {
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 5px;
+    color: #475569;
+    cursor: pointer;
+    transition: background-color .15s ease, border-color .15s ease, color .15s ease;
+}
+.cc-icon-btn:hover {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+    color: #1e293b;
+}
+.cc-icon-btn .material-symbols-outlined {
+    font-size: 16px;
+}
+.cc-icon-btn-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-color: transparent;
+    color: #fff;
+}
+.cc-icon-btn-primary:hover {
+    filter: brightness(1.05);
+    border-color: transparent;
+    color: #fff;
+}
+
+/* Cam card inner padding */
+.cc-cam-card > .intrinsic-status-card,
+.cc-cam-card > #cam1-single-details,
+.cc-cam-card > #cam2-single-details {
+    margin: 8px 10px;
+}
+.cc-cam-card > .intrinsic-status-card {
+    margin-bottom: 0;
+}
+
+/* Remove old h4 underline when inside cam card */
+.cc-cam-card h4.cc-cam-title {
+    padding-bottom: 0 !important;
+    border-bottom: none !important;
+}
+
+/* ============================================================ */
+/* サイドバー: HPE スタイルのフレーム付きパネル                 */
+/* 各 .section を border + 淡背景のカードに統一                 */
+/* ============================================================ */
+
+.sidebar-content {
+    padding: 10px 0;
+}
+
+.sidebar-content > .section,
+.sidebar-content > details.section {
+    margin: 0 10px 6px;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 8px 10px;
+    box-sizing: border-box;
+}
+
+/* project-name はパネル化せず、現行の淡いグラデーションのまま */
+.sidebar-content > .section.project-name-section {
+    background: transparent;
+    border: none;
+    padding: 0;
+    margin: 0 10px 8px;
+}
+
+/* セクション見出しをパネル内のヘッダーとして再配置 */
+.sidebar-content .section-header {
+    padding: 0 0 6px;
+    font-size: 11px;
+    letter-spacing: 0.4px;
+    color: #475569;
+}
+
+/* セクション内コンテナの過剰なパディングを抑制（パネル側が余白を持つ） */
+.sidebar-content .action-section,
+.sidebar-content .calibration-method-section,
+.sidebar-content .settings-section {
+    padding: 0;
+    margin-bottom: 0;
+}
+
+/* ChArUco ワークフローもパネル側padding と揃える */
+.sidebar-content .charuco-workflow {
+    padding: 0;
+}
+
+/* サイドバー共通のフォントサイズ（HPEスケールに合わせる） */
+.sidebar-content .form-group label,
+.sidebar-content .settings-label,
+.sidebar-content label {
+    font-size: 11px;
+}
+.sidebar-content input[type="number"],
+.sidebar-content input[type="text"],
+.sidebar-content select {
+    font-size: 12px;
+}
+
+/* action-group の縁も揃える (ChArUco 外で使われる汎用) */
+.sidebar-content .action-group {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 5px;
+    padding: 8px 10px;
+    margin-bottom: 6px;
+}
+
+/* モード切替 / カメラ選択: パネル内の密度を上げる */
+.sidebar-content .mode-cam-row {
+    margin: 0;
+}
+

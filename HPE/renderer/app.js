@@ -135,11 +135,12 @@ const SKELETON_CONNECTIONS = [
 // 25点形式（阿江モデル対応）
 // ===================================
 
-// プリセット設定: preset value → { model, outputFormat }
+// プリセット設定: preset value → { model, yolo, outputFormat }
+// YOLO26m: mAP=53.4, CPU 97ms / RTMPose-M: CoreML 3ms / RTMPose-X: CoreML 10ms
 const PRESET_CONFIG = {
-  'fast': { model: 'rtmpose-m', yolo: 'yolo11s.onnx', outputFormat: '23pts'     },
-  'hq':   { model: 'rtmpose-x', yolo: 'yolo11x.onnx', outputFormat: '23pts'     },
-  '52pts':{ model: 'synthpose-huge-onnx',               outputFormat: 'synthpose' },
+  'fast':      { model: 'rtmpose-m',         yolo: 'yolo26m.onnx', outputFormat: '23pts' },
+  'hq':        { model: 'rtmpose-x',         yolo: 'yolo26m.onnx', outputFormat: '23pts' },
+  'synthpose': { model: 'synthpose-huge-onnx', yolo: 'yolo26m.onnx', outputFormat: 'synthpose' },
 };
 
 // ---- アクティブ形式ヘルパー（state.outputFormat を参照） ----
@@ -401,40 +402,9 @@ async function closeProject() {
 }
 
 // 閉じる確認ダイアログを表示
-async function showCloseConfirmDialog(message = 'プロジェクトを閉じる前に保存しますか？', saveLabel = '保存して閉じる') {
-  return new Promise((resolve) => {
-    // カスタムダイアログを作成
-    const overlay = document.createElement('div');
-    overlay.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 10000;';
-
-    const dialog = document.createElement('div');
-    dialog.style.cssText = 'background: #1f2937; border-radius: 8px; padding: 1.5rem; max-width: 400px; color: #f3f4f6; box-shadow: 0 4px 20px rgba(0,0,0,0.5);';
-    dialog.innerHTML = `
-      <h3 style="margin: 0 0 1rem 0; font-size: 1.1rem;">プロジェクトの保存確認</h3>
-      <p style="margin: 0 0 1.5rem 0; color: #9ca3af;">${message}</p>
-      <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
-        <button id="closeDialogCancel" style="padding: 0.5rem 1rem; border: 1px solid #4b5563; background: transparent; color: #f3f4f6; border-radius: 4px; cursor: pointer;">キャンセル</button>
-        <button id="closeDialogDiscard" style="padding: 0.5rem 1rem; border: none; background: #ef4444; color: white; border-radius: 4px; cursor: pointer;">保存しない</button>
-        <button id="closeDialogSave" style="padding: 0.5rem 1rem; border: none; background: #3b82f6; color: white; border-radius: 4px; cursor: pointer;">${saveLabel}</button>
-      </div>
-    `;
-
-    overlay.appendChild(dialog);
-    document.body.appendChild(overlay);
-
-    dialog.querySelector('#closeDialogCancel').onclick = () => {
-      document.body.removeChild(overlay);
-      resolve('cancel');
-    };
-    dialog.querySelector('#closeDialogDiscard').onclick = () => {
-      document.body.removeChild(overlay);
-      resolve('discard');
-    };
-    dialog.querySelector('#closeDialogSave').onclick = () => {
-      document.body.removeChild(overlay);
-      resolve('save');
-    };
-  });
+async function showCloseConfirmDialog(message = 'プロジェクトを保存しますか？') {
+  // OS ネイティブダイアログ（main プロセス経由）
+  return await window.electronAPI.showSaveConfirm(message);
 }
 
 // 実際にプロジェクトを閉じる処理
@@ -536,6 +506,9 @@ function doCloseProject() {
   if (elements.exportPanel) {
     elements.exportPanel.style.display = 'none';
   }
+  // 動画/骨格モード用ツールバーも非表示
+  const videoEditToolbar = document.getElementById('videoEditToolbar');
+  if (videoEditToolbar) videoEditToolbar.style.display = 'none';
   if (elements.playbackFooter) {
     elements.playbackFooter.style.display = 'none';
   }
@@ -1177,7 +1150,7 @@ async function initModelInfo(retryCount = 0) {
       // GPU → 高精度(hq), CPU → 高速(fast)
       if (!result.data.current_type && elements.presetSelect) {
         const device = result.data.device || 'cpu';
-        elements.presetSelect.value = (device === 'cuda') ? 'hq' : 'fast';  // mps/cpu はfastが安定
+        elements.presetSelect.value = (device === 'cpu') ? 'fast' : 'hq';  // mps/cuda は高精度、CPUのみ高速
       }
 
       console.log('Model info initialized successfully');
@@ -1335,8 +1308,13 @@ function initPythonStatusListener() {
           }
 
           if (modelInfo.length > 0) {
-            showError(`✅ モデルロード完了: ${modelInfo.join(', ')}`);
-            setTimeout(hideError, 5000);
+            if (models.warnings && models.warnings.length > 0) {
+              showError(`⚠️ モデルロード完了（警告あり）: ${modelInfo.join(', ')}\n${models.warnings.join('\n')}`);
+              setTimeout(hideError, 10000);
+            } else {
+              showError(`✅ モデルロード完了: ${modelInfo.join(', ')}`);
+              setTimeout(hideError, 5000);
+            }
           }
           // UIセレクタを現在のモデルに同期
           updateModelSelectorUI(models.vitpose_type, models.available_models);
@@ -1370,7 +1348,9 @@ function updateModelInfoDisplay() {
     const message = state.modelLoadingMessage || 'ロード中...';
     modelInfoEl.textContent = `${message} (${progress}%)`;
   } else if (state.loadedModels) {
-    modelInfoEl.textContent = `現在: ${state.loadedModels.vitpose || '不明'}`;
+    const yolo = (state.loadedModels.yolo_model || '').replace('.onnx', '').toUpperCase();
+    const pose = state.loadedModels.vitpose || '不明';
+    modelInfoEl.textContent = `現在: ${yolo} + ${pose}`;
   } else {
     modelInfoEl.textContent = '現在: 未ロード';
   }
@@ -2700,6 +2680,7 @@ function drawVideoFrame() {
     const vh = video.videoHeight || 1;
     const fitScale = Math.min(cWidth / vw, cHeight / vh);
     state.videoZoom = Number.isFinite(fitScale) ? fitScale : 1.0;
+    state.videoFitScale = state.videoZoom; // ホイールズーム制限用に保存
 
     // 中央配置オフセット (サニタイズされた値を使用)
     state.videoPanX = (cWidth - vw * state.videoZoom) / 2;
@@ -3225,6 +3206,7 @@ function drawFrameImage(ctx, canvas, img, frameData) {
     const ih = img.height || 1;
     const fitScale = Math.min(cWidth / iw, cHeight / ih);
     state.videoZoom = Number.isFinite(fitScale) ? fitScale : 1.0;
+    state.videoFitScale = state.videoZoom;
     state.videoPanX = (cWidth - iw * state.videoZoom) / 2;
     state.videoPanY = (cHeight - ih * state.videoZoom) / 2;
     state.videoZoomInitialized = true;
@@ -3540,6 +3522,26 @@ function updateDigitizeKeypointList() {
 }
 
 // ===================================
+// クレンジングタブ切替
+// ===================================
+function initCleansingTabs() {
+  const tabs = document.querySelectorAll('.cleansing-tab');
+  if (tabs.length === 0) return;
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      // タブ状態
+      tabs.forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      // コンテンツ状態
+      const targetId = tab.getAttribute('data-tab');
+      document.querySelectorAll('.cleansing-tab-content').forEach(c => c.classList.remove('active'));
+      const target = document.getElementById(targetId);
+      if (target) target.classList.add('active');
+    });
+  });
+}
+
+// ===================================
 // フレーム再推定
 // ===================================
 function initRedetectEvents() {
@@ -3559,14 +3561,31 @@ function initRedetectEvents() {
 }
 
 async function redetectCurrentFrame() {
-  if (!state.videoResult || !state.filePath) {
-    showError('動画が読み込まれていません');
+  console.log('[Redetect] Button clicked. videoResult:', !!state.videoResult, 'filePath:', state.filePath);
+  if (!state.videoResult) {
+    showError('推定結果がありません');
     return;
   }
 
   const currentFrame = state.currentFrame;
   const confThreshold = parseFloat(document.getElementById('redetectConfThreshold')?.value) || 0.25;
   const redetectBtn = document.getElementById('redetectCurrentFrame');
+
+  // キャッシュ済みフレーム画像のパスを取得（動画ファイルを開き直すより確実）
+  let frameImagePath = null;
+  if (state.extractedFramesDir) {
+    const paddedFrame = String(currentFrame).padStart(5, '0');
+    const candidatePath = `${state.extractedFramesDir}/frame_${paddedFrame}.jpg`;
+    const exists = await window.electronAPI.checkPathExists(candidatePath);
+    if (exists) {
+      frameImagePath = candidatePath;
+    }
+  }
+
+  if (!frameImagePath && !state.filePath) {
+    showError('フレーム画像が見つかりません');
+    return;
+  }
 
   try {
     // ボタンを無効化
@@ -3580,13 +3599,24 @@ async function redetectCurrentFrame() {
       `;
     }
 
-    console.log(`[Redetect] Frame ${currentFrame}, confidence threshold: ${confThreshold}`);
+    console.log(`[Redetect] Frame ${currentFrame}, image: ${frameImagePath || 'video'}, threshold: ${confThreshold}`);
 
-    const result = await window.electronAPI.pythonRequest('detect_frame', {
-      file_path: state.filePath,
-      frame_number: currentFrame,
-      confidence_threshold: confThreshold
-    });
+    // キャッシュ画像があればdetect_image、なければdetect_frame（動画から抽出）
+    let result;
+    if (frameImagePath) {
+      result = await window.electronAPI.pythonRequest('detect_image', {
+        file_path: frameImagePath,
+        confidence_threshold: confThreshold,
+        output_format: state.outputFormat || '23pts'
+      });
+    } else {
+      result = await window.electronAPI.pythonRequest('detect_frame', {
+        file_path: state.filePath,
+        frame_number: currentFrame,
+        confidence_threshold: confThreshold,
+        output_format: state.outputFormat || '23pts'
+      });
+    }
 
     if (!result.success) {
       throw new Error(result.error || '再推定に失敗しました');
@@ -3881,14 +3911,27 @@ function initDigitizeEvents() {
     const beforeZoomX = (mouseX - state.videoPanX) / state.videoZoom;
     const beforeZoomY = (mouseY - state.videoPanY) / state.videoZoom;
 
+    // フィットスケール（100%）= 映像がキャンバスにぴったり収まる倍率
+    // videoFitScale は drawVideoFrame / drawSkeletonOnly の初期化時に保存された値を使う
+    const fitScale = state.videoFitScale || 0.5;
+
     // ズーム倍率を変更（上スクロール：拡大、下スクロール：縮小）
     const zoomDelta = e.deltaY < 0 ? 1.1 : 0.9;
-    const newZoom = Math.max(0.1, Math.min(10, state.videoZoom * zoomDelta));
+    let newZoom = Math.min(10, state.videoZoom * zoomDelta);
 
-    // ズーム後のパン位置を調整（マウス位置を中心に）
-    state.videoPanX = mouseX - beforeZoomX * newZoom;
-    state.videoPanY = mouseY - beforeZoomY * newZoom;
-    state.videoZoom = newZoom;
+    // 100%（フィットスケール）より縮小しようとしたらフィットにリセット
+    if (newZoom <= fitScale) {
+      newZoom = fitScale;
+      // フィット時は中央配置（内部座標系）
+      state.videoPanX = (canvas.width - (elements.previewVideo.videoWidth || 1) * newZoom) / 2;
+      state.videoPanY = (canvas.height - (elements.previewVideo.videoHeight || 1) * newZoom) / 2;
+      state.videoZoom = newZoom;
+    } else {
+      // ズーム後のパン位置を調整（マウス位置を中心に）
+      state.videoPanX = mouseX - beforeZoomX * newZoom;
+      state.videoPanY = mouseY - beforeZoomY * newZoom;
+      state.videoZoom = newZoom;
+    }
 
     drawVideoFrame();
   }, { passive: false });
@@ -4469,6 +4512,15 @@ function setViewMode(mode) {
   elements.viewSkeleton.classList.toggle('active', mode === 'skeleton');
   elements.viewGraph.classList.toggle('active', mode === 'graph');
 
+  // 動画/骨格モード用 編集ツールバーの表示切替
+  const videoEditToolbar = document.getElementById('videoEditToolbar');
+  if (videoEditToolbar) {
+    // 推定結果があり、動画/骨格モードのときのみ表示
+    const vr = state.videoResult || state.filteredResult;
+    const hasData = vr && vr.frames && vr.frames.length > 0;
+    videoEditToolbar.style.display = (mode !== 'graph' && hasData) ? '' : 'none';
+  }
+
   // 表示切替
   if (mode === 'graph') {
     elements.previewContainer.style.display = 'none';
@@ -4558,6 +4610,7 @@ function drawSkeletonOnly() {
 
     const fitScale = Math.min(cWidth / vw, cHeight / vh);
     state.videoZoom = Number.isFinite(fitScale) ? fitScale : 1.0;
+    state.videoFitScale = state.videoZoom;
     state.videoPanX = (cWidth - vw * state.videoZoom) / 2;
     state.videoPanY = (cHeight - vh * state.videoZoom) / 2;
     state.videoZoomInitialized = true;
@@ -5837,12 +5890,15 @@ function forceRedrawGraph() {
 }
 
 function updateUndoRedoUI() {
-  if (elements.undoEdit) {
-    elements.undoEdit.disabled = state.editHistory.length === 0;
-  }
-  if (elements.redoEdit) {
-    elements.redoEdit.disabled = state.redoHistory.length === 0;
-  }
+  const canUndo = state.editHistory.length > 0;
+  const canRedo = state.redoHistory.length > 0;
+  if (elements.undoEdit) elements.undoEdit.disabled = !canUndo;
+  if (elements.redoEdit) elements.redoEdit.disabled = !canRedo;
+  // 動画/骨格モード用ツールバーも同期
+  const vtUndo = document.getElementById('vt-undoEdit');
+  const vtRedo = document.getElementById('vt-redoEdit');
+  if (vtUndo) vtUndo.disabled = !canUndo;
+  if (vtRedo) vtRedo.disabled = !canRedo;
 }
 
 function undoEdit() {
@@ -7059,6 +7115,21 @@ function initEventListeners() {
   elements.viewSkeleton.addEventListener('click', () => setViewMode('skeleton'));
   elements.viewGraph.addEventListener('click', () => setViewMode('graph'));
 
+  // 動画/骨格モード用 編集ツールバーのイベントハンドラ
+  // グラフモード用ボタンと同じ処理関数を呼び出す
+  const vtDeleteBefore = document.getElementById('vt-deleteBefore');
+  const vtDeleteAfter = document.getElementById('vt-deleteAfter');
+  const vtDeleteFrame = document.getElementById('vt-deleteFrameData');
+  const vtBulkDelete = document.getElementById('vt-bulkDeletePersons');
+  const vtUndo = document.getElementById('vt-undoEdit');
+  const vtRedo = document.getElementById('vt-redoEdit');
+  if (vtDeleteBefore) vtDeleteBefore.addEventListener('click', () => performRangeDelete('before'));
+  if (vtDeleteAfter) vtDeleteAfter.addEventListener('click', () => performRangeDelete('after'));
+  if (vtDeleteFrame) vtDeleteFrame.addEventListener('click', deleteCurrentFrameData);
+  if (vtBulkDelete) vtBulkDelete.addEventListener('click', openBulkDeleteModal);
+  if (vtUndo) vtUndo.addEventListener('click', undoEdit);
+  if (vtRedo) vtRedo.addEventListener('click', redoEdit);
+
   // 手動デジタイズモード切替
   elements.enableDigitize.addEventListener('change', (e) => {
     state.digitizeMode = e.target.checked;
@@ -7930,7 +8001,9 @@ function updateUsedModelInfoUI() {
 
   if (infoPanel && yoloSpan && poseSpan) {
     if (state.usedModels && (state.usedModels.yolo || state.usedModels.pose)) {
-      yoloSpan.textContent = 'YOLO-X';
+      // YOLO名: ファイル名から表示用に変換 (yolo26m.onnx → YOLO26-M)
+      const yoloRaw = state.usedModels.yolo || '-';
+      yoloSpan.textContent = yoloRaw.replace('.onnx', '').toUpperCase();
       poseSpan.textContent = state.usedModels.pose || '-';
       infoPanel.style.display = 'block';
     } else {
@@ -8726,8 +8799,7 @@ async function loadProjectFromFilePath(filePath) {
   // 既存プロジェクトがある場合は保存確認
   if (state.videoResult || state.result) {
     const confirmed = await showCloseConfirmDialog(
-      '新しいプロジェクトを開く前に、現在のプロジェクトを保存しますか？',
-      '保存して開く'
+      '新しいプロジェクトを開く前に、現在のプロジェクトを保存しますか？'
     );
     if (confirmed === 'cancel') return;
     if (confirmed === 'save') await saveProject();
@@ -8748,8 +8820,7 @@ async function loadProject() {
   // 既存プロジェクトがある場合は保存確認を先に表示
   if (state.videoResult || state.result) {
     const confirmed = await showCloseConfirmDialog(
-      '新しいプロジェクトを開く前に、現在のプロジェクトを保存しますか？',
-      '保存して開く'
+      '新しいプロジェクトを開く前に、現在のプロジェクトを保存しますか？'
     );
     if (confirmed === 'cancel') return;
     if (confirmed === 'save') await saveProject();
@@ -8813,6 +8884,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initVideoRelinkEvents();
   initDigitizeEvents();  // 手動デジタイズ用イベント
   initRedetectEvents();  // フレーム再推定用イベント
+  initCleansingTabs();   // クレンジングタブ切替
 
   // フィルタパネルの初期値をlocalStorageから読み込み
   initFilterPanelDefaults();
@@ -9069,7 +9141,9 @@ function updateUsedModelInfoUI() {
 
   if (infoPanel && yoloSpan && poseSpan) {
     if (state.usedModels && (state.usedModels.yolo || state.usedModels.pose)) {
-      yoloSpan.textContent = 'YOLO-X';
+      // YOLO名: ファイル名から表示用に変換 (yolo26m.onnx → YOLO26-M)
+      const yoloRaw = state.usedModels.yolo || '-';
+      yoloSpan.textContent = yoloRaw.replace('.onnx', '').toUpperCase();
       poseSpan.textContent = state.usedModels.pose || '-';
       infoPanel.style.display = 'block';
     } else {

@@ -13,10 +13,11 @@
     "dev": "npm run patch-icon && electron . --dev",
     "build:native": "cd native && node-gyp configure build",
     "rebuild:native": "cd native && node-gyp rebuild",
-    "build": "npm run build:native && electron-builder --win --x64",
-    "build:dir": "npm run build:native && electron-builder --win --x64 --dir",
-    "build:portable": "npm run build:native && electron-builder --win --x64 -c.win.target=portable",
-    "build:mac": "npm run build:native && electron-builder --mac --arm64"
+    "copy-shared": "node -e \"require('fs-extra').copySync('../shared', 'shared')\"",
+    "build": "npm run copy-shared && npm run build:native && electron-builder --win --x64",
+    "build:dir": "npm run copy-shared && npm run build:native && electron-builder --win --x64 --dir",
+    "build:portable": "npm run copy-shared && npm run build:native && electron-builder --win --x64 -c.win.target=portable",
+    "build:mac": "npm run copy-shared && npm run build:native && electron-builder --mac --arm64"
   },
   "devDependencies": {
     "@electron/rebuild": "^4.0.2",
@@ -54,6 +55,7 @@
       "index.html",
       "calibration-3d-view.html",
       "src/**/*",
+      "shared/**/*",
       "assets/**/*",
       "native/**/*",
       "package.json",
@@ -91,7 +93,8 @@
       {
         "ext": "mdp",
         "name": "MotionDigitizer Project",
-        "role": "Editor"
+        "role": "Editor",
+        "icon": "./MDigi.icns"
       }
     ],
     "win": {

@@ -25,13 +25,47 @@ import sys
 # ===================================
 # ONNX Runtime セットアップ
 # ===================================
+def _validate_session(sess: 'ort.InferenceSession') -> None:
+    """セッションのダミー推論を実行して実行時エラーを事前に検出する。
+    CoreML は InferenceSession 作成時には成功しても session.run() で
+    "Error in building plan" などのエラーが発生することがあるため、
+    セッション返却前にここで検証する。
+
+    注意: np.zeros だと検出系モデル (YOLOX等) で動的シェイプが 0 要素に解決され
+    CoreML EP がエラーを出す。画像らしい値 (0.5) を使用する。
+    「動的シェイプが 0 要素」エラーは検出結果が空のときだけ発生し、
+    実映像では問題にならないため許容する。"""
+    import numpy as np
+    inp = sess.get_inputs()[0]
+    # 動的次元 (None / str) は 1 に置き換える
+    shape = [d if (isinstance(d, int) and d > 0) else 1 for d in inp.shape]
+    dummy = np.full(shape, 0.5, dtype=np.float32)
+    try:
+        sess.run(None, {inp.name: dummy})
+    except Exception as e:
+        msg = str(e)
+        if 'zero elements' in msg or 'dynamic shape' in msg:
+            import sys
+            print(f'[ONNX] CoreML validation warning (ignored): {msg}', file=sys.stderr)
+        else:
+            raise
+
+
 def setup_onnx_session(onnx_path: str, device: str = 'cuda') -> 'ort.InferenceSession':
-    """ONNXセッションを作成。CoreML/CUDA失敗時はCPUへフォールバック"""
+    """ONNXセッションを作成。CoreML/CUDA失敗時はCPUへフォールバック。
+
+    CoreML は InferenceSession 作成時には例外が出なくても、
+    実際に session.run() を呼んで初めて "Error in building plan" などの
+    エラーが発生することがある。そのため各候補を作成後に _validate_session()
+    でダミー推論まで実行し、成功したセッションのみを返す。
+    """
     import onnxruntime as ort
+    import sys as _sys
 
     sess_options = ort.SessionOptions()
     sess_options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
     sess_options.intra_op_num_threads = 4
+    sess_options.inter_op_num_threads = 2
 
     available = ort.get_available_providers()
 
@@ -48,23 +82,23 @@ def setup_onnx_session(onnx_path: str, device: str = 'cuda') -> 'ort.InferenceSe
         try:
             return ort.InferenceSession(onnx_path, sess_options=sess_options, providers=providers)
         except Exception as e:
-            print(f"[ONNX] CUDA session failed ({e}), falling back to CPU", file=__import__('sys').stderr)
+            print(f"[ONNX] CUDA session failed ({e}), falling back to CPU", file=_sys.stderr)
 
     elif device == 'mps':
-        # CoreML が利用可能なら CoreML セッションを作成する
-        # NeuralNetwork → MLProgram → MPS の順に試みる
-        import sys as _sys
+        # CoreML → MPS の順に試みる。
+        # 各候補はセッション作成だけでなくダミー推論まで実行して検証する。
         if 'CoreMLExecutionProvider' in available:
             for coreml_opts in (
-                {'ModelFormat': 'NeuralNetwork'},   # 互換性が高い
-                {'ModelFormat': 'MLProgram'},        # 新形式・より多くの op をサポート
-                {},                                  # デフォルト
+                {'ModelFormat': 'MLProgram'},        # 新形式: より多くのopをサポート
+                {'ModelFormat': 'NeuralNetwork'},    # 旧形式: 互換性重視
+                {},                                  # デフォルト (ランタイムに委ねる)
             ):
                 try:
                     sess = ort.InferenceSession(
                         onnx_path, sess_options=sess_options,
                         providers=[('CoreMLExecutionProvider', coreml_opts), 'CPUExecutionProvider']
                     )
+                    _validate_session(sess)   # ← 実行時エラーをここで検出
                     print(f"[ONNX] Using CoreMLExecutionProvider {coreml_opts}", file=_sys.stderr)
                     return sess
                 except Exception as e:
@@ -76,10 +110,11 @@ def setup_onnx_session(onnx_path: str, device: str = 'cuda') -> 'ort.InferenceSe
                     onnx_path, sess_options=sess_options,
                     providers=['MPSExecutionProvider', 'CPUExecutionProvider']
                 )
+                _validate_session(sess)
                 print("[ONNX] Using MPSExecutionProvider", file=_sys.stderr)
                 return sess
             except Exception as e:
-                print(f"[ONNX] MPS failed ({e})", file=_sys.stderr)
+                print(f"[ONNX] MPS failed ({e}), falling back to CPU", file=_sys.stderr)
 
         print("[ONNX] CoreML/MPS unavailable, falling back to CPU", file=_sys.stderr)
 
@@ -131,7 +166,10 @@ class ONNXYoloDetector:
         self.conf_threshold = conf_threshold
         self.iou_threshold = iou_threshold
 
-        # 出力形式を検出（初回session.run()でCoreMLが失敗する場合はCPUで再構築）
+        # 出力形式を検出
+        # setup_onnx_session 内で _validate_session() による検証済みのため、
+        # ここでは CoreML 起因の実行時エラーは発生しない想定。
+        # ただし万が一の保険として CPU 再構築フォールバックは残す。
         try:
             self._detect_output_format()
         except Exception as e:
@@ -146,16 +184,19 @@ class ONNXYoloDetector:
                 raise
         
     def _detect_output_format(self):
-        """モデルの出力形式を検出（YOLO v5/v8/v11 対応）"""
+        """モデルの出力形式を検出（YOLO v5/v8/v11/v26 対応）"""
         dummy = np.zeros((1, 3, self.input_height, self.input_width), dtype=np.float32)
         outputs = self.session.run(None, {self.input_name: dummy})
-        
+
         output_shape = outputs[0].shape
-        
+
+        # YOLO26 End-to-End: (1, 300, 6) = [x1, y1, x2, y2, score, class_id]
         # YOLO v8/v11: (1, 84, 8400) - 転置が必要
         # YOLO v5: (1, 25200, 85) - そのまま
         if len(output_shape) == 3:
-            if output_shape[1] < output_shape[2]:
+            if output_shape[2] == 6:
+                self.output_format = 'e2e'  # End-to-End NMS (YOLO26等)
+            elif output_shape[1] < output_shape[2]:
                 self.output_format = 'v8'  # (1, 84, N) -> transpose needed
             else:
                 self.output_format = 'v5'  # (1, N, 85)
@@ -190,29 +231,53 @@ class ONNXYoloDetector:
         pad_w_int = int(pad_w)
         padded[pad_h_int:pad_h_int + new_h, pad_w_int:pad_w_int + new_w] = resized
         
-        # BGR -> RGB, HWC -> CHW, normalize
-        input_tensor = padded[:, :, ::-1].transpose(2, 0, 1).astype(np.float32) / 255.0
-        input_tensor = np.expand_dims(input_tensor, axis=0).astype(np.float32)
-        
+        # BGR -> RGB, HWC -> CHW, normalize (1回の変換で完了)
+        input_tensor = padded[:, :, ::-1].transpose(2, 0, 1).astype(np.float32, copy=False)
+        input_tensor *= (1.0 / 255.0)
+        input_tensor = input_tensor[np.newaxis]  # (1, 3, H, W)
+
         return input_tensor, scale, (pad_w, pad_h)
     
-    def postprocess(self, outputs: np.ndarray, scale: float, pad: Tuple[int, int], 
+    def postprocess(self, outputs: np.ndarray, scale: float, pad: Tuple[int, int],
                     orig_shape: Tuple[int, int]) -> np.ndarray:
         """
         YOLO出力を後処理してバウンディングボックスを取得
         """
         output = outputs[0]
-        
+        orig_h, orig_w = orig_shape
+        pad_w, pad_h = pad
+
+        # ---- End-to-End NMS 形式 (YOLO26等): (1, 300, 6) = [x1,y1,x2,y2,score,class_id] ----
+        if self.output_format == 'e2e':
+            dets = output[0]  # (300, 6)
+            # person (class 0) かつ信頼度フィルタ
+            mask = (dets[:, 5].astype(int) == 0) & (dets[:, 4] > self.conf_threshold)
+            dets = dets[mask]
+            if len(dets) == 0:
+                return np.array([]).reshape(0, 5)
+            boxes_xyxy = dets[:, :4].copy()
+            scores = dets[:, 4]
+            # パディングとスケールを元に戻す
+            boxes_xyxy[:, [0, 2]] = (boxes_xyxy[:, [0, 2]] - pad_w) / scale
+            boxes_xyxy[:, [1, 3]] = (boxes_xyxy[:, [1, 3]] - pad_h) / scale
+            boxes_xyxy[:, [0, 2]] = np.clip(boxes_xyxy[:, [0, 2]], 0, orig_w)
+            boxes_xyxy[:, [1, 3]] = np.clip(boxes_xyxy[:, [1, 3]], 0, orig_h)
+            result = np.zeros((len(scores), 5), dtype=np.float32)
+            result[:, :4] = boxes_xyxy
+            result[:, 4] = scores
+            return result
+
+        # ---- v8/v11 形式 or v5 形式 ----
         if self.output_format == 'v8':
             # YOLO v8/v11: (1, 84, N) -> (N, 84)
             predictions = output[0].T if output.shape[0] == 1 else output.T
         else:
             # YOLO v5: (1, N, 85) -> (N, 85)
             predictions = output[0] if output.shape[0] == 1 else output
-        
+
         # バウンディングボックス (cx, cy, w, h) と クラス確率
         boxes_xywh = predictions[:, :4]
-        
+
         if self.output_format == 'v8':
             # v8: 4列目以降がクラススコア
             class_scores = predictions[:, 4:]
@@ -222,39 +287,37 @@ class ONNXYoloDetector:
             objectness = predictions[:, 4]
             class_scores = predictions[:, 5:]
             person_scores = objectness * class_scores[:, 0]
-        
+
         # 信頼度でフィルタ
         mask = person_scores > self.conf_threshold
         boxes_xywh = boxes_xywh[mask]
         scores = person_scores[mask]
-        
+
         if len(boxes_xywh) == 0:
             return np.array([]).reshape(0, 5)
-        
+
         # xywh -> xyxy
         boxes_xyxy = np.zeros_like(boxes_xywh)
         boxes_xyxy[:, 0] = boxes_xywh[:, 0] - boxes_xywh[:, 2] / 2
         boxes_xyxy[:, 1] = boxes_xywh[:, 1] - boxes_xywh[:, 3] / 2
         boxes_xyxy[:, 2] = boxes_xywh[:, 0] + boxes_xywh[:, 2] / 2
         boxes_xyxy[:, 3] = boxes_xywh[:, 1] + boxes_xywh[:, 3] / 2
-        
+
         # パディングとスケールを元に戻す
-        pad_w, pad_h = pad
         boxes_xyxy[:, [0, 2]] = (boxes_xyxy[:, [0, 2]] - pad_w) / scale
         boxes_xyxy[:, [1, 3]] = (boxes_xyxy[:, [1, 3]] - pad_h) / scale
-        
+
         # 画像境界でクリップ
-        orig_h, orig_w = orig_shape
         boxes_xyxy[:, [0, 2]] = np.clip(boxes_xyxy[:, [0, 2]], 0, orig_w)
         boxes_xyxy[:, [1, 3]] = np.clip(boxes_xyxy[:, [1, 3]], 0, orig_h)
-        
+
         # NMS適用
         indices = self._nms(boxes_xyxy, scores)
-        
+
         result = np.zeros((len(indices), 5), dtype=np.float32)
         result[:, :4] = boxes_xyxy[indices]
         result[:, 4] = scores[indices]
-        
+
         return result
     
     def _nms(self, boxes: np.ndarray, scores: np.ndarray) -> List[int]:

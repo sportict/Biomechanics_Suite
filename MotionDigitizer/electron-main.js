@@ -4,6 +4,11 @@ const { app, BrowserWindow, dialog, ipcMain, Menu, protocol } = require('electro
 const path = require('path');
 const fs = require('fs');
 const analysisEngine = require('./src/analysis-engine.js');
+const {
+  buildMacAppMenu, buildQuitMenuItem,
+  getIconPath: resolveIconPath,
+  getFilePathFromArgs, suppressChromiumLogs
+} = require(app.isPackaged ? './shared/electron-utils' : '../shared/electron-utils');
 // Shift-JISエンコーディング用（.setファイル保存時に使用）
 let iconv;
 try {
@@ -47,8 +52,8 @@ if (process.platform === 'win32') {
 }
 
 // 内部ログの抑制（ユーザー要望）
-app.commandLine.appendSwitch('log-level', '3'); // FATAL only (hides INFO, WARNING, ERROR from Chromium internals)
-app.commandLine.appendSwitch('disable-features', 'AutofillServerCommunication'); // Autofillのエラー抑制試行
+// Chromium 内部の不要ログを抑制
+suppressChromiumLogs();
 
 // カスタムプロトコル media-file:// を特権スキームとして登録（app.ready より前に呼ぶ必要あり）
 protocol.registerSchemesAsPrivileged([
@@ -66,11 +71,7 @@ protocol.registerSchemesAsPrivileged([
 
 // === アイコンパス解決 ===
 function getIconPath() {
-	const iconFile = process.platform === 'darwin' ? 'MDigi.png' : 'MDigi.ico';
-	if (app.isPackaged) {
-		return path.join(process.resourcesPath, iconFile);
-	}
-	return path.join(__dirname, iconFile);
+	return resolveIconPath(__dirname, 'MDigi.png', 'MDigi.ico');
 }
 
 // macOS: Dockアイコンとアプリ名を設定
@@ -111,6 +112,20 @@ function ensureOpenCVLoaded() {
 let mainWindow = null;
 // アプリ終了制御用フラグ（before-quitの再入防止）
 let isQuitting = false;
+
+// 保存確認ダイアログ（統一形式）
+async function showSaveConfirmDialog(win, message = 'プロジェクトを保存しますか？') {
+	const result = await dialog.showMessageBox(win, {
+		type: 'question',
+		buttons: ['保存', '保存しない', 'キャンセル'],
+		defaultId: 0,
+		cancelId: 2,
+		title: '保存確認',
+		message: message,
+		noLink: true,
+	});
+	return ['save', 'discard', 'cancel'][result.response];
+}
 // ファイル関連付けから開かれたmdpファイルパス
 let pendingMdpFile = null;
 
@@ -120,20 +135,7 @@ let pendingMdpFile = null;
  * @returns {string|null} mdpファイルパス（見つからない場合はnull）
  */
 function getMdpFileFromArgs(argv) {
-	console.log('[MAIN] getMdpFileFromArgs called with:', argv);
-	for (const arg of argv) {
-		console.log('[MAIN] Checking arg:', arg);
-		if (arg.toLowerCase().endsWith('.mdp')) {
-			console.log('[MAIN] Found .mdp file argument:', arg);
-			const exists = fs.existsSync(arg);
-			console.log('[MAIN] File exists:', exists);
-			if (exists) {
-				return arg;
-			}
-		}
-	}
-	console.log('[MAIN] No valid .mdp file found in arguments');
-	return null;
+	return getFilePathFromArgs(argv, '.mdp');
 }
 
 // シングルインスタンスロック
@@ -202,54 +204,36 @@ function createMainWindow() {
 		}
 	});
 
-	// 「✕」閉じる操作を横取りし、必ず保存確認ダイアログを表示
+	// ウィンドウを閉じようとした時のイベント（×ボタン、Cmd+Q、メニュー終了）
 	mainWindow.on('close', async (e) => {
-		if (isQuitting) return; // 確定終了時は素通り
+		if (isQuitting) return;
 		e.preventDefault();
 
-		try {
-			const response = await dialog.showMessageBox(mainWindow, {
-				type: 'question',
-				buttons: ['保存して終了', '保存せずに終了', 'キャンセル'],
-				defaultId: 0,
-				cancelId: 2,
-				noLink: true,
-				title: 'プロジェクトの保存確認',
-				message: '保存せずに終了しますか？'
-			});
-
-			if (response.response === 0) {
-				console.error('[MAIN] User selected "Save and Exit" (via Close button). Executing window.saveProject()...');
+		const choice = await showSaveConfirmDialog(mainWindow);
+		if (choice === 'save') {
+			try {
 				const saveResult = await mainWindow.webContents.executeJavaScript(`
-                    (async function() {
-                        try {
-                            if (typeof window.saveProject === 'function') {
-                                return await window.saveProject();
-                            }
-                            console.error('[RENDERER] window.saveProject is NOT a function!');
-                            return "NOT_FUNCTION";
-                        } catch (err) {
-                            return "EXEC_JS_CAUGHT: " + (err.message || String(err));
-                        }
-                    })()
+					(async function() {
+						try {
+							if (typeof window.saveProject === 'function') return await window.saveProject();
+							return false;
+						} catch (err) { return false; }
+					})()
 				`);
-				console.error('[MAIN] saveResult:', saveResult);
 				if (saveResult) {
 					isQuitting = true;
 					mainWindow.destroy();
 				}
-			} else if (response.response === 1) {
+			} catch (e) {
+				console.error('[MAIN] Save failed:', e);
 				isQuitting = true;
 				mainWindow.destroy();
-			} else {
-				// キャンセル: 何もしない
 			}
-		} catch (e) {
-			console.error('[MAIN] Close handler ERROR:', e);
-			// 例外時は安全側（終了許可）
+		} else if (choice === 'discard') {
 			isQuitting = true;
 			mainWindow.destroy();
 		}
+		// 'cancel' → 何もしない
 	});
 
 	mainWindow.on('closed', () => {
@@ -395,11 +379,23 @@ app.on('window-all-closed', () => {
 
 // アプリ終了時に一時ファイルをクリーンアップ
 app.on('will-quit', () => {
+	const tmpDir = os.tmpdir();
 	try {
-		const tempDir = path.join(os.tmpdir(), 'mdigitizer_charuco_temp');
-		if (fs.existsSync(tempDir)) {
-			fs.rmSync(tempDir, { recursive: true, force: true });
-			console.log('[MAIN] Cleaned up temp directory:', tempDir);
+		// mdigitizer_ プレフィックスの一時ディレクトリを全て削除
+		const entries = fs.readdirSync(tmpDir);
+		for (const entry of entries) {
+			if (entry.startsWith('mdigitizer_')) {
+				const fullPath = path.join(tmpDir, entry);
+				try {
+					const stat = fs.statSync(fullPath);
+					if (stat.isDirectory()) {
+						fs.rmSync(fullPath, { recursive: true, force: true });
+					} else {
+						fs.unlinkSync(fullPath);
+					}
+					console.log('[MAIN] Cleaned up:', entry);
+				} catch (e) { /* ignore */ }
+			}
 		}
 	} catch (e) {
 		console.warn('[MAIN] Temp cleanup failed:', e.message);
@@ -483,13 +479,15 @@ app.on('before-quit', async (event) => {
 // メニュー設定（旧app.jsの方針に準拠、イベント名は現行レンダラに合わせる）
 function setupAppMenu() {
 	const template = [
+		...buildMacAppMenu(),
 		{
 			label: 'ファイル',
 			submenu: [
-				{ label: '新規プロジェクト', accelerator: 'CmdOrCtrl+N', click: () => mainWindow && mainWindow.webContents.send('menu-new-project') },
-				{ label: 'プロジェクトを開く', accelerator: 'CmdOrCtrl+O', click: () => mainWindow && mainWindow.webContents.send('menu-open-project') },
-				{ label: 'プロジェクトを上書き保存', accelerator: 'CmdOrCtrl+S', click: () => mainWindow && mainWindow.webContents.send('menu-save-project-overwrite') },
-				{ label: 'プロジェクトを別名で保存', accelerator: 'CmdOrCtrl+Shift+S', click: () => mainWindow && mainWindow.webContents.send('menu-save-project-as') },
+				{ label: 'プロジェクトを開く...', accelerator: 'CmdOrCtrl+O', click: () => mainWindow && mainWindow.webContents.send('menu-open-project') },
+				{ label: 'プロジェクトを閉じる', accelerator: 'CmdOrCtrl+W', click: () => mainWindow && mainWindow.webContents.send('menu-new-project') },
+				{ type: 'separator' },
+				{ label: '上書き保存', accelerator: 'CmdOrCtrl+S', click: () => mainWindow && mainWindow.webContents.send('menu-save-project-overwrite') },
+				{ label: '名前を付けて保存...', accelerator: 'CmdOrCtrl+Shift+S', click: () => mainWindow && mainWindow.webContents.send('menu-save-project-as') },
 				{ label: 'テンプレートとして保存...', click: () => mainWindow && mainWindow.webContents.send('menu-save-template') },
 				{ type: 'separator' },
 				{ label: 'キャリブレーションデータ読み込み...', click: () => mainWindow && mainWindow.webContents.send('menu-load-calibration') },
@@ -497,12 +495,10 @@ function setupAppMenu() {
 				{ type: 'separator' },
 				{ label: '設定...', click: () => mainWindow && mainWindow.webContents.send('menu-open-settings') },
 				{ type: 'separator' },
-				{
-					label: '終了', accelerator: 'Alt+F4', click: () => {
-						// close 経路に統一して、確実にダイアログを表示
-						if (mainWindow && !mainWindow.isDestroyed()) mainWindow.close();
-					}
-				}
+				// macOSではアプリメニューのrole:'quit'が担うため非表示
+				...buildQuitMenuItem(() => {
+					if (mainWindow && !mainWindow.isDestroyed()) mainWindow.close();
+				})
 			]
 		},
 		{
@@ -516,23 +512,12 @@ function setupAppMenu() {
 			label: 'ヘルプ',
 			submenu: [
 				{
-					label: '開発者ツール', accelerator: 'Ctrl+Shift+I', click: () => {
+					label: '開発者ツール', accelerator: 'F12', click: () => {
 						try {
 							if (mainWindow && !mainWindow.isDestroyed()) {
 								mainWindow.webContents.toggleDevTools();
 							}
 						} catch (_) { }
-					}
-				},
-				{
-					label: 'アプリについて', click: () => {
-						if (!mainWindow) return;
-						dialog.showMessageBox(mainWindow, {
-							type: 'info',
-							title: 'MotionDigitizer について',
-							message: 'MotionDigitizer v1.1',
-							detail: '3Dモーションキャプチャ・動画解析アプリケーション'
-						});
 					}
 				}
 			]
@@ -680,23 +665,7 @@ ipcMain.handle('select-image-file', async () => {
 	return { success: true, file: { name: path.basename(filePath), path: filePath } };
 });
 
-ipcMain.handle('get-video-info-opencv', async (_evt, videoPath) => {
-	const cv = ensureOpenCVLoaded();
-	if (!cv) return { success: false, error: 'opencv module not loaded' };
-	if (!videoPath) return { success: false, error: 'no video path' };
-	try {
-		// ここでネイティブ側のAPIを呼び出す想定
-		if (typeof cv.getVideoInfo !== 'function') {
-			return { success: false, error: 'getVideoInfo not implemented' };
-		}
-		const info = cv.getVideoInfo(videoPath);
-		return { success: true, info };
-	} catch (e) {
-		return { success: false, error: e.message };
-	}
-});
-
-// FFprobeによる動画情報取得（OpenCVフォールバック用）
+// FFprobeによる動画情報取得
 ipcMain.handle('get-video-info-ffprobe', async (_evt, videoPath) => {
 	if (!videoPath) return { success: false, error: 'no video path' };
 	try {
@@ -771,21 +740,6 @@ ipcMain.handle('get-video-info-ffprobe', async (_evt, videoPath) => {
 	}
 });
 
-ipcMain.handle('undistort-image', async (_evt, videoPath, frameNumber, cameraMatrix, distCoeffs, rvec) => {
-	const cv = ensureOpenCVLoaded();
-	if (!cv) return { success: false, error: 'opencv module not loaded' };
-	if (!videoPath) return { success: false, error: 'no video path' };
-	try {
-		if (typeof cv.undistortImage !== 'function') {
-			return { success: false, error: 'undistortImage not implemented' };
-		}
-		const result = cv.undistortImage(videoPath, frameNumber, cameraMatrix, distCoeffs, rvec);
-		return result;
-	} catch (error) {
-		return { success: false, error: error.message || String(error) };
-	}
-});
-
 // FFmpegによるフレーム抽出（推奨）
 // 引数: videoPath, frameNumber, fps (optional)
 ipcMain.handle('extract-frame-ffmpeg', async (_evt, videoPath, frameNumber, fps = null) => {
@@ -843,22 +797,6 @@ ipcMain.handle('extract-frame-ffmpeg', async (_evt, videoPath, frameNumber, fps 
 		return { success: true, dataUrl };
 	} catch (e) {
 		console.error('[ffmpeg] Frame extraction failed:', e);
-		return { success: false, error: e.message };
-	}
-});
-
-// OpenCVによるフレーム抽出（レガシー、CharuCo検出時のみ使用）
-ipcMain.handle('extract-frame-opencv', async (_evt, videoPath, frameNumber) => {
-	const cv = ensureOpenCVLoaded();
-	if (!cv) return { success: false, error: 'opencv module not loaded' };
-	if (!videoPath) return { success: false, error: 'no video path' };
-	try {
-		if (typeof cv.extractFrame !== 'function') {
-			return { success: false, error: 'extractFrame not implemented' };
-		}
-		const result = cv.extractFrame(videoPath, frameNumber);
-		return result; // Base64文字列をそのまま返す（最も効率的）
-	} catch (e) {
 		return { success: false, error: e.message };
 	}
 });
@@ -949,6 +887,14 @@ ipcMain.handle('get-disk-cache-info', async () => {
 
 // ディスクベースのフレーム抽出（全フレームをTempディレクトリに保存）
 const os = require('os');
+const crypto = require('crypto');
+
+/** videoPathからフレームキャッシュ用ディレクトリパスを返す */
+function getCacheDir(videoPath) {
+	const hash = crypto.createHash('md5').update(videoPath).digest('hex').substring(0, 8);
+	return path.join(os.tmpdir(), `mdigitizer_frames_${hash}`);
+}
+
 let extractionCancelFlag = {};  // videoPath -> boolean
 let activeFrameProcessors = {}; // videoPath -> ChildProcess
 
@@ -962,9 +908,7 @@ ipcMain.handle('extract-all-frames-to-disk', async (event, videoPath, options = 
 
 	try {
 		// 一意のTempディレクトリを作成
-		const crypto = require('crypto');
-		const hash = crypto.createHash('md5').update(videoPath).digest('hex').substring(0, 8);
-		const outputDir = path.join(os.tmpdir(), `mdigitizer_frames_${hash}`);
+		const outputDir = getCacheDir(videoPath);
 
 		// 既にディレクトリが存在し、完了マーカーがあればスキップ
 		const completeMarker = path.join(outputDir, '.complete');
@@ -1056,9 +1000,7 @@ ipcMain.handle('cancel-frame-extraction', async (_evt, videoPath) => {
 // ディスクキャッシュからフレームを読み込み（file://パスを返す）
 ipcMain.handle('get-cached-frame-path', async (_evt, videoPath, frameNumber) => {
 	try {
-		const crypto = require('crypto');
-		const hash = crypto.createHash('md5').update(videoPath).digest('hex').substring(0, 8);
-		const outputDir = path.join(os.tmpdir(), `mdigitizer_frames_${hash}`);
+		const outputDir = getCacheDir(videoPath);
 		const framePath = path.join(outputDir, `frame_${String(frameNumber).padStart(5, '0')}.jpg`);
 
 		if (fs.existsSync(framePath)) {
@@ -1073,9 +1015,7 @@ ipcMain.handle('get-cached-frame-path', async (_evt, videoPath, frameNumber) => 
 // キャッシュディレクトリの存在確認
 ipcMain.handle('check-frame-cache-exists', async (_evt, videoPath) => {
 	try {
-		const crypto = require('crypto');
-		const hash = crypto.createHash('md5').update(videoPath).digest('hex').substring(0, 8);
-		const outputDir = path.join(os.tmpdir(), `mdigitizer_frames_${hash}`);
+		const outputDir = getCacheDir(videoPath);
 		const completeMarker = path.join(outputDir, '.complete');
 
 		if (fs.existsSync(completeMarker)) {
@@ -1088,6 +1028,12 @@ ipcMain.handle('check-frame-cache-exists', async (_evt, videoPath) => {
 });
 
 // Charuco検出用IPCハンドラー（パラメータ対応版）
+//
+// 画像入力の優先順位:
+//   1. imageData（RGBA生ピクセル Buffer）— 高速（JPEG エンコード/デコード不要）
+//   2. imageBase64（後方互換、将来廃止予定）
+//   3. ディスクキャッシュ（cache_dir/frame_NNNNN.jpg）
+//   4. 動画からのフレーム抽出（VideoCapture 経由）
 ipcMain.handle('detect-charuco-board', async (_evt, params, maybeFrame) => {
 	const cv = ensureOpenCVLoaded();
 	if (!cv) return { success: false, error: 'opencv module not loaded' };
@@ -1096,27 +1042,23 @@ ipcMain.handle('detect-charuco-board', async (_evt, params, maybeFrame) => {
 	let videoPath;
 	let frameNumber;
 	let boardConfig = {};
-
 	let imageBase64 = null;
+	let imageData = null;
 
 	if (params && typeof params === 'object' && !Array.isArray(params) && 'videoPath' in params) {
-		// 新形式: { videoPath, frameNumber, boardConfig, imageBase64 }
 		videoPath = params.videoPath;
 		frameNumber = params.frameNumber;
 		boardConfig = params.boardConfig || {};
 		imageBase64 = params.imageBase64 || null;
-		console.log('[CHARUCO] New format params received, imageBase64:', imageBase64 ? `${imageBase64.substring(0, 50)}... (length: ${imageBase64.length})` : 'null');
+		imageData = params.imageData || null;
 	} else {
-		// 旧形式: (videoPath, frameNumber)
 		videoPath = params;
 		frameNumber = maybeFrame;
-		console.log('[CHARUCO] Old format params received');
 	}
 
 	if (!videoPath) return { success: false, error: 'no video path' };
 
 	try {
-		// ArUco機能が利用可能かテスト
 		if (videoPath === '' || frameNumber <= 0) {
 			return { success: true, test: true, message: 'ArUco functionality available' };
 		}
@@ -1125,43 +1067,26 @@ ipcMain.handle('detect-charuco-board', async (_evt, params, maybeFrame) => {
 			return { success: false, error: 'detectCharucoBoard not implemented' };
 		}
 
-		const crypto = require('crypto');
-
-		// Canvas画像（imageBase64）が渡された場合は優先的に使用
-		if (imageBase64 && typeof imageBase64 === 'string' && imageBase64.startsWith('data:image/')) {
-			console.log('[CHARUCO] Using imageBase64, saving to temp file...');
-			// Base64画像を一時ファイルに保存
+		if (imageData && imageData.buffer) {
+			// 高速パス: Canvas の生ピクセルをそのままネイティブへ素通し
+			boardConfig.imageData = imageData;
+		} else if (imageBase64 && typeof imageBase64 === 'string' && imageBase64.startsWith('data:image/')) {
+			// 後方互換: base64 JPEG を一時ファイルに書き出し
 			const tempDir = path.join(os.tmpdir(), 'mdigitizer_charuco_temp');
-			if (!fs.existsSync(tempDir)) {
-				fs.mkdirSync(tempDir, { recursive: true });
-			}
+			if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
 			const tempImagePath = path.join(tempDir, `charuco_frame_${Date.now()}.jpg`);
-
-			// data:image/jpeg;base64,XXXX から XXXX 部分を抽出
 			const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, '');
-			const buffer = Buffer.from(base64Data, 'base64');
-			fs.writeFileSync(tempImagePath, buffer);
-
+			fs.writeFileSync(tempImagePath, Buffer.from(base64Data, 'base64'));
 			boardConfig.frameCachePath = tempImagePath;
-			console.log('[CHARUCO] Temp image saved to:', tempImagePath);
 		} else {
-			console.log('[CHARUCO] No imageBase64, checking disk cache...');
-			// Canvas画像がない場合はディスクキャッシュを確認
-			const hash = crypto.createHash('md5').update(videoPath).digest('hex').substring(0, 8);
-			const cacheDir = path.join(os.tmpdir(), `mdigitizer_frames_${hash}`);
+			// キャンバス画像なし: ディスクキャッシュ → VideoCapture フォールバック
+			const cacheDir = getCacheDir(videoPath);
 			const framePath = path.join(cacheDir, `frame_${String(frameNumber).padStart(5, '0')}.jpg`);
-
 			if (fs.existsSync(framePath)) {
-				// キャッシュ画像が存在する場合はそのパスを使用
 				boardConfig.frameCachePath = framePath;
-				console.log('[CHARUCO] Using disk cache:', framePath);
-			} else {
-				console.log('[CHARUCO] No cache found, native will try to open video directly');
 			}
 		}
 
-		console.log('[CHARUCO] Final boardConfig:', JSON.stringify(boardConfig));
-		// 設定をネイティブに渡す
 		const result = cv.detectCharucoBoard(videoPath, frameNumber, boardConfig);
 		return { success: true, ...result };
 	} catch (e) {
@@ -1187,49 +1112,40 @@ ipcMain.handle('calib-capture', async (_evt, params, maybeFrame) => {
 	const cv = ensureOpenCVLoaded();
 	if (!cv) return { success: false, error: 'opencv module not loaded' };
 
-	// 後方互換: 旧シグネチャ (videoPath, frameNumber) も許容
 	let videoPath;
 	let frameNumber;
 	let boardConfig = {};
 	let imageBase64 = null;
+	let imageData = null;
 
 	if (params && typeof params === 'object' && !Array.isArray(params) && 'videoPath' in params) {
 		videoPath = params.videoPath;
 		frameNumber = params.frameNumber;
 		boardConfig = params.boardConfig || {};
 		imageBase64 = params.imageBase64 || null;
-		console.log('[CALIB-CAPTURE] New format - boardConfig from params:', JSON.stringify(params.boardConfig));
+		imageData = params.imageData || null;
 	} else {
 		videoPath = params;
 		frameNumber = maybeFrame;
-		console.log('[CALIB-CAPTURE] Old format - using defaults');
 	}
-	console.log('[CALIB-CAPTURE] Parsed boardConfig:', JSON.stringify(boardConfig));
-	console.log('[CALIB-CAPTURE] imageBase64 received:', imageBase64 ? `length=${imageBase64.length}` : 'null');
 
 	try {
 		if (typeof cv.captureCharucoSample !== 'function') {
 			return { success: false, error: 'captureCharucoSample not implemented' };
 		}
 
-		// Canvas画像（imageBase64）が渡された場合は優先的に使用
-		if (imageBase64 && typeof imageBase64 === 'string' && imageBase64.startsWith('data:image/')) {
+		if (imageData && imageData.buffer) {
+			boardConfig.imageData = imageData;
+		} else if (imageBase64 && typeof imageBase64 === 'string' && imageBase64.startsWith('data:image/')) {
 			const tempDir = path.join(os.tmpdir(), 'mdigitizer_charuco_temp');
-			if (!fs.existsSync(tempDir)) {
-				fs.mkdirSync(tempDir, { recursive: true });
-			}
+			if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
 			const tempImagePath = path.join(tempDir, `calib_frame_${Date.now()}.jpg`);
 			const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, '');
-			const buffer = Buffer.from(base64Data, 'base64');
-			fs.writeFileSync(tempImagePath, buffer);
+			fs.writeFileSync(tempImagePath, Buffer.from(base64Data, 'base64'));
 			boardConfig.frameCachePath = tempImagePath;
-			console.log('[CALIB-CAPTURE] Using imageBase64, saved to:', tempImagePath);
 		}
 
-		console.log('[CALIB-CAPTURE] boardConfig:', JSON.stringify(boardConfig));
-		const result = cv.captureCharucoSample(videoPath, frameNumber, boardConfig);
-		console.log('[CALIB-CAPTURE] Result:', JSON.stringify(result));
-		return result;
+		return cv.captureCharucoSample(videoPath, frameNumber, boardConfig);
 	} catch (e) {
 		return { success: false, error: e.message };
 	}
@@ -1307,41 +1223,39 @@ ipcMain.handle('charuco-stereo-capture', async (_evt, params) => {
 		if (typeof cv.captureCharucoStereoSample !== 'function') {
 			return { success: false, error: 'captureCharucoStereoSample not implemented' };
 		}
-		const { videoPath1, videoPath2, frameNumber, boardConfig, imageBase64_1, imageBase64_2 } = params || {};
+		const {
+			videoPath1, videoPath2, frameNumber, boardConfig,
+			imageBase64_1, imageBase64_2,
+			imageData1, imageData2,
+		} = params || {};
 		if (!videoPath1 || !videoPath2 || !frameNumber) {
 			return { success: false, error: 'invalid stereo capture params' };
 		}
 
-		// 拡張boardConfigを作成
 		const extendedConfig = { ...(boardConfig || {}) };
 
-		// Canvas画像（imageBase64）が渡された場合は一時ファイルに保存
-		const tempDir = path.join(os.tmpdir(), 'mdigitizer_charuco_temp');
-		if (!fs.existsSync(tempDir)) {
-			fs.mkdirSync(tempDir, { recursive: true });
-		}
+		// 高速パス: 生ピクセルをそのまま素通し
+		if (imageData1 && imageData1.buffer) extendedConfig.imageData1 = imageData1;
+		if (imageData2 && imageData2.buffer) extendedConfig.imageData2 = imageData2;
 
-		// Cam1の画像
-		if (imageBase64_1 && typeof imageBase64_1 === 'string' && imageBase64_1.startsWith('data:image/')) {
+		// 後方互換: base64 JPEG
+		if (!extendedConfig.imageData1 && imageBase64_1 && typeof imageBase64_1 === 'string' && imageBase64_1.startsWith('data:image/')) {
+			const tempDir = path.join(os.tmpdir(), 'mdigitizer_charuco_temp');
+			if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
 			const tempImagePath1 = path.join(tempDir, `stereo_calib_cam1_${Date.now()}.jpg`);
 			const base64Data1 = imageBase64_1.replace(/^data:image\/\w+;base64,/, '');
-			const buffer1 = Buffer.from(base64Data1, 'base64');
-			fs.writeFileSync(tempImagePath1, buffer1);
+			fs.writeFileSync(tempImagePath1, Buffer.from(base64Data1, 'base64'));
 			extendedConfig.frameCachePath1 = tempImagePath1;
-			console.log('[STEREO-CAPTURE] Cam1 image saved to:', tempImagePath1);
 		}
-
-		// Cam2の画像
-		if (imageBase64_2 && typeof imageBase64_2 === 'string' && imageBase64_2.startsWith('data:image/')) {
+		if (!extendedConfig.imageData2 && imageBase64_2 && typeof imageBase64_2 === 'string' && imageBase64_2.startsWith('data:image/')) {
+			const tempDir = path.join(os.tmpdir(), 'mdigitizer_charuco_temp');
+			if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
 			const tempImagePath2 = path.join(tempDir, `stereo_calib_cam2_${Date.now()}.jpg`);
 			const base64Data2 = imageBase64_2.replace(/^data:image\/\w+;base64,/, '');
-			const buffer2 = Buffer.from(base64Data2, 'base64');
-			fs.writeFileSync(tempImagePath2, buffer2);
+			fs.writeFileSync(tempImagePath2, Buffer.from(base64Data2, 'base64'));
 			extendedConfig.frameCachePath2 = tempImagePath2;
-			console.log('[STEREO-CAPTURE] Cam2 image saved to:', tempImagePath2);
 		}
 
-		console.log('[STEREO-CAPTURE] extendedConfig:', JSON.stringify(extendedConfig));
 		return cv.captureCharucoStereoSample(videoPath1, videoPath2, frameNumber, extendedConfig);
 	} catch (e) {
 		return { success: false, error: e.message };

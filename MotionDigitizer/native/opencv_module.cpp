@@ -101,6 +101,22 @@ static int getDictTypeFromName(const std::string &dictName) {
 }
 
 // boardConfig (Napi::Object) からパラメータを解析
+//
+// 画像入力は以下の優先順位で使用する（上ほど速い）:
+//   1. imageData / imageData1 / imageData2  — Canvas の生ピクセル
+//      { width, height, channels, buffer:<Buffer>, stride?: <int> }
+//      RGBA(channels=4) / BGR(channels=3) / GRAY(channels=1) を受け付ける
+//   2. frameCachePath / frameCachePath1/2  — ディスク上の JPEG/PNG
+//   3. videoPath + frameNumber              — 動画からフレーム抽出（最遅）
+struct RawImageData {
+  const uint8_t *data = nullptr;
+  int width = 0;
+  int height = 0;
+  int channels = 4;   // 4=RGBA, 3=BGR, 1=GRAY
+  int stride = 0;     // bytes per row（0 の場合は width*channels）
+  bool isValid() const { return data != nullptr && width > 0 && height > 0; }
+};
+
 struct CharucoBoardConfig {
   int rows = 5;
   int cols = 7;
@@ -110,7 +126,48 @@ struct CharucoBoardConfig {
   std::string frameCachePath;
   std::string frameCachePath1; // ステレオ用
   std::string frameCachePath2; // ステレオ用
+  RawImageData rawImage;       // シングル用（高速パス）
+  RawImageData rawImage1;      // ステレオ Cam1 用
+  RawImageData rawImage2;      // ステレオ Cam2 用
 };
+
+// Napi::Object から RawImageData を読み出す
+static void parseRawImageData(const Napi::Object &obj, RawImageData &out) {
+  if (obj.Has("width") && obj.Get("width").IsNumber())
+    out.width = obj.Get("width").As<Napi::Number>().Int32Value();
+  if (obj.Has("height") && obj.Get("height").IsNumber())
+    out.height = obj.Get("height").As<Napi::Number>().Int32Value();
+  if (obj.Has("channels") && obj.Get("channels").IsNumber())
+    out.channels = obj.Get("channels").As<Napi::Number>().Int32Value();
+  if (obj.Has("stride") && obj.Get("stride").IsNumber())
+    out.stride = obj.Get("stride").As<Napi::Number>().Int32Value();
+  if (obj.Has("buffer") && obj.Get("buffer").IsBuffer()) {
+    Napi::Buffer<uint8_t> buf = obj.Get("buffer").As<Napi::Buffer<uint8_t>>();
+    out.data = buf.Data();
+  }
+}
+
+// RawImageData → cv::Mat（BGR）へ変換
+// 成功時は bgr に BGR 画像を格納して true を返す。
+// 内部で必ずコピーを行うため、呼び出し側で buffer が解放されても安全。
+static bool rawImageToBgr(const RawImageData &raw, cv::Mat &bgr) {
+  if (!raw.isValid()) return false;
+  int stride = raw.stride > 0 ? raw.stride : raw.width * raw.channels;
+  if (raw.channels == 4) {
+    cv::Mat rgba(raw.height, raw.width, CV_8UC4, const_cast<uint8_t *>(raw.data), stride);
+    cv::cvtColor(rgba, bgr, cv::COLOR_RGBA2BGR);
+    return !bgr.empty();
+  } else if (raw.channels == 3) {
+    cv::Mat m(raw.height, raw.width, CV_8UC3, const_cast<uint8_t *>(raw.data), stride);
+    bgr = m.clone();  // 呼び出し側 buffer の寿命から切り離す
+    return !bgr.empty();
+  } else if (raw.channels == 1) {
+    cv::Mat gray(raw.height, raw.width, CV_8UC1, const_cast<uint8_t *>(raw.data), stride);
+    cv::cvtColor(gray, bgr, cv::COLOR_GRAY2BGR);
+    return !bgr.empty();
+  }
+  return false;
+}
 
 static CharucoBoardConfig parseBoardConfig(const Napi::Object &cfg) {
   CharucoBoardConfig c;
@@ -130,6 +187,12 @@ static CharucoBoardConfig parseBoardConfig(const Napi::Object &cfg) {
     c.frameCachePath1 = cfg.Get("frameCachePath1").As<Napi::String>().Utf8Value();
   if (cfg.Has("frameCachePath2") && cfg.Get("frameCachePath2").IsString())
     c.frameCachePath2 = cfg.Get("frameCachePath2").As<Napi::String>().Utf8Value();
+  if (cfg.Has("imageData") && cfg.Get("imageData").IsObject())
+    parseRawImageData(cfg.Get("imageData").As<Napi::Object>(), c.rawImage);
+  if (cfg.Has("imageData1") && cfg.Get("imageData1").IsObject())
+    parseRawImageData(cfg.Get("imageData1").As<Napi::Object>(), c.rawImage1);
+  if (cfg.Has("imageData2") && cfg.Get("imageData2").IsObject())
+    parseRawImageData(cfg.Get("imageData2").As<Napi::Object>(), c.rawImage2);
   return c;
 }
 
@@ -957,15 +1020,18 @@ Napi::Value DetectCharucoBoard(const Napi::CallbackInfo &info) {
   try {
     cv::Mat frame;
 
-    // ディスクキャッシュのフレーム画像パスが指定されている場合は直接読み込む
-    // （日本語パスを含む動画ファイルでVideoCapture.openが失敗する問題の回避）
-    if (!frameCachePath.empty()) {
+    // 画像取得の優先順位:
+    //   1. rawImage (Canvas の生ピクセル, JPEG デコード不要 - 最速)
+    //   2. frameCachePath (ディスク上の JPEG/PNG)
+    //   3. VideoCapture (動画から直接抽出)
+    if (rawImageToBgr(bcfg.rawImage, frame)) {
+      // 高速パス: 生ピクセルから直接 BGR Mat を構築
+    } else if (!frameCachePath.empty()) {
       frame = cv::imread(frameCachePath);
       if (frame.empty()) {
         return CreateErrorResult(env, "Failed to read cached frame image");
       }
     } else {
-      // 従来の方法: VideoCaptureで動画から読み込む
       if (g_currentVideoPath != videoPath) {
         g_videoCapture.release();
         g_videoCapture.open(videoPath);
@@ -978,13 +1044,11 @@ Napi::Value DetectCharucoBoard(const Napi::CallbackInfo &info) {
         return CreateErrorResult(env, "Failed to open video");
       }
 
-      // フレーム位置設定
       if (g_lastFrameNumber != frameNumber) {
         g_videoCapture.set(cv::CAP_PROP_POS_FRAMES, frameNumber - 1);
         g_lastFrameNumber = frameNumber;
       }
 
-      // キャッシュから取得を試行
       const std::string cacheKey = g_currentVideoPath + ":" + std::to_string(frameNumber);
       if (g_frameCache.find(cacheKey) != g_frameCache.end()) {
         frame = g_frameCache[cacheKey];
@@ -1279,15 +1343,15 @@ Napi::Value CaptureCharucoSample(const Napi::CallbackInfo &info) {
   try {
     cv::Mat frame;
 
-    // ディスクキャッシュのフレーム画像パスが指定されている場合は直接読み込む
-    // （日本語パスを含む動画ファイルでVideoCapture.openが失敗する問題の回避）
-    if (!frameCachePath.empty()) {
+    // 画像取得の優先順位: rawImage → frameCachePath → VideoCapture
+    if (rawImageToBgr(bcfg.rawImage, frame)) {
+      // 高速パス
+    } else if (!frameCachePath.empty()) {
       frame = cv::imread(frameCachePath);
       if (frame.empty()) {
         return CreateErrorResult(env, "Failed to read cached frame image");
       }
     } else {
-      // 従来の方法: VideoCaptureで動画から読み込む
       if (g_currentVideoPath != videoPath) {
         g_videoCapture.release();
         g_videoCapture.open(videoPath);
@@ -1581,6 +1645,8 @@ ComputeCharucoCalibrationWithExclusions(const Napi::CallbackInfo &info) {
     std::vector<std::vector<cv::Point2f>> imgPts;
     std::vector<int> cornerCountsFiltered;
     std::vector<int> markerCountsFiltered;
+    std::vector<int> frameNumbersFiltered;
+    std::vector<int> originalIndicesFiltered; // 元の g_allImagePoints インデックス
 
     for (size_t i = 0; i < g_allObjectPoints.size(); ++i) {
       if (exclude.count(static_cast<int>(i)) > 0)
@@ -1591,6 +1657,9 @@ ComputeCharucoCalibrationWithExclusions(const Napi::CallbackInfo &info) {
         cornerCountsFiltered.push_back(g_cornerCounts[i]);
       if (i < g_markerCounts.size())
         markerCountsFiltered.push_back(g_markerCounts[i]);
+      if (i < g_frameNumbers.size())
+        frameNumbersFiltered.push_back(g_frameNumbers[i]);
+      originalIndicesFiltered.push_back(static_cast<int>(i));
     }
 
     if (objPts.empty() || imgPts.empty()) {
@@ -1687,6 +1756,21 @@ ComputeCharucoCalibrationWithExclusions(const Napi::CallbackInfo &info) {
     }
     result.Set("cornerCounts", cornerArr);
     result.Set("markerCounts", markerArr);
+
+    // フレーム番号(フィルタ済み): フロントエンド側がビュー→フレーム対応を表示するのに必要
+    Napi::Array fnArr = Napi::Array::New(env, frameNumbersFiltered.size());
+    for (size_t i = 0; i < frameNumbersFiltered.size(); ++i) {
+      fnArr[i] = Napi::Number::New(env, frameNumbersFiltered[i]);
+    }
+    result.Set("frameNumbers", fnArr);
+
+    // 元の g_allImagePoints におけるインデックス (除外累積対応)
+    // フロントエンドは「現在のビュー番号 → 元サンプル番号」のマップとして利用
+    Napi::Array oiArr = Napi::Array::New(env, originalIndicesFiltered.size());
+    for (size_t i = 0; i < originalIndicesFiltered.size(); ++i) {
+      oiArr[i] = Napi::Number::New(env, originalIndicesFiltered[i]);
+    }
+    result.Set("originalIndices", oiArr);
     return result;
   } catch (const cv::Exception &e) {
     return CreateErrorResult(env, e.what());
@@ -1897,17 +1981,19 @@ Napi::Value CaptureCharucoStereoSample(const Napi::CallbackInfo &info) {
 
     auto grabCharuco =
         [&](const std::string &path, const std::string &cachePath,
+            const RawImageData &rawImg,
             std::vector<cv::Point3f> &objPts, std::vector<cv::Point2f> &imgPts,
             std::vector<int> &idsOut) -> bool {
       cv::Mat frame;
 
-      // キャッシュ画像パスが指定されている場合は直接読み込む
-      if (!cachePath.empty()) {
+      // 画像取得の優先順位: rawImg → cachePath → VideoCapture
+      if (rawImageToBgr(rawImg, frame)) {
+        // 高速パス
+      } else if (!cachePath.empty()) {
         frame = cv::imread(cachePath);
         if (frame.empty())
           return false;
       } else {
-        // 従来の方法: VideoCaptureで動画から読み込む
         cv::VideoCapture cap(path);
         if (!cap.isOpened())
           return false;
@@ -1962,8 +2048,8 @@ Napi::Value CaptureCharucoStereoSample(const Napi::CallbackInfo &info) {
     std::vector<cv::Point2f> pts1, pts2;
     std::vector<int> ids1, ids2;
 
-    if (!grabCharuco(videoPath1, bcfg.frameCachePath1, obj1, pts1, ids1) ||
-        !grabCharuco(videoPath2, bcfg.frameCachePath2, obj2, pts2, ids2)) {
+    if (!grabCharuco(videoPath1, bcfg.frameCachePath1, bcfg.rawImage1, obj1, pts1, ids1) ||
+        !grabCharuco(videoPath2, bcfg.frameCachePath2, bcfg.rawImage2, obj2, pts2, ids2)) {
       Napi::Object res = Napi::Object::New(env);
       res.Set("success", Napi::Boolean::New(env, false));
       res.Set("error",

@@ -245,25 +245,35 @@ function setupDigitizeCanvas() {
         const mouseX = coords.x;
         const mouseY = coords.y;
 
+        // フィットスケール（100%）を計算: 画像がキャンバスにぴったり収まる倍率
+        const img = digitizeCanvas.currentImage;
+        const imgW = img ? (img.videoWidth || img.width || 1) : 1;
+        const imgH = img ? (img.videoHeight || img.height || 1) : 1;
+        const fitScale = Math.min(digitizeCanvas.width / imgW, digitizeCanvas.height / imgH);
+
         // ズーム前のズームスケール
         const oldZoom = zoomScale;
 
         // 新しいズームスケールを計算
         const zoomFactor = event.deltaY > 0 ? 0.9 : 1.1;
-        const newZoom = zoomScale * zoomFactor;
-        zoomScale = Math.max(0.1, Math.min(5.0, newZoom));
+        let newZoom = Math.min(5.0, zoomScale * zoomFactor);
 
-        // マウス位置を中心にズームするためにpanX/panYを調整
-        // ズーム前後でマウス位置の画像座標が一致するようにする
-        const zoomRatio = zoomScale / oldZoom;
+        // 100%（フィットスケール）より縮小しようとしたらフィットにリセット
+        if (newZoom <= fitScale) {
+            newZoom = fitScale;
+            zoomScale = newZoom;
+            panX = 0;
+            panY = 0;
+        } else {
+            zoomScale = newZoom;
 
-        // マウス位置からのオフセット（キャンバス中央からの相対位置）
-        const offsetX = mouseX - digitizeCanvas.width / 2 - panX;
-        const offsetY = mouseY - digitizeCanvas.height / 2 - panY;
-
-        // パン位置を調整（マウス位置を中心にズーム）
-        panX -= offsetX * (zoomRatio - 1);
-        panY -= offsetY * (zoomRatio - 1);
+            // マウス位置を中心にズームするためにpanX/panYを調整
+            const zoomRatio = zoomScale / oldZoom;
+            const offsetX = mouseX - digitizeCanvas.width / 2 - panX;
+            const offsetY = mouseY - digitizeCanvas.height / 2 - panY;
+            panX -= offsetX * (zoomRatio - 1);
+            panY -= offsetY * (zoomRatio - 1);
+        }
 
         updateZoomDisplay();
         updatePanDisplay();
@@ -1331,7 +1341,7 @@ class PreviewPlayer {
     loadVideo(videoPath) {
         try {
             let src = String(videoPath || '');
-            if (!src) return;
+            if (!src) return Promise.resolve(false);
             src = normalizeFileUrl(src);
             this.currentPath = src;
 
@@ -1356,24 +1366,41 @@ class PreviewPlayer {
             // 要件: aviのみは常にOpenCVフォールバックで再生
             if (ext === 'avi') {
                 this.enableFallback();
-                return;
+                return Promise.resolve(true);
             }
 
             // 再生可否を事前判定（空文字=非対応）
             const canPlay = type ? (this.video.canPlayType(type) || '') : '';
             if (!canPlay) {
-                // 直接再生不可 → フォールバック有効化
                 this.enableFallback();
-                return;
+                return Promise.resolve(true);
             }
 
             const source = document.createElement('source');
             source.src = src;
             if (type) source.type = type;
             this.video.appendChild(source);
-            this.video.load();
+
+            // 動画メタデータ読み込み完了を待つPromiseを返す
+            return new Promise((resolve) => {
+                const onReady = () => {
+                    this.video.removeEventListener('loadeddata', onReady);
+                    this.video.removeEventListener('error', onError);
+                    resolve(true);
+                };
+                const onError = () => {
+                    this.video.removeEventListener('loadeddata', onReady);
+                    this.video.removeEventListener('error', onError);
+                    resolve(false);
+                };
+                this.video.addEventListener('loadeddata', onReady);
+                this.video.addEventListener('error', onError);
+                this.video.load();
+                // 5秒タイムアウト
+                setTimeout(() => { resolve(false); }, 5000);
+            });
         } catch (_) {
-            // no-op
+            return Promise.resolve(false);
         }
     }
 
@@ -2012,21 +2039,20 @@ async function displayCurrentFrame() {
         }
 
         // モーションモードの場合: FFmpegディスクキャッシュを使用
+        // キャリブレーション動画は数フレームしか使わないためキャッシュ不要（Video seekで十分）
         if (currentMode === 'motion') {
             // 1. ディスクキャッシュからフレームを取得
             const cacheResult = await ipcRenderer.invoke('get-cached-frame-path', videoPath, frameNumber);
             if (cacheResult.success && cacheResult.path) {
                 const img = await loadImage(cacheResult.path);
-                // 非同期操作後、検出が開始されていたら描画をスキップ
                 if (window.__charucoDetectionInProgress) return;
                 renderImage(img);
                 return;
             }
 
-            // 2. キャッシュがない場合は抽出を開始してVideo seekで表示
+            // 2. キャッシュがない場合は抽出をバックグラウンドで開始
             const cacheInfo = diskFrameCacheByVideo.get(videoPath);
             if (!cacheInfo || !cacheInfo.isComplete) {
-                // FFmpeg抽出をバックグラウンドで開始（まだ開始していなければ）
                 const totalFrames = projectData?.settings?.motionFrameCount || 0;
                 if (totalFrames > 0 && !isCaching) {
                     startDiskFrameExtraction(videoPath, totalFrames);
@@ -2106,6 +2132,11 @@ function updateFrameInfo() {
 
     // データテーブルのハイライトのみ更新（全体更新は削除）
     updateTableHighlights();
+
+    // ChArUco結果テーブル/analysis-board-select を現在フレームに同期
+    if (typeof window.syncCharucoSelectionToCurrentFrame === 'function') {
+        window.syncCharucoSelectionToCurrentFrame();
+    }
 }
 
 /**
@@ -3832,6 +3863,9 @@ function updateFileSelectionVisibility() {
             if (motionCam2Element) motionCam2Element.style.display = 'block';
         }
     }
+
+    // カメラドットインジケータを更新
+    if (typeof window.updateCamDots === 'function') window.updateCamDots();
 }
 
 /**
@@ -4223,39 +4257,64 @@ function calculateRealLengthData() {
             return;
         }
 
-        // 誤差計算（再投影誤差）
+        // 誤差計算（ChArUco単眼の再投影誤差: world(Z=0)→pixel）
+        //
+        // 再投影フロー:
+        //   R = Rodrigues(rvec), 3x3
+        //   X_cam = R · [x, y, 0]^T + tvec
+        //   u = fx * X_cam.x / X_cam.z + cx
+        //   v = fy * X_cam.y / X_cam.z + cy
         let totalSqError = 0;
         let errorCount = 0;
         let maxReprojError = 0;
 
-        results.forEach(r => {
-            const map1 = cam1Data[r.frame];
-            const map2 = cam2Data[r.frame];
-            if (!map1 || !map2) return;
-            const pix1 = map1.get ? map1.get(r.pointId) : map1[r.pointId];
-            const pix2 = map2.get ? map2.get(r.pointId) : map2[r.pointId];
-
-            if (pix1 && pix2) {
-                // DLT式で再投影
-                const project = (x, y, z, C) => {
-                    const den = C.L9 * x + C.L10 * y + C.L11 * z + 1;
-                    if (Math.abs(den) < 1e-10) return { u: 0, v: 0 };
-                    return {
-                        u: (C.L1 * x + C.L2 * y + C.L3 * z + C.L4) / den,
-                        v: (C.L5 * x + C.L6 * y + C.L7 * z + C.L8) / den
-                    };
-                };
-
-                const proj1 = project(r.x, r.y, r.z, C1);
-                const proj2 = project(r.x, r.y, r.z, C2);
-
-                const d1 = (proj1.u - pix1.x) ** 2 + (proj1.v - pix1.y) ** 2;
-                const d2 = (proj2.u - pix2.x) ** 2 + (proj2.v - pix2.y) ** 2;
-
-                totalSqError += d1 + d2;
-                errorCount += 2;
-                maxReprojError = Math.max(maxReprojError, Math.sqrt(d1), Math.sqrt(d2));
+        // Rodrigues 変換 (rvec → 3x3 回転行列, 行優先の 9 要素配列)
+        const rodrigues = (rv) => {
+            const rx = rv[0], ry = rv[1], rz = rv[2];
+            const theta = Math.sqrt(rx * rx + ry * ry + rz * rz);
+            if (theta < 1e-12) {
+                return [1, 0, 0, 0, 1, 0, 0, 0, 1];
             }
+            const kx = rx / theta, ky = ry / theta, kz = rz / theta;
+            const c = Math.cos(theta);
+            const s = Math.sin(theta);
+            const C = 1 - c;
+            return [
+                c + kx * kx * C,        kx * ky * C - kz * s,   kx * kz * C + ky * s,
+                ky * kx * C + kz * s,   c + ky * ky * C,        ky * kz * C - kx * s,
+                kz * kx * C - ky * s,   kz * ky * C + kx * s,   c + kz * kz * C,
+            ];
+        };
+
+        // cameraMatrix は 3x3 行列（2次元配列 or 9要素配列）想定
+        const K = calib.cameraMatrix;
+        const fx = Array.isArray(K[0]) ? K[0][0] : K[0];
+        const fy = Array.isArray(K[1]) ? K[1][1] : K[4];
+        const cx = Array.isArray(K[0]) ? K[0][2] : K[2];
+        const cy = Array.isArray(K[1]) ? K[1][2] : K[5];
+        const R = rodrigues(rvec);
+        const tx = tvec[0], ty = tvec[1], tz = tvec[2];
+
+        results.forEach(r => {
+            const map = camData[r.frame];
+            if (!map) return;
+            const pix = map.get ? map.get(r.pointId) : map[r.pointId];
+            if (!pix || typeof pix.x !== 'number') return;
+
+            // Z=0 平面上の点を再投影 (z は常に 0)
+            const X = R[0] * r.x + R[1] * r.y + tx;
+            const Y = R[3] * r.x + R[4] * r.y + ty;
+            const Z = R[6] * r.x + R[7] * r.y + tz;
+            if (Math.abs(Z) < 1e-9) return;
+            const u = fx * X / Z + cx;
+            const v = fy * Y / Z + cy;
+
+            const du = u - pix.x;
+            const dv = v - pix.y;
+            const d  = du * du + dv * dv;
+            totalSqError += d;
+            errorCount += 1;
+            maxReprojError = Math.max(maxReprojError, Math.sqrt(d));
         });
 
         const rmsError = errorCount > 0 ? Math.sqrt(totalSqError / errorCount) : 0;

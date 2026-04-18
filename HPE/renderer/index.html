@@ -85,16 +85,16 @@
           <div class="form-group">
             <label>推定モード</label>
             <select id="estimationMode">
-              <option value="full">全フレーム推定（高精度）</option>
-              <option value="quick">簡易推定（4フレームごと、高速）</option>
+              <option value="full">全フレーム推定</option>
+              <option value="quick">簡易推定</option>
             </select>
           </div>
           <div class="form-group">
             <label>計測プリセット</label>
             <select id="presetSelect">
-              <option value="fast">23点（RTMPose-M・高速）</option>
-              <option value="hq">23点（RTMPose-X・高精度）</option>
-              <option value="52pts">52点（SynthPose-Huge）</option>
+              <option value="fast">高速</option>
+              <option value="hq">高精度</option>
+              <option value="synthpose">SynthPose (52点)</option>
             </select>
           </div>
           <div class="form-group">
@@ -231,128 +231,97 @@
           </div>
         </div>
 
-        <!-- データクレンジング -->
+        <!-- データクレンジング（タブ化） -->
         <div id="cleansingPanel" class="panel" style="display: none;">
-          <h3><svg class="icon" viewBox="0 0 24 24">
-              <path
-                d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z">
-              </path>
+          <h3 style="font-size: 0.7rem; margin-bottom: 0.4rem;"><svg class="icon" viewBox="0 0 24 24" style="width: 0.9em; height: 0.9em;">
+              <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path>
             </svg> データクレンジング</h3>
-          <!-- 対象人物（セクション共通） -->
-          <div class="form-group">
+          <div class="form-group" style="margin-bottom: 0.4rem;">
             <label>対象人物</label>
-            <select id="cleansingTargetPerson">
-            </select>
+            <select id="cleansingTargetPerson"></select>
           </div>
-          <!-- ID入替 -->
-          <div style="margin-top: 0.5rem;">
-            <div class="id-swap-row" style="display: flex; align-items: center; gap: 0.5rem;">
-              <select id="swapPersonB" class="person-select-small" style="flex: 1; min-width: 80px;">
-              </select>
-              <span style="color: #9ca3af;">と</span>
+          <div class="cleansing-tabs">
+            <button class="cleansing-tab active" data-tab="tab-fix">修正</button>
+            <button class="cleansing-tab" data-tab="tab-digitize">デジタイズ</button>
+            <button class="cleansing-tab" data-tab="tab-redetect">再推定</button>
+          </div>
+          <!-- タブ: 修正 -->
+          <div class="cleansing-tab-content active" id="tab-fix">
+            <div class="id-swap-row" style="display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.4rem;">
+              <select id="swapPersonB" class="person-select-small" style="flex: 1; min-width: 70px;"></select>
+              <span style="color: #6b7280; font-size: 0.7rem;">と</span>
               <button id="manualIdSwap" class="btn btn-small btn-warning"><svg class="icon" viewBox="0 0 24 24">
-                  <polyline points="17 1 21 5 17 9"></polyline>
-                  <path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
-                  <polyline points="7 23 3 19 7 15"></polyline>
-                  <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
+                  <polyline points="17 1 21 5 17 9"></polyline><path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
+                  <polyline points="7 23 3 19 7 15"></polyline><path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
                 </svg> 入替</button>
             </div>
-          </div>
-          <!-- 脚/腕入替 -->
-          <div class="limb-swap-buttons" style="margin-top: 0.5rem; display: flex; gap: 0.25rem;">
-            <button id="swapLegs" class="btn btn-small btn-purple"><svg class="icon" viewBox="0 0 24 24">
-                <path d="M6 20L9 12L6 4"></path>
-                <path d="M18 20L15 12L18 4"></path>
-                <path d="M9 12H15"></path>
-              </svg> 脚入替</button>
-            <button id="swapArms" class="btn btn-small btn-purple"><svg class="icon" viewBox="0 0 24 24">
-                <path d="M4 8L8 12L4 16"></path>
-                <path d="M20 8L16 12L20 16"></path>
-                <path d="M8 12H16"></path>
-              </svg> 腕入替</button>
-          </div>
-          <!-- 手動デジタイズ -->
-          <div class="form-group" style="margin-top: 0.5rem;">
-            <label><input type="checkbox" id="enableDigitize" checked> <svg class="icon" viewBox="0 0 24 24">
-                <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path>
-              </svg> 手動デジタイズ</label>
-          </div>
-          <div id="digitizeOptions" style="margin-top: 0.5rem;">
-            <div class="form-group">
-              <label>デジタイズモード</label>
-              <select id="digitizeMode">
-                <option value="frame">フレームデジタイズ</option>
-                <option value="move">ポイント移動</option>
-              </select>
+            <div style="display: flex; gap: 0.25rem;">
+              <button id="swapLegs" class="btn btn-small btn-purple" style="flex: 1;"><svg class="icon" viewBox="0 0 24 24">
+                  <path d="M6 20L9 12L6 4"></path><path d="M18 20L15 12L18 4"></path><path d="M9 12H15"></path>
+                </svg> 脚入替</button>
+              <button id="swapArms" class="btn btn-small btn-purple" style="flex: 1;"><svg class="icon" viewBox="0 0 24 24">
+                  <path d="M4 8L8 12L4 16"></path><path d="M20 8L16 12L20 16"></path><path d="M8 12H16"></path>
+                </svg> 腕入替</button>
             </div>
-            <div id="frameDigitizeOptions">
+          </div>
+          <!-- タブ: デジタイズ -->
+          <div class="cleansing-tab-content" id="tab-digitize">
+            <div class="form-group" style="margin-bottom: 0.3rem;">
+              <label><input type="checkbox" id="enableDigitize" checked> 手動デジタイズ</label>
+            </div>
+            <div id="digitizeOptions">
               <div class="form-group">
-                <label>対象キーポイント</label>
-                <select id="digitizeKeypoint">
-                  <option value="">キーポイントを選択</option>
+                <label>モード</label>
+                <select id="digitizeMode">
+                  <option value="frame">フレーム</option>
+                  <option value="move">ポイント移動</option>
                 </select>
+              </div>
+              <div id="frameDigitizeOptions">
+                <div class="form-group">
+                  <label>キーポイント</label>
+                  <select id="digitizeKeypoint">
+                    <option value="">選択</option>
+                  </select>
+                </div>
               </div>
             </div>
           </div>
-
-          <!-- フレーム再推定 -->
-          <div style="margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid #374151;">
-            <div class="form-group" style="margin-bottom: 0.5rem;">
-              <label style="font-weight: 600; color: #60a5fa;">
-                <svg class="icon" viewBox="0 0 24 24" style="width: 14px; height: 14px;">
-                  <polyline points="23 4 23 10 17 10"></polyline>
-                  <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
-                </svg>
-                フレーム再推定
-              </label>
-            </div>
-            <div class="form-group" style="margin-bottom: 0.5rem;">
-              <label style="font-size: 0.8rem;">検出信頼度閾値</label>
-              <div style="display: flex; align-items: center; gap: 0.5rem;">
+          <!-- タブ: 再推定 -->
+          <div class="cleansing-tab-content" id="tab-redetect">
+            <div class="form-group" style="margin-bottom: 0.4rem;">
+              <label>検出信頼度</label>
+              <div style="display: flex; align-items: center; gap: 0.4rem; flex: 1;">
                 <input type="range" id="redetectConfThreshold" min="0.05" max="0.8" step="0.05" value="0.25" style="flex: 1;">
-                <span id="redetectConfValue" style="font-size: 0.8rem; min-width: 2.5rem;">0.25</span>
+                <span id="redetectConfValue" style="font-size: 0.75rem; min-width: 2rem; text-align: right;">0.25</span>
               </div>
             </div>
             <button id="redetectCurrentFrame" class="btn btn-small btn-info" style="width: 100%;">
               <svg class="icon" viewBox="0 0 24 24" style="width: 14px; height: 14px;">
                 <polyline points="23 4 23 10 17 10"></polyline>
                 <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
-              </svg>
-              現在フレームを再推定
+              </svg> 現在フレームを再推定
             </button>
           </div>
         </div>
 
         <!-- フィルタリング設定 -->
         <div id="filterPanel" class="panel" style="display: none;">
-          <h3><svg class="icon" viewBox="0 0 24 24">
-              <line x1="4" y1="21" x2="4" y2="14"></line>
-              <line x1="4" y1="10" x2="4" y2="3"></line>
-              <line x1="12" y1="21" x2="12" y2="12"></line>
-              <line x1="12" y1="8" x2="12" y2="3"></line>
-              <line x1="20" y1="21" x2="20" y2="16"></line>
-              <line x1="20" y1="12" x2="20" y2="3"></line>
-              <line x1="1" y1="14" x2="7" y2="14"></line>
-              <line x1="9" y1="8" x2="15" y2="8"></line>
+          <h3 style="font-size: 0.7rem; margin-bottom: 0.4rem;"><svg class="icon" viewBox="0 0 24 24" style="width: 0.9em; height: 0.9em;">
+              <line x1="4" y1="21" x2="4" y2="14"></line><line x1="4" y1="10" x2="4" y2="3"></line>
+              <line x1="12" y1="21" x2="12" y2="12"></line><line x1="12" y1="8" x2="12" y2="3"></line>
+              <line x1="20" y1="21" x2="20" y2="16"></line><line x1="20" y1="12" x2="20" y2="3"></line>
+              <line x1="1" y1="14" x2="7" y2="14"></line><line x1="9" y1="8" x2="15" y2="8"></line>
               <line x1="17" y1="16" x2="23" y2="16"></line>
             </svg> フィルタリング</h3>
-
-          <div class="form-group">
-            <label><input type="checkbox" id="autoFixLimbSwaps" checked> 左右脚・腕自動修正</label>
+          <div class="filter-grid">
+            <label class="filter-check"><input type="checkbox" id="autoFixLimbSwaps" checked> 左右脚・腕自動修正</label>
+            <label class="filter-check"><input type="checkbox" id="enableOutlier" checked> 外れ値除去</label>
+            <label class="filter-check"><input type="checkbox" id="enableInterpolation" checked> 補間</label>
+            <label class="filter-check"><input type="checkbox" id="enableButterworth" checked> Butterworth</label>
+            <label class="filter-check"><input type="checkbox" id="enableKalman"> Kalman Smoother</label>
           </div>
-          <div class="form-group">
-            <label><input type="checkbox" id="enableOutlier" checked> 外れ値除去</label>
-          </div>
-          <div class="form-group">
-            <label><input type="checkbox" id="enableInterpolation" checked> 補間</label>
-          </div>
-          <div class="form-group">
-            <label><input type="checkbox" id="enableButterworth" checked> Butterworth</label>
-          </div>
-          <div class="form-group">
-            <label><input type="checkbox" id="enableKalman"> Kalman Smoother</label>
-          </div>
-          <button id="applyFilter" class="btn btn-info"><svg class="icon" viewBox="0 0 24 24">
+          <button id="applyFilter" class="btn btn-info" style="width: 100%; margin-top: 0.4rem;"><svg class="icon" viewBox="0 0 24 24">
               <polyline points="23 4 23 10 17 10"></polyline>
               <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
             </svg> フィルタ適用</button>
@@ -442,6 +411,52 @@
               <polyline points="21 15 16 10 5 21"></polyline>
             </svg></div>
           <p>ファイルを選択してください</p>
+        </div>
+        <!-- 動画/骨格モード用 編集ツールバー -->
+        <div id="videoEditToolbar" class="video-edit-toolbar" style="display: none;">
+          <div class="video-edit-toolbar-inner">
+            <button id="vt-deleteBefore" class="btn btn-small btn-danger" title="このフレーム以前を全て削除（現在含む）">
+              <svg class="icon" viewBox="0 0 24 24">
+                <polyline points="11 17 6 12 11 7"></polyline>
+                <polyline points="18 17 13 12 18 7"></polyline>
+              </svg> 以前削除
+            </button>
+            <button id="vt-deleteAfter" class="btn btn-small btn-danger" title="このフレーム以降を全て削除（現在含む）">
+              <svg class="icon" viewBox="0 0 24 24">
+                <polyline points="13 17 18 12 13 7"></polyline>
+                <polyline points="6 17 11 12 6 7"></polyline>
+              </svg> 以降削除
+            </button>
+            <button id="vt-deleteFrameData" class="btn btn-small btn-danger" title="現在フレームの選択人物のスケルトンを削除">
+              <svg class="icon" viewBox="0 0 24 24">
+                <polyline points="3 6 5 6 21 6"></polyline>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                <line x1="10" y1="11" x2="10" y2="17"></line>
+                <line x1="14" y1="11" x2="14" y2="17"></line>
+              </svg> フレーム削除
+            </button>
+            <button id="vt-bulkDeletePersons" class="btn btn-small btn-danger" title="複数人物を一括削除">
+              <svg class="icon" viewBox="0 0 24 24">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                <circle cx="8.5" cy="7" r="4"></circle>
+                <line x1="18" y1="8" x2="23" y2="13"></line>
+                <line x1="23" y1="8" x2="18" y2="13"></line>
+              </svg> 人物削除
+            </button>
+            <span class="video-edit-separator"></span>
+            <button id="vt-undoEdit" class="btn btn-small" disabled>
+              <svg class="icon" viewBox="0 0 24 24">
+                <path d="M9 14 4 9 9 4"></path>
+                <path d="M20 20v-7a4 4 0 0 0-4-4H4"></path>
+              </svg> 元に戻す
+            </button>
+            <button id="vt-redoEdit" class="btn btn-small" disabled>
+              <svg class="icon" viewBox="0 0 24 24">
+                <path d="M15 14l5-5-5-5"></path>
+                <path d="M4 20v-7a4 4 0 0 1 4-4h12"></path>
+              </svg> やり直し
+            </button>
+          </div>
         </div>
         <div id="previewContainer" class="preview-container" style="display: none;">
           <img id="previewImage" style="display: none;">

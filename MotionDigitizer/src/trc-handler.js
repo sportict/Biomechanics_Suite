@@ -16,6 +16,36 @@
 
 
 /**
+ * Frame-DIAS 23-point Japanese → English marker name mapping
+ * for OpenSim / Rajagopal 2015 Full Body Model compatibility.
+ */
+const MARKER_NAME_MAP_23P = {
+    '右手先':   'RHandTip',
+    '右手首':   'RWrist',
+    '右肘':     'RElbow',
+    '右肩':     'RShoulder',
+    '左手先':   'LHandTip',
+    '左手首':   'LWrist',
+    '左肘':     'LElbow',
+    '左肩':     'LShoulder',
+    '右つま先': 'RToe',
+    '右母指球': 'RBallFoot',
+    '右かかと': 'RHeel',
+    '右足首':   'RAnkle',
+    '右膝':     'RKnee',
+    '右大転子': 'RGreaterTrochanter',
+    '左つま先': 'LToe',
+    '左母指球': 'LBallFoot',
+    '左かかと': 'LHeel',
+    '左足首':   'LAnkle',
+    '左膝':     'LKnee',
+    '左大転子': 'LGreaterTrochanter',
+    '頭頂':     'HeadTop',
+    '耳珠点':   'Tragus',
+    '胸骨上縁': 'SuprasternalNotch'
+};
+
+/**
  * カメラ座標系 → OpenSim 座標系への変換
  *   カメラ: X=左右(lateral), Y=奥行(depth/forward), Z=高さ(up)
  *   OpenSim: X=前後(forward), Y=上下(up), Z=左右(lateral)
@@ -94,9 +124,11 @@ function generateTRCContent(points, realLengthData, fps, filename) {
 
     // Line 4: Marker name header
     // Format: Frame#\tTime\tMarker1\t\t\tMarker2\t\t\t...
+    // Japanese names are translated to English via MARKER_NAME_MAP_23P when available.
     const markerHeader = ['Frame#', 'Time'];
     points.forEach(p => {
-        markerHeader.push(p.name, '', '');
+        const markerName = MARKER_NAME_MAP_23P[p.name] || p.name;
+        markerHeader.push(markerName, '', '');
     });
     lines.push(markerHeader.join(tab));
 

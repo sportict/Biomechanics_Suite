@@ -144,6 +144,7 @@ class NorfairPersonTracker:
         self._fb_tracks = {}   # {stable_id: centroid_array}
         self._fb_next_id = 0
         self._fb_distance_threshold = max(self.width, self.height) * self.distance_threshold
+        self._unmatched_counter = 0
 
     # ------------------------------------------------------------------
     # Norfair 非対応環境向け：scipy ベース重心マッチングフォールバック
@@ -225,6 +226,11 @@ class NorfairPersonTracker:
         self._fb_tracks = new_tracks
         return result
 
+    # トラッキング用アンカーキーポイント (HALPE 26pt)
+    # bbox中心は検出器のノイズに弱いため、安定した体幹関節を使用
+    # 肩・腰の4点は姿勢変化に対してもっとも安定的
+    _ANCHOR_INDICES = [5, 6, 11, 12]  # L_Shoulder, R_Shoulder, L_Hip, R_Hip
+
     def track(self, frame_data: Dict[str, Any]) -> Dict[str, np.ndarray]:
         """
         フレームのデータを追跡して安定したIDを割り当てる
@@ -234,101 +240,98 @@ class NorfairPersonTracker:
 
         Returns:
         - {stable_id: keypoints_array}
+          stable_id は Norfair が割り当てた一貫した整数ID (文字列化)。
         """
         if not NORFAIR_AVAILABLE or self.tracker is None:
             if not getattr(self, '_logged_disabled', False):
-                print(f"[Tracker] Norfair unavailable, using centroid fallback tracker", file=sys.stderr)
+                print("[Tracker] Norfair unavailable, using centroid fallback tracker", file=sys.stderr)
                 self._logged_disabled = True
             return self._fallback_track(frame_data)
-
 
         if not frame_data:
             self.tracker.update([])
             return {}
 
+        # --- 検出を Norfair Detection に変換 ---
         detections = []
-        orig_id_map = {}
+        det_to_orig = {}  # det_index → orig_id
 
-        for idx, (orig_id, data) in enumerate(frame_data.items()):
-            # データ形式の正規化
+        for orig_id, data in frame_data.items():
             if isinstance(data, dict) and 'keypoints' in data:
                 kpts = data['keypoints']
-                bbox = data.get('bbox')
             else:
                 kpts = data
-                bbox = None
 
-            # キーポイントの有効性チェック
             valid_mask = kpts[:, 2] > 0.3
             if np.sum(valid_mask) < 3:
                 continue
-            
-            # トラッキング用の代表点（Points）とスコアを決定
-            if bbox is not None:
-                if not getattr(self, '_logged_bbox', False):
-                     print(f"[Tracker] Using BBOX Center for tracking", file=sys.stderr)
-                     self._logged_bbox = True
-                # バウンディングボックスがある場合はその中心を使用（最も安定的）
-                # bbox: [x1, y1, x2, y2, conf]
-                cx = (bbox[0] + bbox[2]) / 2
-                cy = (bbox[1] + bbox[3]) / 2
-                centroid = np.array([[cx, cy]])
-                score = np.array([bbox[4]]) if len(bbox) > 4 else np.mean(kpts[valid_mask, 2]).reshape(1)
-            else:
-                if not getattr(self, '_logged_kpt', False):
-                     print(f"[Tracker] Using Keypoint Centroid (No Bbox)", file=sys.stderr)
-                     self._logged_kpt = True
-                # バウンディングボックスがない場合はキーポイント重心（フォールバック）
-                valid_points = kpts[valid_mask, :2]
-                centroid = np.mean(valid_points, axis=0).reshape(1, 2)
-                score = np.mean(kpts[valid_mask, 2]).reshape(1)
 
-            detection = Detection(
-                points=centroid,
-                scores=score,
-            )
-            detections.append(detection)
-            orig_id_map[len(detections) - 1] = orig_id
+            # アンカーキーポイント（肩・腰）でトラッキング
+            # bbox中心よりも安定: 検出bboxの揺らぎに影響されない
+            #
+            # Norfair は TrackedObject 生成後、全ての update で同じポイント数を要求する
+            # (内部の point_hit_counter が初回サイズで固定されるため)。
+            # そのため常に 4 スロット固定で Detection を作成し、信頼度の低いスロットは
+            # 重心座標で埋めて Norfair の score しきい値で無効化させる。
+            valid_points = kpts[valid_mask, :2]
+            centroid = np.mean(valid_points, axis=0)
 
+            points = np.tile(centroid, (len(self._ANCHOR_INDICES), 1)).astype(np.float32)
+            scores = np.zeros(len(self._ANCHOR_INDICES), dtype=np.float32)
+            num_valid_anchors = 0
+            for slot_idx, kpt_idx in enumerate(self._ANCHOR_INDICES):
+                if kpt_idx < len(kpts) and kpts[kpt_idx, 2] > 0.3:
+                    points[slot_idx] = kpts[kpt_idx, :2]
+                    scores[slot_idx] = float(kpts[kpt_idx, 2])
+                    num_valid_anchors += 1
+
+            # 肩・腰がほぼ検出できていない場合は重心1点相当の低信頼度で代用
+            if num_valid_anchors == 0:
+                avg_score = float(np.mean(kpts[valid_mask, 2]))
+                scores[:] = max(0.31, min(avg_score, 0.9))
+
+            det_idx = len(detections)
+            detections.append(Detection(points=points, scores=scores))
+            det_to_orig[det_idx] = orig_id
+
+        # --- Norfair トラッカー更新 ---
         tracked_objects = self.tracker.update(detections)
 
+        # --- Detection → TrackedObject のマッピングを構築 ---
+        # Detection オブジェクトの id() をキーにして O(1) 参照
+        det_id_to_idx = {id(det): idx for idx, det in enumerate(detections)}
+        matched_det_indices = set()
+
         result = {}
-        # 以下、追跡結果のマッピングロジックは変更なし
         for tracked_obj in tracked_objects:
             if tracked_obj.last_detection is None:
                 continue
+            det_idx = det_id_to_idx.get(id(tracked_obj.last_detection))
+            if det_idx is None or det_idx not in det_to_orig:
+                continue
 
-            det_idx = None
-            for i, det in enumerate(detections):
-                if det is tracked_obj.last_detection:
-                    det_idx = i
-                    break
+            matched_det_indices.add(det_idx)
+            orig_id = det_to_orig[det_idx]
+            stable_id = str(tracked_obj.id)
 
-            if det_idx is not None and det_idx in orig_id_map:
-                orig_id = orig_id_map[det_idx]
-                stable_id = str(tracked_obj.id)
-                # 結果にはキーポイントのみを返す
+            data = frame_data[orig_id]
+            result[stable_id] = data['keypoints'] if isinstance(data, dict) else data
+
+        # --- 未マッチの検出にも一貫したIDを付与 ---
+        # initialization_delay=0 ならほぼ発生しないが、安全のため処理。
+        # orig_id（フレーム連番 "0","1"...）をそのまま返すと Norfair ID と衝突するため、
+        # Norfair ID空間（正の整数）と衝突しない大きな負のIDを付与する。
+        # フロントエンドは Number() でソートするため、数値IDが必須。
+        if not hasattr(self, '_unmatched_counter'):
+            self._unmatched_counter = 0
+        for det_idx, orig_id in det_to_orig.items():
+            if det_idx not in matched_det_indices:
+                self._unmatched_counter += 1
+                # 負の大きな数で Norfair の正のIDと衝突しない
+                fallback_id = str(-(10000 + self._unmatched_counter))
+
                 data = frame_data[orig_id]
-                if isinstance(data, dict):
-                     result[stable_id] = data['keypoints']
-                else:
-                     result[stable_id] = data
-
-        tracked_det_indices = set()
-        for tracked_obj in tracked_objects:
-            if tracked_obj.last_detection is not None:
-                for i, det in enumerate(detections):
-                    if det is tracked_obj.last_detection:
-                        tracked_det_indices.add(i)
-                        break
-
-        for det_idx, orig_id in orig_id_map.items():
-            if det_idx not in tracked_det_indices:
-                data = frame_data[orig_id]
-                if isinstance(data, dict):
-                     result[orig_id] = data['keypoints']
-                else:
-                     result[orig_id] = data
+                result[fallback_id] = data['keypoints'] if isinstance(data, dict) else data
 
         return result
 

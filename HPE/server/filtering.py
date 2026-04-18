@@ -1940,8 +1940,7 @@ def consolidate_person_ids(
 
             info_b = person_info[id_b]
 
-            # 時間的に重複していないかチェック
-            # A が先に終了して B が後で開始する場合
+            # ---- Case A: 時間的に重複していない（従来の統合） ----
             if info_a['end'] < info_b['start']:
                 gap = info_b['start'] - info_a['end']
                 earlier_id, later_id = id_a, id_b
@@ -1951,7 +1950,42 @@ def consolidate_person_ids(
                 earlier_id, later_id = id_b, id_a
                 earlier_info, later_info = info_b, info_a
             else:
-                # 時間的に重複している場合は統合しない
+                # ---- Case B: 時間的に重複している ----
+                # ID切り替わりの境界で一時的に2つのIDが同時存在する場合。
+                # 出現フレーム数が少ない方を多い方に吸収する。
+                # 重複区間での空間距離が近ければ同一人物と判定。
+                overlap_start = max(info_a['start'], info_b['start'])
+                overlap_end = min(info_a['end'], info_b['end'])
+
+                a_frames = info_a['end'] - info_a['start'] + 1
+                b_frames = info_b['end'] - info_b['start'] + 1
+
+                # 重複区間での位置を比較
+                a_overlap = [p for p in info_a['positions'] if overlap_start <= p[0] <= overlap_end]
+                b_overlap = [p for p in info_b['positions'] if overlap_start <= p[0] <= overlap_end]
+
+                if a_overlap and b_overlap:
+                    a_cx = np.mean([p[1] for p in a_overlap])
+                    a_cy = np.mean([p[2] for p in a_overlap])
+                    b_cx = np.mean([p[1] for p in b_overlap])
+                    b_cy = np.mean([p[2] for p in b_overlap])
+                    dist = np.sqrt((a_cx - b_cx)**2 + (a_cy - b_cy)**2)
+
+                    if dist <= distance_threshold:
+                        # 出現フレーム数が多い方をメインIDとする
+                        if a_frames >= b_frames:
+                            main_id, sub_id = id_a, id_b
+                            main_info, sub_info = info_a, info_b
+                        else:
+                            main_id, sub_id = id_b, id_a
+                            main_info, sub_info = info_b, info_a
+
+                        id_mapping[sub_id] = main_id
+                        print(f"[ID Consolidation] Merging overlapping '{sub_id}' -> '{main_id}' "
+                              f"(overlap={overlap_end - overlap_start + 1}f, distance={dist:.1f}px)")
+                        main_info['start'] = min(main_info['start'], sub_info['start'])
+                        main_info['end'] = max(main_info['end'], sub_info['end'])
+                        main_info['positions'].extend(sub_info['positions'])
                 continue
 
             # ギャップが大きすぎる場合はスキップ
@@ -1959,7 +1993,6 @@ def consolidate_person_ids(
                 continue
 
             # 空間的な距離をチェック
-            # earlier の最後の位置と later の最初の位置を比較
             if not earlier_info['positions'] or not later_info['positions']:
                 continue
 
@@ -1980,12 +2013,9 @@ def consolidate_person_ids(
             distance = np.sqrt((earlier_x - later_x)**2 + (earlier_y - later_y)**2)
 
             if distance <= distance_threshold:
-                # 統合: later_id を earlier_id に統合
                 id_mapping[later_id] = earlier_id
                 print(f"[ID Consolidation] Merging '{later_id}' -> '{earlier_id}' "
                       f"(gap={gap} frames, distance={distance:.1f}px)")
-
-                # earlier_info を更新して later の範囲も含める
                 earlier_info['end'] = later_info['end']
                 earlier_info['positions'].extend(later_info['positions'])
 
