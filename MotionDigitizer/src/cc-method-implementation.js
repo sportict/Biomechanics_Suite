@@ -1053,6 +1053,7 @@ function optimizeSingleCamera(xyz, xy, resolution, initialPos, searchRange, opti
         }
 
         console.log(`    試行 ${trial + 1} 結果: ${currentResult.fval.toFixed(4)} px`);
+        if (onProgress) onProgress(`試行 ${trial + 1}: NM局所最適化完了`, currentResult.fval, Math.min(bestGlobalError, currentResult.fval));
 
         // 最良結果の更新
         if (currentResult.fval < bestGlobalError) {

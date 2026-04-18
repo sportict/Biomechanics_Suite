@@ -70,7 +70,7 @@ function getPixelToMmFactor() {
 }
 
 /**
- * 品質カードの誤差値を設定（mm/px両方保持）
+ * 品質カードの誤差値を設定（"px (mm)" 併記表示）
  * @param {string} valueId - span要素のID
  * @param {number} pxValue - ピクセル値
  * @param {number|null} mmValue - mm値（null=概算変換を試行）
@@ -88,30 +88,32 @@ function setCalibErrorValue(valueId, pxValue, mmValue) {
         if (factor) mm = px * factor * 1000; // factor は mm/px → そのまま掛ける
     }
 
-    el.dataset.px = !isNaN(px) ? px.toFixed(3) : '-';
-    el.dataset.mm = !isNaN(mm) ? mm.toFixed(3) : '-';
+    const pxText = !isNaN(px) ? px.toFixed(3) : '-';
+    const mmText = !isNaN(mm) ? mm.toFixed(3) : null;
+    el.dataset.px = pxText;
+    el.dataset.mm = mmText || '-';
 
-    // 現在の表示単位に合わせて表示
+    // 「ピクセル（mm）」併記: mmが算出できない場合はpxのみ
+    el.textContent = mmText ? `${pxText} (${mmText})` : pxText;
+
+    // 単位表示もペアで: 「px (mm)」
     const unitEl = el.nextElementSibling;
-    const currentUnit = unitEl ? unitEl.textContent.trim() : 'mm';
-    el.textContent = (currentUnit === 'px') ? el.dataset.px : el.dataset.mm;
+    if (unitEl && unitEl.classList.contains('calib-quality-metric-unit')) {
+        unitEl.textContent = mmText ? 'px (mm)' : 'px';
+        // クリックによる単位切替は無効化（併記表示のため不要）
+        unitEl.classList.remove('calib-unit-toggle');
+        unitEl.onclick = null;
+        unitEl.style.cursor = 'default';
+        unitEl.removeAttribute('title');
+    }
 }
 window.setCalibErrorValue = setCalibErrorValue;
 
 /**
- * mm/px切り替えボタンのクリックハンドラ
+ * 旧: mm/px切り替えハンドラ（併記表示化により実質不要だが、
+ * 既存HTML/他所からの呼び出しが残っていても落ちないよう no-op で残す）
  */
-function toggleCalibUnit(unitEl) {
-    const current = unitEl.textContent.trim();
-    const next = (current === 'mm') ? 'px' : 'mm';
-    unitEl.textContent = next;
-
-    // 隣のvalue要素を更新
-    const valueEl = unitEl.previousElementSibling;
-    if (valueEl && valueEl.dataset) {
-        valueEl.textContent = (next === 'px') ? (valueEl.dataset.px || '-') : (valueEl.dataset.mm || '-');
-    }
-}
+function toggleCalibUnit(_unitEl) { /* no-op: 表示は "px (mm)" 併記に統一 */ }
 window.toggleCalibUnit = toggleCalibUnit;
 
 // ========================================================================================

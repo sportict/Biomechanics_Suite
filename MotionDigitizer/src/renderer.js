@@ -1997,8 +1997,21 @@ function initCCMethodUIBindings() {
                 if (status) status.textContent = '完了';
                 if (progressFill) progressFill.style.width = '100%';
 
-                const msg = `3次元CC法キャリブレーション完了（RMS誤差: ${result.errorStats.rms.toFixed(3)} px）`;
-                if (ccLog) ccLog.textContent += `[成功] ${msg}\n`;
+                // 進捗パネルの「最良誤差」を最終RMS (NM局所最適化後) に同期
+                // GA段階の最後の値で止まっていると、結果パネルの値と食い違って見えるため。
+                const finalRms = result.errorStats.rms;
+                if (progressBest) progressBest.textContent = finalRms.toFixed(3);
+                if (progressGen) progressGen.textContent = '完了';
+
+                const msg = `3次元CC法キャリブレーション完了（RMS誤差: ${finalRms.toFixed(3)} px）`;
+                if (ccLog) {
+                    const cam1Rms = result.results?.cam1?.errorStats?.rms;
+                    const cam2Rms = result.results?.cam2?.errorStats?.rms;
+                    if (typeof cam1Rms === 'number') ccLog.textContent += `[結果] Cam1 最終RMS (NM後): ${cam1Rms.toFixed(3)} px\n`;
+                    if (typeof cam2Rms === 'number') ccLog.textContent += `[結果] Cam2 最終RMS (NM後): ${cam2Rms.toFixed(3)} px\n`;
+                    ccLog.textContent += `[成功] ${msg}\n`;
+                    ccLog.scrollTop = ccLog.scrollHeight;
+                }
                 if (typeof window.showMessage === 'function') {
                     window.showMessage(msg);
                 }
@@ -2092,19 +2105,25 @@ function displayCCMethodResults(result) {
 
     // 品質カード更新
     const CC_SCALE_MAX = 3.0;
+    // "RMS誤差 X.XXX px (Y.YYY mm)" 形式。mm概算が取れない場合はpxのみ。
+    const _mmFactor = (typeof window.getPixelToMmFactor === 'function') ? window.getPixelToMmFactor() : null;
+    const _rmsMm = _mmFactor ? (rms * _mmFactor * 1000) : null;
+    const rmsText = (_rmsMm !== null && isFinite(_rmsMm))
+        ? `${rms.toFixed(3)} px (${_rmsMm.toFixed(3)} mm)`
+        : `${rms.toFixed(3)} px`;
     let ccQualityLevel, ccQualityIcon, ccQualityBadge, ccQualityDesc;
     if (rms <= 0.5) {
         ccQualityLevel = 'excellent'; ccQualityIcon = 'verified'; ccQualityBadge = '非常に良好';
-        ccQualityDesc = `RMS誤差 ${rms.toFixed(3)} px は非常に良好です。高精度な3D計測が期待できます。`;
+        ccQualityDesc = `RMS誤差 ${rmsText} は非常に良好です。高精度な3D計測が期待できます。`;
     } else if (rms <= 1.0) {
         ccQualityLevel = 'good'; ccQualityIcon = 'check_circle'; ccQualityBadge = '良好';
-        ccQualityDesc = `RMS誤差 ${rms.toFixed(3)} px は良好な範囲です。スポーツ動作解析などの用途に適しています。`;
+        ccQualityDesc = `RMS誤差 ${rmsText} は良好な範囲です。スポーツ動作解析などの用途に適しています。`;
     } else if (rms <= 2.0) {
         ccQualityLevel = 'fair'; ccQualityIcon = 'warning'; ccQualityBadge = '普通';
-        ccQualityDesc = `RMS誤差 ${rms.toFixed(3)} px はやや大きめです。コントロールポイントの配置・座標を確認してください。`;
+        ccQualityDesc = `RMS誤差 ${rmsText} はやや大きめです。コントロールポイントの配置・座標を確認してください。`;
     } else {
         ccQualityLevel = 'poor'; ccQualityIcon = 'error'; ccQualityBadge = '要改善';
-        ccQualityDesc = `RMS誤差 ${rms.toFixed(3)} px は大きすぎます。コントロールポイントの座標・デジタイズを見直してください。`;
+        ccQualityDesc = `RMS誤差 ${rmsText} は大きすぎます。コントロールポイントの座標・デジタイズを見直してください。`;
     }
     const ccCard = document.getElementById('cc-quality-card');
     if (ccCard) {
@@ -2958,19 +2977,25 @@ function updateCalibrationResultUI(calib) {
     set('calib-samples-big', samples);
 
     if (rpe !== null && card) {
+        // "再投影誤差 X.XXX px (Y.YYY mm)" 形式。mm概算が取れない場合はpxのみ。
+        const _chMmFactor = (typeof window.getPixelToMmFactor === 'function') ? window.getPixelToMmFactor() : null;
+        const _chRpeMm = _chMmFactor ? (rpe * _chMmFactor * 1000) : null;
+        const rpeText = (_chRpeMm !== null && isFinite(_chRpeMm))
+            ? `${rpe.toFixed(3)} px (${_chRpeMm.toFixed(3)} mm)`
+            : `${rpe.toFixed(3)} px`;
         let level, label, icon, desc;
         if (rpe <= 0.5) {
             level = 'excellent'; label = '非常に良好'; icon = 'verified';
-            desc = `再投影誤差 ${rpe.toFixed(3)} px は最高水準です。このキャリブレーションは3D計測・解析に高い精度で使用できます。`;
+            desc = `再投影誤差 ${rpeText} は最高水準です。このキャリブレーションは3D計測・解析に高い精度で使用できます。`;
         } else if (rpe <= 1.0) {
             level = 'good'; label = '良好'; icon = 'check_circle';
-            desc = `再投影誤差 ${rpe.toFixed(3)} px は実用レベルです。バイオメカニクス計測に十分な精度があります。`;
+            desc = `再投影誤差 ${rpeText} は実用レベルです。バイオメカニクス計測に十分な精度があります。`;
         } else if (rpe <= 2.0) {
             level = 'fair'; label = '許容範囲'; icon = 'warning';
-            desc = `再投影誤差 ${rpe.toFixed(3)} px はやや大きめです。精度重視の計測では撮影条件を見直しての再実行を推奨します。`;
+            desc = `再投影誤差 ${rpeText} はやや大きめです。精度重視の計測では撮影条件を見直しての再実行を推奨します。`;
         } else {
             level = 'poor'; label = '要再実行'; icon = 'error';
-            desc = `再投影誤差 ${rpe.toFixed(3)} px は大きすぎます。ボードの検出品質や撮影姿勢のバリエーションを確認して再実行してください。`;
+            desc = `再投影誤差 ${rpeText} は大きすぎます。ボードの検出品質や撮影姿勢のバリエーションを確認して再実行してください。`;
         }
 
         card.className = 'calib-quality-card quality-' + level;
@@ -3006,20 +3031,26 @@ function updateStereoCalibrationResultUI(stereoCalib) {
 
     // --- 品質評価 (ステレオRMS閾値: excellent≤1.0, good≤2.0, fair≤3.0, poor>3.0) ---
     const SCALE_MAX = 4.0;
+    // "RMS誤差 X.XXX px (Y.YYY mm)" 形式。mm概算が取れない場合はpxのみ。
+    const _stMmFactor = (typeof window.getPixelToMmFactor === 'function') ? window.getPixelToMmFactor() : null;
+    const _stRmsMm = (rms !== null && _stMmFactor) ? (rms * _stMmFactor * 1000) : null;
+    const stRmsText = rms !== null
+        ? ((_stRmsMm !== null && isFinite(_stRmsMm)) ? `${rms.toFixed(3)} px (${_stRmsMm.toFixed(3)} mm)` : `${rms.toFixed(3)} px`)
+        : '-';
     let quality = 'poor', qualityLabel = '要再実行', qualityIcon = 'error', qualityDesc = '';
     if (rms !== null) {
         if (rms <= 1.0) {
             quality = 'excellent'; qualityLabel = '非常に良好'; qualityIcon = 'verified';
-            qualityDesc = `RMS誤差 ${rms.toFixed(3)} px は非常に良好です。ステレオ3D計測に十分な精度があります。`;
+            qualityDesc = `RMS誤差 ${stRmsText} は非常に良好です。ステレオ3D計測に十分な精度があります。`;
         } else if (rms <= 2.0) {
             quality = 'good'; qualityLabel = '良好'; qualityIcon = 'check_circle';
-            qualityDesc = `RMS誤差 ${rms.toFixed(3)} px は良好な範囲です。スポーツ動作解析などの用途に適しています。`;
+            qualityDesc = `RMS誤差 ${stRmsText} は良好な範囲です。スポーツ動作解析などの用途に適しています。`;
         } else if (rms <= 3.0) {
             quality = 'fair'; qualityLabel = '許容範囲'; qualityIcon = 'warning';
-            qualityDesc = `RMS誤差 ${rms.toFixed(3)} px はやや大きいです。可能であればキャリブレーションを再実行し、精度の向上を試みてください。`;
+            qualityDesc = `RMS誤差 ${stRmsText} はやや大きいです。可能であればキャリブレーションを再実行し、精度の向上を試みてください。`;
         } else {
             quality = 'poor'; qualityLabel = '要再実行'; qualityIcon = 'error';
-            qualityDesc = `RMS誤差 ${rms.toFixed(3)} px は大きすぎます。撮影条件を見直してキャリブレーションを再実行してください。`;
+            qualityDesc = `RMS誤差 ${stRmsText} は大きすぎます。撮影条件を見直してキャリブレーションを再実行してください。`;
         }
     }
 
