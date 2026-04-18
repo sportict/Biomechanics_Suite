@@ -3847,6 +3847,9 @@ body {
     font-weight: 500;
     vertical-align: 1px;
 }
+.calibration-table td:first-child {
+    white-space: nowrap;
+}
 
 .calibration-table td {
     padding: 10px 8px;

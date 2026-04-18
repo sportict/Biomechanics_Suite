@@ -1873,6 +1873,12 @@ window.loadProject = async function (filePath) {
                         if (typeof window.updateErrorBarChart === 'function' && window.projectData.calibration.viewErrors && window.projectData.calibration.viewErrors.length > 0) {
                             window.updateErrorBarChart(window.projectData.calibration.viewErrors, 'charuco-error-chart-cam1', 'ビュー毎RMS誤差 (Cam1)');
                         }
+                        if (typeof window.updateCharucoBoardSelectUI === 'function') {
+                            window.updateCharucoBoardSelectUI();
+                        }
+                        if (typeof window.updateAnalysisBoardSelectUI === 'function') {
+                            window.updateAnalysisBoardSelectUI();
+                        }
                     }, 300);
                 }
             }
