@@ -1,4 +1,4 @@
-# ============================================================================
+﻿# ============================================================================
 # setup-windows.ps1
 #
 # 1コマンドで clone + モデル取得 + 全ビルド まで完結させる総合セットアップ
@@ -101,6 +101,4 @@ Write-Phase "4. 全アプリビルド"
 Write-Phase "セットアップ完了"
 Write-Host "成果物:"
 Get-ChildItem "$REPO_ROOT\*\dist\*.exe" -ErrorAction SilentlyContinue | ForEach-Object {
-    $sz = [math]::Round($_.Length / 1MB, 0)
-    Write-Host ("  {0,-50} {1}MB" -f $_.FullName.Replace($REPO_ROOT, '.'), $sz)
-}
+    $sz = [math]::Round

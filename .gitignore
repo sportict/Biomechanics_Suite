@@ -5,6 +5,10 @@
 **/.venv/
 **/vendor/opencv/
 
+# Windows 用 Python 埋め込み (build_python_embed.ps1 で生成・1GB超)
+**/python_embed/
+**/python-embed/
+
 # ===========================
 # ビルド成果物
 # ===========================

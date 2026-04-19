@@ -7,9 +7,13 @@
     "start": "electron .",
     "dev": "cross-env NODE_ENV=development electron .",
     "copy-shared": "node -e \"require('fs').cpSync('../shared', 'shared', {recursive: true})\"",
-    "build": "npm run copy-shared && cross-env NODE_OPTIONS=--max-old-space-size=8192 electron-builder --win --x64",
-    "build:dir": "npm run copy-shared && cross-env NODE_OPTIONS=--max-old-space-size=8192 electron-builder --win --x64 --dir",
-    "build:portable": "npm run copy-shared && cross-env NODE_OPTIONS=--max-old-space-size=8192 electron-builder --win --x64 -c.win.target=portable",
+    "build": "npm run build:gpu",
+    "build:gpu": "npm run copy-shared && cross-env NODE_OPTIONS=--max-old-space-size=8192 electron-builder --win --x64 --config.productName=HPE-GPU --config.appId=com.hpe.pose-estimation.gpu",
+    "build:cpu": "npm run copy-shared && cross-env NODE_OPTIONS=--max-old-space-size=8192 electron-builder --win --x64 --config.productName=HPE-CPU --config.appId=com.hpe.pose-estimation.cpu",
+    "build:gpu:dir": "npm run copy-shared && cross-env NODE_OPTIONS=--max-old-space-size=8192 electron-builder --win --x64 --dir --config.productName=HPE-GPU --config.appId=com.hpe.pose-estimation.gpu",
+    "build:cpu:dir": "npm run copy-shared && cross-env NODE_OPTIONS=--max-old-space-size=8192 electron-builder --win --x64 --dir --config.productName=HPE-CPU --config.appId=com.hpe.pose-estimation.cpu",
+    "build:gpu:portable": "npm run copy-shared && cross-env NODE_OPTIONS=--max-old-space-size=8192 electron-builder --win --x64 -c.win.target=portable --config.productName=HPE-GPU --config.appId=com.hpe.pose-estimation.gpu",
+    "build:cpu:portable": "npm run copy-shared && cross-env NODE_OPTIONS=--max-old-space-size=8192 electron-builder --win --x64 -c.win.target=portable --config.productName=HPE-CPU --config.appId=com.hpe.pose-estimation.cpu",
     "build:mac": "npm run copy-shared && cross-env NODE_OPTIONS=--max-old-space-size=8192 electron-builder --mac --arm64"
   },
   "keywords": [
@@ -61,27 +65,78 @@
         "filter": [
           "**/*"
         ]
-      },
-      {
-        "from": ".venv",
-        "to": ".venv",
-        "filter": [
-          "**/*",
-          "!**/*.pyc",
-          "!**/__pycache__",
-          "!**/pip*",
-          "!**/setuptools*",
-          "!**/wheel*",
-          "!**/*.whl",
-          "!**/tests"
-        ]
       }
     ],
     "win": {
       "target": [
         "nsis"
       ],
-      "icon": "./HPE.ico"
+      "icon": "./HPE.ico",
+      "extraResources": [
+        {
+          "from": "python_embed",
+          "to": "python_embed",
+          "filter": [
+            "**/*",
+            "!**/*.pyc",
+            "!**/*.pyo",
+            "!**/*.pyi",
+            "!**/__pycache__",
+            "!**/*.dist-info/RECORD",
+            "!**/*.dist-info/INSTALLER",
+            "!**/*.dist-info/REQUESTED",
+            "!**/*.dist-info/direct_url.json",
+            "!**/pip",
+            "!**/pip-*",
+            "!**/pip/**",
+            "!**/setuptools",
+            "!**/setuptools-*",
+            "!**/setuptools/**",
+            "!**/wheel",
+            "!**/wheel-*",
+            "!**/wheel/**",
+            "!**/*.whl",
+            "!**/tests",
+            "!**/tests/**",
+            "!**/test",
+            "!**/test/**",
+            "!Scripts/pip*.exe",
+            "!Scripts/f2py*.exe",
+            "!Scripts/wheel*.exe",
+            "!Scripts/activate*",
+            "!Scripts/deactivate*",
+            "!Scripts/*.ps1",
+            "!Scripts/easy_install*",
+            "!Lib/site-packages/nvidia/*/include",
+            "!Lib/site-packages/nvidia/*/include/**",
+            "!Lib/site-packages/nvidia/*/lib",
+            "!Lib/site-packages/nvidia/*/lib/**",
+            "!share",
+            "!share/**",
+            "!get-pip.py",
+            "!Lib/site-packages/onnxruntime/capi/onnxruntime_providers_tensorrt.dll",
+            "!Lib/site-packages/onnxruntime/transformers",
+            "!Lib/site-packages/onnxruntime/transformers/**",
+            "!Lib/site-packages/onnxruntime/quantization",
+            "!Lib/site-packages/onnxruntime/quantization/**",
+            "!Lib/site-packages/onnxruntime/training",
+            "!Lib/site-packages/onnxruntime/training/**",
+            "!Lib/site-packages/onnxruntime/datasets",
+            "!Lib/site-packages/onnxruntime/datasets/**",
+            "!Lib/site-packages/onnx/backend",
+            "!Lib/site-packages/onnx/backend/**",
+            "!Lib/site-packages/onnx/reference",
+            "!Lib/site-packages/onnx/reference/**",
+            "!Lib/site-packages/cv2/data",
+            "!Lib/site-packages/cv2/data/**",
+            "!Lib/site-packages/scipy/optimize/tests",
+            "!Lib/site-packages/scipy/**/tests",
+            "!Lib/site-packages/scipy/**/tests/**",
+            "!Lib/site-packages/numpy/**/tests",
+            "!Lib/site-packages/numpy/**/tests/**"
+          ]
+        }
+      ]
     },
     "mac": {
       "target": [
@@ -89,7 +144,23 @@
         {"target": "zip", "arch": ["arm64"]}
       ],
       "icon": "./HPE.icns",
-      "category": "public.app-category.utilities"
+      "category": "public.app-category.utilities",
+      "extraResources": [
+        {
+          "from": ".venv",
+          "to": ".venv",
+          "filter": [
+            "**/*",
+            "!**/*.pyc",
+            "!**/__pycache__",
+            "!**/pip*",
+            "!**/setuptools*",
+            "!**/wheel*",
+            "!**/*.whl",
+            "!**/tests"
+          ]
+        }
+      ]
     },
     "nsis": {
       "oneClick": false,
@@ -98,20 +169,22 @@
       "deleteAppDataOnUninstall": false,
       "differentialPackage": false,
       "warningsAsErrors": false,
+      "artifactName": "${productName}-Setup-${version}.${ext}",
       "customNsisBinary": {
         "url": "https://github.com/SoundSafari/NSISBI-ElectronBuilder/releases/download/1.0.0/nsisbi-electronbuilder-3.10.3.7z",
         "checksum": "WRmZUsACjIc2s7bvsFGFRofK31hfS7riPlcfI1V9uFB2Q8s7tidgI/9U16+X0I9X2ZhNxi8N7Z3gKvm6ojvLvg=="
       }
+    },
+    "portable": {
+      "artifactName": "${productName}-Portable-${version}.${ext}"
     },
     "fileAssociations": [
       {
         "ext": "hpe",
         "name": "HPE Project File",
         "description": "Human Pose Estimation Project File",
-        "role": "Editor",
-        "icon": "./HPE.icns"
+        "role": "Editor"
       }
-    ],
-    "executableName": "HPE"
+    ]
   }
 }

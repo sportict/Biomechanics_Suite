@@ -1,0 +1,5 @@
+# CPU インストーラ用 onnxruntime パッケージ
+#
+# 最新安定版。GPU/CUDA 依存なし。
+# GPU インストーラは requirements_gpu.txt を参照。
+onnxruntime>=1.20.0,<1.25.0

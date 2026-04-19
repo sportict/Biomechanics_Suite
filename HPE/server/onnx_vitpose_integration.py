@@ -61,11 +61,23 @@ def setup_onnx_session(onnx_path: str, device: str = 'cuda') -> 'ort.InferenceSe
     """
     import onnxruntime as ort
     import sys as _sys
+    import multiprocessing as _mp
 
     sess_options = ort.SessionOptions()
     sess_options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
-    sess_options.intra_op_num_threads = 4
-    sess_options.inter_op_num_threads = 2
+
+    # デバイス別スレッド最適化:
+    #   GPU (CUDA/DML) 使用時: GPU 側がコンピュートを担うため CPU スレッドは最小限に。
+    #     intra=1 にすることで GPU 推論中に CPU がスピンウェイトしなくなり
+    #     他の処理（追跡・JPEG書き出し等）の CPU 競合が減る。
+    #   CPU 使用時: 物理コア数を最大限利用してスループットを上げる。
+    if device in ('cuda', 'dml'):
+        sess_options.intra_op_num_threads = 1
+        sess_options.inter_op_num_threads = 1
+    else:
+        _ncpu = _mp.cpu_count()
+        sess_options.intra_op_num_threads = max(_ncpu - 1, 1)  # 1コアはOS用に残す
+        sess_options.inter_op_num_threads = 1
 
     available = ort.get_available_providers()
 
@@ -73,9 +85,19 @@ def setup_onnx_session(onnx_path: str, device: str = 'cuda') -> 'ort.InferenceSe
         providers = [
             ('CUDAExecutionProvider', {
                 'device_id': 0,
-                'arena_extend_strategy': 'kNextPowerOfTwo',
-                'gpu_mem_limit': 4 * 1024 * 1024 * 1024,
+                # kSameAsRequested: 必要量だけ確保しメモリ断片化を抑制
+                # (kNextPowerOfTwo は確保量が2倍ずつ増加して VRAM を無駄遣いしやすい)
+                'arena_extend_strategy': 'kSameAsRequested',
+                # gpu_mem_limit を外して ORT に VRAM 管理を委ねる。
+                # GTX 1070 Ti (8GB) では 4GB 固定より動的管理の方が効率的。
+                # 'cudnn_conv_algo_search': 'DEFAULT' のまま維持。
+                # Pascal (sm_61) + cuDNN 9.x FE Fallback 環境では
+                # EXHAUSTIVE 探索はサポートアルゴリズムが限定されるため
+                # DEFAULT と差がほぼなく、初回起動コストが増えるだけになる。
                 'cudnn_conv_algo_search': 'DEFAULT',
+                # デフォルトストリームでの H2D/D2H コピーを有効化。
+                # ORT の並列コピーストリームによるイベント待機オーバーヘッドを削減。
+                'do_copy_in_default_stream': True,
             }),
             'CPUExecutionProvider'
         ]

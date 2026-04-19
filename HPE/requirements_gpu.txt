@@ -1,0 +1,28 @@
+# GPU インストーラ用 onnxruntime パッケージ (CUDA 11)
+#
+# ORT 1.18.0 を固定する理由:
+#   ORT 1.19.0 以降は cuDNN 9.x の Frontend API (cuDNN FE) を使用するため、
+#   Pascal GPU (GTX 1070 Ti / sm_61 = CC 6.1) で CUDNN_BACKEND_API_FAILED が発生し
+#   CPU にフォールバックしてしまう。cuDNN FE は sm_70+ (Volta 以降) 専用。
+#
+# ORT 1.18.0 Windows PyPI wheel は CUDA 11 ビルド:
+#   providers_cuda.dll の PE import table:
+#     cudart64_110.dll, cublas64_11.dll, cublasLt64_11.dll,
+#     cufft64_10.dll, cudnn64_8.dll
+#   → CUDA 12 パッケージ (nvidia-*-cu12) は不要・不正。
+#
+# 必要な DLL の調達方法:
+#   cudnn64_8.dll       → nvidia-cudnn-cu11==8.9.5.29 (win_amd64 wheel あり)
+#   cudart64_110.dll    → CUDA 11.8 Toolkit (C:\...\CUDA\v11.8\bin\) からコピー
+#   cublas64_11.dll     → 同上
+#   cublasLt64_11.dll   → 同上
+#   cufft64_10.dll      → 同上
+#
+# ⚠ ORT 1.19.0 以降へのアップグレード禁止 (Pascal で動作しない)
+# ⚠ nvidia-*-cu12 パッケージ追加禁止 (ORT 1.18.0 は CUDA 11 ビルド)
+#
+# CPU インストーラは requirements_cpu.txt を参照。
+onnxruntime-gpu==1.18.0
+# cuDNN 8 Windows wheel (cudnn64_8.dll) — ORT 1.18.0 の CUDA provider が必要とする。
+# nvidia-cudnn-cu11==8.9.5.29 は win_amd64 wheel があり cudnn64_8.dll を含む。
+nvidia-cudnn-cu11==8.9.5.29

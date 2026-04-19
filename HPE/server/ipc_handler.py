@@ -273,33 +273,49 @@ def ensure_cudnn_paths():
         # 既に設定済みならスキップ
         if getattr(ensure_cudnn_paths, '_done', False):
             return
-            
-        # CUDNN/TensorRTパスの追加（環境に合わせて調整）
-        possible_cudnn_paths = [
-            r"C:\Program Files\NVIDIA\CUDNN\v9.12\bin",
-            r"C:\Program Files\NVIDIA\CUDNN\v9.11\bin",
-            r"C:\Program Files\NVIDIA\CUDNN\v9.10\bin",
-            r"C:\Program Files\NVIDIA\CUDNN\v9.9\bin",
-            r"C:\Program Files\NVIDIA\CUDNN\v9.8\bin",
-            r"C:\Program Files\NVIDIA\CUDNN\v9.7\bin",
-            r"C:\Program Files\NVIDIA\CUDNN\v8.9\bin",
-            r"C:\Program Files\NVIDIA\CUDNN\v8.8\bin",
-            r"C:\Program Files\NVIDIA\CUDNN\v8.x\bin",
-        ]
-        
+
+        import glob as _glob
+
         found_paths = []
-        for p in possible_cudnn_paths:
-            if os.path.exists(p):
+
+        def _add(p):
+            p = str(p)
+            if p not in found_paths and os.path.isdir(p):
                 try:
                     os.add_dll_directory(p)
-                except:
-                   pass
+                except Exception:
+                    pass
                 found_paths.append(p)
-        
+
+        # 1) pip install nvidia-cudnn-cu12 等でインストールされた DLL パス
+        #    .venv/Lib/site-packages/nvidia/*/bin/
+        try:
+            import site
+            for sp in site.getsitepackages():
+                nvidia_root = Path(sp) / 'nvidia'
+                if nvidia_root.is_dir():
+                    for bin_dir in nvidia_root.glob('*/bin'):
+                        _add(bin_dir)
+        except Exception as _e:
+            print(f"[CUDNN] pip nvidia path search failed: {_e}", file=sys.stderr)
+
+        # 2) システム CUDNN インストール (cuDNN 9.x は bin\<cuda_ver>\ サブディレクトリ)
+        system_cudnn_root = r"C:\Program Files\NVIDIA\CUDNN"
+        if os.path.isdir(system_cudnn_root):
+            # v*\bin\** 以下の cudnn64_*.dll が存在するディレクトリを再帰検索
+            for dll in _glob.glob(os.path.join(system_cudnn_root, 'v*', 'bin', '**', 'cudnn64_*.dll'), recursive=True):
+                _add(Path(dll).parent)
+            # v*\bin\ 直下も念のため追加 (cuDNN 8.x 形式)
+            for bin_dir in _glob.glob(os.path.join(system_cudnn_root, 'v*', 'bin')):
+                _add(bin_dir)
+
         # PATH環境変数にも追加
         if found_paths:
             os.environ['PATH'] = os.pathsep.join(found_paths) + os.pathsep + os.environ['PATH']
-            
+            print(f"[CUDNN] Added DLL paths: {found_paths}", file=sys.stderr)
+        else:
+            print("[CUDNN] No cuDNN DLL paths found", file=sys.stderr)
+
         ensure_cudnn_paths._done = True
 
 # Lock for load_model to prevent concurrent/duplicate execution
@@ -375,7 +391,7 @@ def _load_model_internal(progress_callback=None, model_type=None, yolo_type=None
                     return n
             return names[0]
 
-        if _auto_device in ('cuda', 'mps') and (_models_dir / 'rtmpose-x.onnx').exists():
+        if _auto_device in ('cuda', 'directml', 'dml', 'mps') and (_models_dir / 'rtmpose-x.onnx').exists():
             model_type = 'rtmpose-x'
             if yolo_type is None:
                 # YOLO26m を全デバイスで統一（mAP=53.4, M5 CPU 97ms）
@@ -462,7 +478,7 @@ def _load_model_internal(progress_callback=None, model_type=None, yolo_type=None
             log_debug(f"[Info] RTMPose providers: {body_providers}")
             # M5 ベンチマーク結果: YOLO は CoreML より CPU の方が速い（パーティション分割コスト）
             # そのため mps 時の YOLO CPU 実行は意図的な最適化であり、警告は不要
-            if current_device == 'cuda' and yolo_providers == ['CPUExecutionProvider']:
+            if current_device in ('cuda', 'directml', 'dml') and yolo_providers == ['CPUExecutionProvider']:
                 yolo_model_name = Path(yolo_type).name if yolo_type else "YOLO"
                 warn_msg = f"YOLO 検出器が CPU で動作しています（{yolo_model_name} の CUDA ロードに失敗）。"
                 load_warnings.append(warn_msg)
@@ -1180,8 +1196,9 @@ def handle_detect_video(request_id: str, data: Dict):
                 _jpeg_futures.append(_jpeg_pool.submit(cv2.imwrite, _fn, frame.copy(), _jpeg_params))
 
             if frame_skip <= 1 or frame_idx % frame_skip == 0:
-                img_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                frame_results = model.inference(img_rgb)
+                # BGR を直接渡す（rtmpose_estimator 内で YOLO用はそのまま使用し、
+                # RTMPose 用のみ BGR→RGB に 1 回変換する）
+                frame_results = model.inference(frame)
 
                 converted_data = {}
                 for person_id, pdata in frame_results.items():
@@ -1501,7 +1518,7 @@ def handle_switch_model(request_id: str, data: Dict):
         yolo_model = data.get("yolo_model", "") or None
         device = data.get("device", "").lower() or None
         
-        if device and device not in ['auto', 'cuda', 'mps', 'cpu']:
+        if device and device not in ['auto', 'cuda', 'directml', 'dml', 'mps', 'cpu']:
             send_response(request_id, "error", {"error": "Invalid device"})
             return
         

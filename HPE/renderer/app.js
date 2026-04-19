@@ -1457,7 +1457,7 @@ async function switchVitposeModel(modelType, device = null, yoloType = null) {
         };
       }
 
-      const deviceName = result.data.device === 'cuda' ? 'GPU' : result.data.device === 'mps' ? 'CoreML' : 'CPU';
+      const deviceName = result.data.device === 'cuda' ? 'GPU (CUDA)' : result.data.device === 'directml' ? 'GPU (DML)' : result.data.device === 'mps' ? 'CoreML' : 'CPU';
       const modelName = result.data.models?.vitpose || modelType || '';
       const yoloName = result.data.models?.yolo || '';
 
@@ -1499,6 +1499,11 @@ function updateDeviceSelectorUI(currentDevice) {
   // GPUが利用可能か記録
   if (currentDevice === 'cuda') {
     state.gpuAvailable = true;
+    state.gpuBackend = 'cuda';
+  }
+  if (currentDevice === 'directml') {
+    state.gpuAvailable = true;
+    state.gpuBackend = 'directml';
   }
   if (currentDevice === 'mps') {
     state.mpsAvailable = true;
@@ -1507,11 +1512,11 @@ function updateDeviceSelectorUI(currentDevice) {
   // セレクタの内容をクリア
   selector.innerHTML = '';
 
-  if (state.gpuAvailable || currentDevice === 'cuda') {
-    // CUDA GPU利用可能: GPU / CPU を選択可能
+  if (state.gpuAvailable || currentDevice === 'cuda' || currentDevice === 'directml') {
+    const backend = state.gpuBackend || currentDevice;
     const optionGpu = document.createElement('option');
-    optionGpu.value = 'cuda';
-    optionGpu.textContent = 'GPU (CUDA)';
+    optionGpu.value = backend;
+    optionGpu.textContent = backend === 'directml' ? 'GPU (DirectML)' : 'GPU (CUDA)';
     selector.appendChild(optionGpu);
 
     const optionCpu = document.createElement('option');

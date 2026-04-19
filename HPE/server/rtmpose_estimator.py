@@ -340,17 +340,29 @@ class RTMPoseEstimator:
         # モデルが実際に使ったデバイスを参照する
         self.device = self._body_model.device
         if self.device != device:
-            self._log(f"[RTMPose] body: requested={device}, actual={self.device} (CoreML unsupported for this model)")
+            import sys as _sys_rtm
+            if _sys_rtm.platform == 'darwin':
+                _reason = "CoreML unsupported for this model"
+            elif _sys_rtm.platform == 'win32':
+                _reason = "GPU EP load failed (CUDA/cuDNN 未検出 or バージョン不整合)"
+            else:
+                _reason = "GPU EP unavailable, fell back to CPU"
+            self._log(f"[RTMPose] body: requested={device}, actual={self.device} ({_reason})")
 
         # ----- rtmlib RTMPose (手先) — オプション -----
         hand_path = Path(body_onnx_path).parent / "rtmpose-m_hand.onnx"
         if hand_path.exists():
             self._log(f"[RTMPose] Loading hand: {hand_path}")
             try:
+                # body モデルと同様に ONNX モデルから入力サイズを自動検出する。
+                # HAND_INPUT_SIZE ハードコード値 (192, 256) はモデルによって異なるため
+                # _detect_input_size() で実際の形状を読み取る。
+                hand_input_size = _detect_input_size(str(hand_path))
+                self._log(f"[RTMPose] Hand input size (auto-detected): {hand_input_size}")
                 self._hand_model, _ = _load_with_fallback(
                     lambda d: RTMPose(
                         onnx_model=str(hand_path),
-                        model_input_size=HAND_INPUT_SIZE,
+                        model_input_size=hand_input_size,
                         backend='onnxruntime',
                         device=d,
                     ),
@@ -375,9 +387,40 @@ class RTMPoseEstimator:
         except Exception as e:
             self._log(f"[RTMPose] Could not retrieve active providers: {e}")
 
+        # ウォームアップ: GPU/CPU の JIT コンパイルとメモリアリーナを事前初期化して
+        # 最初の実フレームでの遅延スパイクを防ぐ
+        self._warmup()
+
     # ------------------------------------------------------------------
     def reset(self):
         pass
+
+    # ------------------------------------------------------------------
+    def _warmup(self) -> None:
+        """GPU/CPU の初回推論オーバーヘッド（CUDA JIT・メモリアリーナ初期化）を事前に消化する。
+        モデルロード直後に一度だけ呼び出す。失敗しても致命的エラーにはしない。"""
+        try:
+            self._log("[RTMPose] Warming up models...")
+
+            # ── YOLO ──────────────────────────────────────────────────────────
+            # detector の入力サイズに合わせたダミー画像を作成することで
+            # 内部リサイズ処理をスキップし、前処理コストをほぼゼロにする。
+            _yw = getattr(self.detector, 'input_width',  640)
+            _yh = getattr(self.detector, 'input_height', 640)
+            _ = self.detector.detect(np.full((_yh, _yw, 3), 128, dtype=np.uint8))
+
+            # ── RTMPose body / hand ───────────────────────────────────────────
+            # model_input_size (w, h) に合わせた最小ダミー画像を用意し、
+            # 画像全体を bbox として渡す → クロップ後のリサイズが恒等変換になり前処理コスト最小。
+            for _model in filter(None, [self._body_model,
+                                        self._hand_model if self._with_hand else None]):
+                _mw, _mh = _model.model_input_size   # (width, height) as stored by rtmlib
+                _img = np.full((_mh, _mw, 3), 128, dtype=np.uint8)
+                _ = _model(_img, bboxes=[[0, 0, _mw, _mh]])
+
+            self._log("[RTMPose] Warmup complete")
+        except Exception as _e:
+            self._log(f"[RTMPose] Warmup warning (non-critical): {_e}")
 
     # ------------------------------------------------------------------
     def _wrist_bbox(self, kpts: np.ndarray, side: str) -> Optional[List[float]]:
@@ -416,23 +459,26 @@ class RTMPoseEstimator:
     # ------------------------------------------------------------------
     def inference(self, image: np.ndarray) -> Dict[int, Any]:
         """
-        RGB 画像を受け取り、拡張キーポイントを返す。
+        BGR 画像を受け取り、拡張キーポイントを返す。
         Returns: {person_id: {'keypoints': np.ndarray(29,3), 'bbox': bbox}}
 
         Args:
-            image: RGB 画像 (H, W, 3)。内部で必要に応じて BGR に変換する。
+            image: BGR 画像 (H, W, 3)。OpenCV の cap.read() 出力をそのまま渡せる。
+                   呼び出し元で BGR→RGB 変換不要。
         """
-        # YOLO は BGR 入力を期待。cvtColor は ~0.1ms なので許容。
-        # ※ 呼び出し元 (ipc_handler) で BGR→RGB 変換済みのため、ここで戻す。
-        #   将来的に呼び出し元から BGR を直接渡す最適化も可能。
-        bgr = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
-        boxes = self.detector.detect(bgr)
+        # YOLO: BGR 入力を期待（内部で BGR→RGB 変換） — 変換コストなし
+        boxes = self.detector.detect(image)
         if len(boxes) == 0:
             return {}
 
+        # RTMPose (body/hand): RGB 入力を期待 → ここで 1 回だけ変換
+        # 旧実装: ipc_handler で BGR→RGB、ここで RGB→BGR、YOLO後に改めてRGBを使用
+        #   = 2 回の cvtColor。新実装では 1 回に削減。
+        img_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+
         # ---- 体幹推定 (全人物一括) ----
         bboxes_list = [b[:4].tolist() for b in boxes]
-        body_kpts_all, body_scores_all = self._body_model(image, bboxes=bboxes_list)
+        body_kpts_all, body_scores_all = self._body_model(img_rgb, bboxes=bboxes_list)
 
         results: Dict[int, Any] = {}
         # 手先推定用: 全人物の手 bbox を一括収集
@@ -468,7 +514,7 @@ class RTMPoseEstimator:
         if self._with_hand and hand_requests:
             all_hand_bboxes = [req[2] for req in hand_requests]
             try:
-                hand_kpts_all, hand_scores_all = self._hand_model(image, bboxes=all_hand_bboxes)
+                hand_kpts_all, hand_scores_all = self._hand_model(img_rgb, bboxes=all_hand_bboxes)
                 for idx, (person_i, tip_idx, _) in enumerate(hand_requests):
                     if idx < len(hand_kpts_all) and len(hand_kpts_all[idx]) > HAND_MIDDLE_MCP:
                         kpts = results[person_i]['keypoints']

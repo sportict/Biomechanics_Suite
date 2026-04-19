@@ -31,11 +31,20 @@ RTMLIB_SETTINGS = {
         'CUDAExecutionProvider',
         'rocm':
         'ROCMExecutionProvider',
+        'directml':
+        'DmlExecutionProvider',
+        'dml':
+        'DmlExecutionProvider',
         'mps':
         'CoreMLExecutionProvider'
         if check_mps_support() else 'CPUExecutionProvider'
     },
 }
+
+
+# Pascal GPU (sm_61) など cuDNN Frontend API 非対応 GPU の場合 True にセットされる。
+# 一度 True になると後続モデルは CUDA セッション作成をスキップして直接 CPU を使う。
+_CUDA_FE_BROKEN: bool = False
 
 
 class BaseTool(metaclass=ABCMeta):
@@ -69,6 +78,7 @@ class BaseTool(metaclass=ABCMeta):
 
         elif backend == 'onnxruntime':
             import onnxruntime as ort
+            import sys as _sys
 
             # 'cuda:device_id'
             if (device not in RTMLIB_SETTINGS[backend]) and ('cuda' in device):
@@ -77,17 +87,55 @@ class BaseTool(metaclass=ABCMeta):
             else:
                 providers = RTMLIB_SETTINGS[backend][device]
 
-            # CoreML/MPS: CPU を必ずフォールバックとして含める
-            # → NMS など CoreML 非対応 op は自動的に CPU で実行され
-            #   バックボーン等の重い演算は CoreML にオフロードされる
-            if device == 'mps' and providers == 'CoreMLExecutionProvider':
+            # GPU (CUDA/DirectML/CoreML): CPU を必ずフォールバックとして含める
+            # → NMS など GPU 非対応 op は自動的に CPU で実行され
+            #   バックボーン等の重い演算は GPU にオフロードされる
+            if providers == 'DmlExecutionProvider':
+                providers_list = ['DmlExecutionProvider', 'CPUExecutionProvider']
+            elif device == 'mps' and providers == 'CoreMLExecutionProvider':
                 providers_list = ['CoreMLExecutionProvider', 'CPUExecutionProvider']
+            elif providers == 'CUDAExecutionProvider':
+                global _CUDA_FE_BROKEN
+                if _CUDA_FE_BROKEN:
+                    # Pascal 等 cuDNN FE 非対応 GPU: CUDA をスキップして直接 CPU へ
+                    print(f'[rtmlib] cuDNN FE known broken on this GPU, loading {os.path.basename(onnx_model)} on CPU directly',
+                          file=_sys.stderr)
+                    providers_list = ['CPUExecutionProvider']
+                    device = 'cpu'
+                else:
+                    providers_list = ['CUDAExecutionProvider', 'CPUExecutionProvider']
             else:
                 providers_list = [providers]
 
             try:
                 self.session = ort.InferenceSession(path_or_bytes=onnx_model,
                                                     providers=providers_list)
+
+                # CUDA セッション: cuDNN Frontend API の互換性を検証する
+                # Pascal GPU (sm_61) など cuDNN 9.x FE 非対応 GPU では
+                # セッション作成は成功するが推論時に CUDNN_BACKEND_API_FAILED が発生する。
+                # ダミー推論で事前検出し、以降のモデルでの 17 秒超の待機を回避する。
+                if 'CUDAExecutionProvider' in providers_list and not _CUDA_FE_BROKEN:
+                    _in = self.session.get_inputs()[0]
+                    _shape = [s if isinstance(s, int) and s > 0 else 1 for s in _in.shape]
+                    _dummy = np.full(_shape, 0.5, dtype=np.float32)
+                    try:
+                        self.session.run(None, {_in.name: _dummy})
+                    except Exception as _val_e:
+                        _val_msg = str(_val_e)
+                        if ('CUDNN_BACKEND_API_FAILED' in _val_msg or
+                                'CUDNN_FE' in _val_msg or
+                                'no kernel image' in _val_msg):
+                            _CUDA_FE_BROKEN = True
+                            print(f'[rtmlib] cuDNN FE not supported on this GPU (Pascal?), '
+                                  f'falling back to CPU for all models', file=_sys.stderr)
+                            self.session = ort.InferenceSession(
+                                path_or_bytes=onnx_model,
+                                providers=['CPUExecutionProvider'])
+                            device = 'cpu'
+                        else:
+                            raise
+
                 # CoreML の一部モデルは InferenceSession 作成後の初回 run() で
                 # "Error in building plan" 等が発生する場合がある → ダミー推論で検証
                 #
@@ -96,7 +144,7 @@ class BaseTool(metaclass=ABCMeta):
                 # "dynamic shape has zero elements" エラーを出す。
                 # 画像らしい値 (128/255 ≈ mid-gray) を使うことで
                 # バックボーンの特徴マップが非ゼロになり、この問題を回避する。
-                if device == 'mps' and 'CoreMLExecutionProvider' in providers_list:
+                elif device == 'mps' and 'CoreMLExecutionProvider' in providers_list:
                     _in = self.session.get_inputs()[0]
                     _shape = [s if isinstance(s, int) and s > 0 else 1 for s in _in.shape]
                     _dummy = np.full(_shape, 0.5, dtype=np.float32)
@@ -108,16 +156,14 @@ class BaseTool(metaclass=ABCMeta):
                         # 実際の映像入力では人物が映っているため問題にならない。
                         # このエラーのみ許容し、セッション自体は CoreML のまま保持する。
                         if 'zero elements' in _val_msg or 'dynamic shape' in _val_msg:
-                            import sys as _sys
                             print(f'[rtmlib] CoreML validation warning (ignored): {_val_msg}',
                                   file=_sys.stderr)
                         else:
                             raise
             except Exception as _e:
                 if device != 'cpu':
-                    import sys
                     print(f'[rtmlib] {device} session failed ({_e}), falling back to CPU',
-                          file=sys.stderr)
+                          file=_sys.stderr)
                     self.session = ort.InferenceSession(
                         path_or_bytes=onnx_model,
                         providers=['CPUExecutionProvider'])

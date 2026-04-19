@@ -978,7 +978,12 @@ def detect_device(config_device: str = "auto") -> str:
             if _validate_cuda_runtime():
                 device = "cuda"
             else:
-                print("[Device] CUDAExecutionProvider is listed but not functional; using CPU", file=sys.stderr)
+                print("[Device] CUDAExecutionProvider is listed but not functional; trying fallback", file=sys.stderr)
+                # Windows 側の二次 GPU オプション: DirectML (onnxruntime-directml)
+                if "DmlExecutionProvider" in providers:
+                    device = "directml"
+        elif "DmlExecutionProvider" in providers:
+            device = "directml"
     except ImportError:
         pass
     except Exception:
@@ -1051,6 +1056,7 @@ def get_device_info() -> Dict[str, Any]:
         import onnxruntime as ort
         info["onnx_providers"] = ort.get_available_providers()
         info["cuda_available"] = "CUDAExecutionProvider" in info["onnx_providers"]
+        info["dml_available"] = "DmlExecutionProvider" in info["onnx_providers"]
     except ImportError:
         pass
 

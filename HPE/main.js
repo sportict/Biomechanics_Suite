@@ -70,14 +70,65 @@ function startPythonProcess() {
   writeLog(`[Main] isDev: ${isDev}`);
   writeLog(`[Main] resourcesPath: ${resourcesPath}`);
 
-  // Python実行ファイルのパスを決定（.venv 統一）
+  // Python実行ファイルのパスを決定
+  //
+  // 優先順位 (Windows):
+  //   1. python_embed_gpu/python.exe  (GPU 版。デフォルト優先)
+  //   2. python_embed_cpu/python.exe  (CPU 版)
+  //   3. python_embed/python.exe       (installer 展開後のジャンクション or 旧構成互換)
+  //   4. .venv/Scripts/python.exe      (最後のフォールバック)
+  //   5. システム python                (最終手段)
+  //
+  // 環境変数 HPE_DEV_MODE で明示的に切替可能:
+  //   HPE_DEV_MODE=gpu → GPU を強制 (python_embed_gpu のみ許容)
+  //   HPE_DEV_MODE=cpu → CPU を強制 (python_embed_cpu を最優先)
+  //
+  // 2026-04-19 変更:
+  //   python_embed を python_embed_gpu / python_embed_cpu に分離 (案 B)。
+  //   これによりモード切替が再ビルド不要になる。
+  //   installer (dist/HPE-GPU-Setup-*.exe / HPE-CPU-Setup-*.exe) では
+  //   build_*.bat がジャンクション python_embed → python_embed_<mode> を
+  //   一時的に張るため、配布先では依然として resourcesPath/python_embed を参照可能。
   const isWin = process.platform === 'win32';
   const venvBinDir = isWin ? 'Scripts' : 'bin';
   const pythonName = isWin ? 'python.exe' : 'python';
   const python3Name = isWin ? 'python.exe' : 'python3';
   const systemFallback = isWin ? 'python' : 'python3';
 
-  const candidates = [
+  // 明示切替スイッチ (gpu|cpu|auto)
+  const devMode = (process.env.HPE_DEV_MODE || 'auto').toLowerCase();
+
+  // Mode-split embed 候補 (Windows のみ)
+  // 順序は HPE_DEV_MODE で並べ替え (デフォルトは gpu → cpu)
+  const makeEmbedCandidates = (mode) => {
+    const dirName = `python_embed_${mode}`;
+    return [
+      path.join(resourcesPath, dirName, 'python.exe'),
+      path.join(__dirname, dirName, 'python.exe'),
+    ];
+  };
+
+  let embedCandidates = [];
+  if (isWin) {
+    if (devMode === 'cpu') {
+      embedCandidates = [...makeEmbedCandidates('cpu'), ...makeEmbedCandidates('gpu')];
+    } else if (devMode === 'gpu') {
+      // gpu 強制: python_embed_cpu はフォールバックさせない (誤起動防止)
+      embedCandidates = makeEmbedCandidates('gpu');
+    } else {
+      // auto: gpu 優先、無ければ cpu
+      embedCandidates = [...makeEmbedCandidates('gpu'), ...makeEmbedCandidates('cpu')];
+    }
+
+    // 後方互換: 旧 python_embed/ (ジャンクションまたは旧レイアウト)
+    embedCandidates.push(
+      path.join(resourcesPath, 'python_embed', 'python.exe'),
+      path.join(__dirname, 'python_embed', 'python.exe')
+    );
+  }
+
+  // .venv フォールバック候補
+  const venvCandidates = [
     path.join(resourcesPath, '.venv', venvBinDir, pythonName),
     path.join(resourcesPath, '.venv', venvBinDir, python3Name),
     path.join(__dirname, '.venv', venvBinDir, pythonName),
@@ -85,15 +136,56 @@ function startPythonProcess() {
   ];
 
   let pythonExecutable = systemFallback;
-  for (const candidate of candidates) {
+  let pythonSource = 'system';
+  let pythonEmbedDir = null;  // _HPE_BUILD_MODE 読み取り用
+
+  writeLog(`[Main] HPE_DEV_MODE=${devMode}`);
+
+  // 1. python_embed_* を優先探索
+  for (const candidate of embedCandidates) {
     if (fs.existsSync(candidate)) {
       pythonExecutable = candidate;
-      writeLog(`[Main] Using venv python: ${pythonExecutable}`);
+      pythonSource = 'python_embed';
+      pythonEmbedDir = path.dirname(candidate);
+      writeLog(`[Main] Using python_embed: ${pythonExecutable}`);
+      // ビルドモードマーカーを読む
+      const markerPath = path.join(pythonEmbedDir, '_HPE_BUILD_MODE');
+      if (fs.existsSync(markerPath)) {
+        try {
+          const markerMode = fs.readFileSync(markerPath, 'utf-8').trim();
+          writeLog(`[Main] python_embed build mode: ${markerMode}`);
+          if (devMode === 'gpu' && markerMode.toLowerCase() !== 'gpu') {
+            writeLog(`[Main] WARN: HPE_DEV_MODE=gpu ですが、選択された python_embed は ${markerMode} ビルドです。`);
+          } else if (devMode === 'cpu' && markerMode.toLowerCase() !== 'cpu') {
+            writeLog(`[Main] WARN: HPE_DEV_MODE=cpu ですが、選択された python_embed は ${markerMode} ビルドです。`);
+          }
+        } catch (e) {
+          writeLog(`[Main] Failed to read ${markerPath}: ${e.message}`);
+        }
+      } else {
+        writeLog(`[Main] WARN: _HPE_BUILD_MODE marker not found in ${pythonEmbedDir}`);
+      }
       break;
     }
   }
-  if (pythonExecutable === systemFallback) {
-    writeLog(`[Main] Using system ${systemFallback} (fallback)`);
+
+  // 2. .venv フォールバック
+  if (pythonSource === 'system') {
+    for (const candidate of venvCandidates) {
+      if (fs.existsSync(candidate)) {
+        pythonExecutable = candidate;
+        pythonSource = 'venv';
+        writeLog(`[Main] Using venv python (fallback): ${pythonExecutable}`);
+        writeLog(`[Main] WARN: python_embed_gpu / python_embed_cpu が見つかりません。`);
+        writeLog(`[Main]       構築するには: build_python_embed.ps1 -Mode Gpu  (または -Mode Cpu)`);
+        break;
+      }
+    }
+  }
+
+  // 3. システム python フォールバック
+  if (pythonSource === 'system') {
+    writeLog(`[Main] Using system ${systemFallback} (last resort fallback)`);
   }
 
   writeLog(`[Main] Starting IPC handler: ${ipcScript}`);
@@ -119,12 +211,22 @@ function startPythonProcess() {
   });
 
   rl.on('line', (line) => {
-    writeLog(`[Python] ${line}`);
     try {
       const message = JSON.parse(line);
+      // result / image_result は全フレームのキーポイントを含む巨大 JSON のため
+      // コンソール・ログファイルへの全文出力をスキップし、サマリのみ記録する
+      const SUPPRESS_TYPES = new Set(['result', 'image_result']);
+      if (SUPPRESS_TYPES.has(message.type)) {
+        const frames = message.data?.frames;
+        const frameCount = Array.isArray(frames) ? frames.length : '?';
+        writeLog(`[Python] {type:"${message.type}", id:"${message.id}", frames:${frameCount}, bytes:${line.length}}`);
+      } else {
+        writeLog(`[Python] ${line}`);
+      }
       handlePythonMessage(message);
     } catch (e) {
-      writeLog(`[Main] Failed to parse Python output: ${e.message}`);
+      // JSON でない行（Python の print 等）はそのままログ
+      writeLog(`[Python] ${line}`);
     }
   });
 
