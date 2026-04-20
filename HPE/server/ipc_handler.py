@@ -1274,20 +1274,18 @@ def handle_detect_video(request_id: str, data: Dict):
                     all_results,
                     max_gap_frames=max_gap_frames,
                     distance_threshold=distance_threshold,
+                    enable_overlap_merge=False,  # 同時存在IDの統合禁止（別人物の誤マージ防止）
                 )
                 if id_mapping:
                     log_debug(f"[Detect] ID consolidation: merged {len(id_mapping)} IDs")
             except Exception as e:
                 log_debug(f"[Detect] ID consolidation failed: {e}")
 
-        # 検出ギャップ補間: YOLO が失敗したフレームを前後から線形補間
-        if len(all_results) > 0 and not was_cancelled:
-            try:
-                from filtering import fill_detection_gaps
-                max_gap = int(fps * 0.5)  # 0.5秒以内のギャップを補間
-                all_results = fill_detection_gaps(all_results, max_gap_frames=max_gap)
-            except Exception as e:
-                log_debug(f"[Detect] Gap fill failed: {e}")
+        # 検出ギャップ補間はデータクレンジング側で行うため、ここでは無効
+        # fill_detection_gaps は filtering.py に残してあり、フィルタ適用時に使用可能
+
+        # IDスワップ修正は現在無効（多人数シーンでの誤スワップを防ぐため）
+        # fix_id_swaps_after_occlusion は対象人物を絞り込んだ場合に手動で適用する
 
         processing_time = (time.time() - start_time) * 1000
 

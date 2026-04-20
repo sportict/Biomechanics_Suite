@@ -1874,7 +1874,8 @@ def consolidate_person_ids(
     frames_data: List[Dict],
     max_gap_frames: int = 120,
     distance_threshold: float = 100.0,
-    min_overlap_check_frames: int = 5
+    min_overlap_check_frames: int = 5,
+    enable_overlap_merge: bool = True,
 ) -> Tuple[List[Dict], Dict[str, str]]:
     """
     検出が途切れて新しいIDが割り当てられた人物を統合する
@@ -1951,9 +1952,11 @@ def consolidate_person_ids(
                 earlier_info, later_info = info_b, info_a
             else:
                 # ---- Case B: 時間的に重複している ----
-                # ID切り替わりの境界で一時的に2つのIDが同時存在する場合。
-                # 出現フレーム数が少ない方を多い方に吸収する。
-                # 重複区間での空間距離が近ければ同一人物と判定。
+                # enable_overlap_merge=False の場合は同時存在IDの統合を行わない
+                # （多人数シーンで別人物を誤マージするのを防ぐ）
+                if not enable_overlap_merge:
+                    continue
+
                 overlap_start = max(info_a['start'], info_b['start'])
                 overlap_end = min(info_a['end'], info_b['end'])
 
@@ -2142,6 +2145,203 @@ def fill_detection_gaps(
 
     if filled_total > 0:
         print(f"[GapFill] Interpolated {filled_total} person-frame slots (max_gap={max_gap_frames}f)")
+
+    return result
+
+
+# ===================================
+# IDスワップ修正（重なり後のID再割り当て）
+# ===================================
+
+def fix_id_swaps_after_occlusion(
+    frames_data: List[Dict],
+    max_dim: int = 1920,
+    velocity_anomaly_factor: float = 6.0,
+    min_segment_frames: int = 10,
+) -> List[Dict]:
+    """
+    重なり後のIDスワップを検出・修正する後処理関数。
+
+    各IDの軌跡（重心の移動）を分析し、速度の急変（スワップの証拠）を検出する。
+    急変フレームで別のIDが元の位置を引き継いでいる場合、IDを交換して軌跡の連続性を回復する。
+
+    Parameters:
+    - frames_data: [{'frame': int, 'keypoints': {person_id: [[x,y,c], ...]}}]
+    - max_dim: フレームの最大辺（ピクセル）。位置近傍の閾値に使用
+    - velocity_anomaly_factor: 中央値の何倍以上を「異常」とみなすか
+    - min_segment_frames: スワップ判定に使うセグメントの最小フレーム数
+    """
+    if not frames_data:
+        return frames_data
+
+    # 軌跡を構築: {person_id: [(frame_num, cx, cy), ...]}
+    trajectories: Dict[str, List] = {}
+    for fd in frames_data:
+        frame_num = fd.get('frame', 0)
+        for pid, kpts in fd.get('keypoints', {}).items():
+            kpts_arr = np.array(kpts, dtype=np.float32)
+            if kpts_arr.ndim != 2 or kpts_arr.shape[1] < 3:
+                continue
+            valid = kpts_arr[:, 2] > 0.3
+            if np.sum(valid) < 3:
+                continue
+            cx = float(np.mean(kpts_arr[valid, 0]))
+            cy = float(np.mean(kpts_arr[valid, 1]))
+            trajectories.setdefault(pid, []).append((frame_num, cx, cy))
+
+    for pid in trajectories:
+        trajectories[pid].sort(key=lambda x: x[0])
+
+    # 各IDの速度プロファイルと中央値速度を計算
+    median_speeds: Dict[str, float] = {}
+    for pid, traj in trajectories.items():
+        speeds = []
+        for i in range(len(traj) - 1):
+            f1, x1, y1 = traj[i]
+            f2, x2, y2 = traj[i + 1]
+            dt = max(f2 - f1, 1)
+            speeds.append(np.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2) / dt)
+        median_speeds[pid] = float(np.median(speeds)) if speeds else 0.0
+
+    # 速度異常フレームを検出: {pid: [frame_num_of_jump, ...]}
+    # 「ジャンプ先フレーム」(f2) を記録する
+    # min_anomaly_px: フレーム幅の10%以上の1フレーム移動量のみを異常とみなす
+    # （通常の走者移動量は数十px/frame、IDスワップは数百px/frame）
+    anomaly_frames: Dict[str, List[int]] = {}
+    min_anomaly_px = max_dim * 0.10  # フレームサイズの10%以上の移動のみ対象
+    for pid, traj in trajectories.items():
+        median_v = max(median_speeds.get(pid, 0.0), 0.5)
+        threshold_v = max(velocity_anomaly_factor * median_v, min_anomaly_px)
+        for i in range(len(traj) - 1):
+            f1, x1, y1 = traj[i]
+            f2, x2, y2 = traj[i + 1]
+            dt = max(f2 - f1, 1)
+            speed = np.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2) / dt
+            if speed >= threshold_v:
+                anomaly_frames.setdefault(pid, []).append(f2)
+
+    if not anomaly_frames:
+        print("[SwapFix] No velocity anomalies detected")
+        return frames_data
+
+    # スワップ候補の検出
+    # 判定: pid_A がフレーム T で急変し、別の pid_B の T 以降の最初の位置が
+    # pid_A の T 直前の位置に近い場合 → A と B が T でスワップした
+    swap_candidates: List[Tuple[int, str, str]] = []  # (frame, pid_a, pid_b)
+    # スワップ時は「別人物の位置に瞬間移動」するので、交差距離は非常に小さいはず
+    # 同一人物内の誤検出を防ぐため、近傍閾値は厳しめ（フレーム幅の8%）に設定
+    proximity_threshold = max_dim * 0.08
+    processed_pairs: set = set()
+
+    all_ids = list(trajectories.keys())
+
+    for pid_a, jump_frames in anomaly_frames.items():
+        traj_a = trajectories[pid_a]
+
+        for swap_frame in jump_frames:
+            # pid_A のスワップ直前位置（最後の pre 点）
+            pre_a = [(f, x, y) for f, x, y in traj_a if f < swap_frame]
+            post_a = [(f, x, y) for f, x, y in traj_a if f >= swap_frame]
+
+            if len(pre_a) < min_segment_frames or len(post_a) < min_segment_frames:
+                continue
+
+            pos_a_pre = np.array([pre_a[-1][1], pre_a[-1][2]])   # A の直前位置
+            pos_a_post = np.array([post_a[0][1], post_a[0][2]])  # A のジャンプ後位置
+
+            for pid_b in all_ids:
+                if pid_b == pid_a:
+                    continue
+                pair_key = (min(pid_a, pid_b), max(pid_a, pid_b), swap_frame)
+                if pair_key in processed_pairs:
+                    continue
+
+                traj_b = trajectories[pid_b]
+                post_b = [(f, x, y) for f, x, y in traj_b if f >= swap_frame]
+
+                # B の post セグメントも十分な長さが必要
+                if len(post_b) < min_segment_frames:
+                    continue
+
+                pos_b_post = np.array([post_b[0][1], post_b[0][2]])
+
+                # B の T 以降の位置が A の T 直前位置に近い → スワップ証拠
+                dist_b_to_a_pre = float(np.linalg.norm(pos_b_post - pos_a_pre))
+
+                if dist_b_to_a_pre < proximity_threshold:
+                    # 追加確認: A のジャンプ後位置と B の直前位置が近いか
+                    # B が T 以前にも存在する場合のみ双方向チェックを適用
+                    pre_b = [(f, x, y) for f, x, y in traj_b if f < swap_frame]
+                    if pre_b and len(pre_b) >= min_segment_frames:
+                        pos_b_pre = np.array([pre_b[-1][1], pre_b[-1][2]])
+                        dist_a_post_to_b_pre = float(np.linalg.norm(pos_a_post - pos_b_pre))
+                        if dist_a_post_to_b_pre >= proximity_threshold:
+                            continue  # 双方向確認失敗
+
+                    swap_candidates.append((swap_frame, pid_a, pid_b))
+                    processed_pairs.add(pair_key)
+                    print(f"[SwapFix] Swap detected at frame {swap_frame}: "
+                          f"'{pid_a}' <-> '{pid_b}' "
+                          f"(dist={dist_b_to_a_pre:.1f}px / threshold={proximity_threshold:.1f}px)")
+
+    if not swap_candidates:
+        print("[SwapFix] No swap pairs found")
+        return frames_data
+
+    # フレーム番号でソート（早い方から適用）
+    swap_candidates.sort(key=lambda x: x[0])
+
+    # フレームデータを shallow copy
+    result = []
+    for fd in frames_data:
+        result.append({'frame': fd.get('frame', 0),
+                       'keypoints': dict(fd.get('keypoints', {}))})
+
+    applied_pairs: set = set()
+    used_ids: set = set()  # スワップ適用済みIDの集合（連鎖スワップを防止）
+
+    for swap_frame, pid_a, pid_b in swap_candidates:
+        pair_key = (min(pid_a, pid_b), max(pid_a, pid_b))
+        if pair_key in applied_pairs:
+            continue  # 同ペアを2回スワップしない
+        if pid_a in used_ids or pid_b in used_ids:
+            print(f"[SwapFix] Skipping swap '{pid_a}'<->'{pid_b}' at frame {swap_frame}: "
+                  f"ID already involved in another swap (chain prevention)")
+            continue
+        applied_pairs.add(pair_key)
+        used_ids.add(pid_a)
+        used_ids.add(pid_b)
+
+        swap_count = 0
+        for fd in result:
+            if fd['frame'] < swap_frame:
+                continue
+            kpts = fd['keypoints']
+            has_a = pid_a in kpts
+            has_b = pid_b in kpts
+            if not has_a and not has_b:
+                continue
+
+            # スナップショットから読み取ってスワップ
+            val_a = kpts.get(pid_a)
+            val_b = kpts.get(pid_b)
+            new_kpts = dict(kpts)
+
+            if has_a and has_b:
+                new_kpts[pid_a] = val_b
+                new_kpts[pid_b] = val_a
+            elif has_a:
+                del new_kpts[pid_a]
+                new_kpts[pid_b] = val_a
+            else:  # has_b only
+                del new_kpts[pid_b]
+                new_kpts[pid_a] = val_b
+
+            fd['keypoints'] = new_kpts
+            swap_count += 1
+
+        print(f"[SwapFix] Applied swap '{pid_a}'<->'{pid_b}' from frame {swap_frame} "
+              f"({swap_count} frames modified)")
 
     return result
 
