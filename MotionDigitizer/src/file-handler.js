@@ -500,7 +500,7 @@ window.loadVideo = async function () {
  * モード別動画切り替え機能
  * @param {string} mode - 'calibration' または 'motion'
  */
-function switchVideoByMode(mode) {
+async function switchVideoByMode(mode) {
     const currentCamera = getCurrentCamera();
     // キー生成を修正: 'calibration' → 'cal', 'motion' → 'motion'
     const videoFileKey = mode === 'calibration' ? `cal-${currentCamera}` : `${mode}-${currentCamera}`;
@@ -521,6 +521,29 @@ function switchVideoByMode(mode) {
     }
 
     if (videoFile) {
+        // 画像ファイルの場合は動画処理をスキップ
+        if (isImageFile(videoFile.path)) {
+            projectData.settings.videoFile = videoFile.path;
+            projectData.settings.currentFrame = 1;
+            conditionalDataClear(mode);
+            initializeModeSpecificLandmarks(mode);
+            await displayCurrentFrame();
+            updateFrameInfo();
+            if (mode === 'calibration') {
+                if (!document.getElementById('calibration-table-body') || !document.getElementById('calibration-table-body').rows.length) {
+                    updateCalibrationDataTable();
+                }
+            } else {
+                if (typeof updateMotionDataTableForCurrentCamera === 'function') {
+                    updateMotionDataTableForCurrentCamera();
+                } else if (typeof updateMotionDataTable === 'function') {
+                    updateMotionDataTable();
+                }
+            }
+            showMessage(`${mode === 'calibration' ? 'キャリブレーション' : 'モーション'}画像に切り替えました`);
+            return;
+        }
+
         showMessage(`${mode === 'calibration' ? 'キャリブレーション' : 'モーション'}動画に切り替え中...`);
 
         // previewPlayer と digitizeVideo の両方に動画を読み込む
