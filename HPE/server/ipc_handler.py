@@ -439,6 +439,7 @@ def _load_model_internal(progress_callback=None, model_type=None, yolo_type=None
                 yolo_size=config.yolo_size,
                 conf_threshold=config.confidence_threshold,
                 log_func=log_debug,
+                progress_callback=report,
             )
 
         try:
@@ -1154,14 +1155,25 @@ def handle_detect_video(request_id: str, data: Dict):
         # FPSに応じて追跡維持パラメータを調整 (2秒分保持 - 長めに設定してID断片化を防ぐ)
         hit_max = max(60, int(fps * 2.0))
 
-        log_debug(f"Tracker Init: Enabled={norfair_tracker.tracker is not None}, Resolution={width}x{height}, HitMax={hit_max}, Delay=0")
+        # FPS適応型距離閾値（正規化値）
+        # 人間の最大移動速度を 3000px/秒 と仮定し、1フレームの最大許容移動量を算出。
+        # Norfair は max(height, width) で正規化するため同じ値で除算する。
+        #   例: 60fps  → 3000/60  = 50px/frame → 50/1920 ≈ 0.026
+        #       240fps → 3000/240 = 12.5px/frame → 12.5/1920 ≈ 0.0065
+        _max_dim = max(width, height)
+        _max_px_per_frame = 3000.0 / fps
+        dist_thresh = float(np.clip(_max_px_per_frame / _max_dim, 0.005, 0.4))
+
+        log_debug(f"Tracker Init: Resolution={width}x{height}, FPS={fps:.1f}, "
+                  f"HitMax={hit_max}, DistThresh={dist_thresh:.4f} ({_max_px_per_frame:.1f}px/frame)")
 
         # initialization_delay=0 にして、即座に安定IDを割り当てる（Raw IDとの入れ替わり防止）
         norfair_tracker.reset(
             height=height,
             width=width,
             initialization_delay=0,
-            hit_counter_max=hit_max
+            hit_counter_max=hit_max,
+            distance_threshold=dist_thresh,
         )
         all_results = []
         last_keypoints = {}
@@ -1200,18 +1212,22 @@ def handle_detect_video(request_id: str, data: Dict):
                 # RTMPose 用のみ BGR→RGB に 1 回変換する）
                 frame_results = model.inference(frame)
 
-                converted_data = {}
+                # YOLO bbox をキーとして渡す → NorfairがYOLO bbox中心でトラッキング
+                tracking_data = {}
                 for person_id, pdata in frame_results.items():
-                    if isinstance(pdata, dict) and 'keypoints' in pdata:
-                        kpts_out = convert_kpts(pdata['keypoints'])
-                        converted_data[str(person_id)] = {
-                            'keypoints': kpts_out,
+                    if isinstance(pdata, dict):
+                        tracking_data[str(person_id)] = {
+                            'keypoints': pdata['keypoints'],
                             'bbox': pdata.get('bbox')
                         }
                     else:
-                        converted_data[str(person_id)] = convert_kpts(pdata)
+                        tracking_data[str(person_id)] = pdata
 
-                stable_keypoints = norfair_tracker.track(converted_data)
+                # stable_id → raw HALPE keypoints
+                stable_raw = norfair_tracker.track(tracking_data)
+
+                # 安定IDが確定した後に出力フォーマットへ変換
+                stable_keypoints = {pid: convert_kpts(kpts) for pid, kpts in stable_raw.items()}
                 last_keypoints = stable_keypoints
 
                 frame_result = {
@@ -1263,6 +1279,15 @@ def handle_detect_video(request_id: str, data: Dict):
                     log_debug(f"[Detect] ID consolidation: merged {len(id_mapping)} IDs")
             except Exception as e:
                 log_debug(f"[Detect] ID consolidation failed: {e}")
+
+        # 検出ギャップ補間: YOLO が失敗したフレームを前後から線形補間
+        if len(all_results) > 0 and not was_cancelled:
+            try:
+                from filtering import fill_detection_gaps
+                max_gap = int(fps * 0.5)  # 0.5秒以内のギャップを補間
+                all_results = fill_detection_gaps(all_results, max_gap_frames=max_gap)
+            except Exception as e:
+                log_debug(f"[Detect] Gap fill failed: {e}")
 
         processing_time = (time.time() - start_time) * 1000
 
@@ -1836,15 +1861,15 @@ def main():
     detected_device = detect_device()
     # 検出結果を即座に設定に反映（ロード時の再検出/迷いを防止）
     config.device = detected_device
-    
+
     print(json.dumps({
         "type": "ready",
-        "data": {"device": detected_device, "model_loading": False}
+        "data": {"device": detected_device, "model_loading": True}
     }, ensure_ascii=True), flush=True)
-    
-    # 自動ロードスレッドは廃止
-    # ユーザーが「ポーズ検出」ボタンを押した時に初めてロードする
-    config.model_loaded = False
+
+    # ready 送信後にバックグラウンドでモデルをプリロード開始
+    # → ユーザーが操作する前にロードが完了しやすくなる
+    threading.Thread(target=load_model, daemon=True).start()
 
     
     for line in sys.stdin:

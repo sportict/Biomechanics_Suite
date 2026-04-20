@@ -130,15 +130,17 @@ class NorfairPersonTracker:
                 distance_threshold=self.distance_threshold,
                 hit_counter_max=self.hit_counter_max,
                 initialization_delay=self.initialization_delay,
-                pointwise_hit_counter_max=4,
+                pointwise_hit_counter_max=1,
             )
 
-    def reset(self, height=None, width=None, initialization_delay=None, hit_counter_max=None):
+    def reset(self, height=None, width=None, initialization_delay=None,
+              hit_counter_max=None, distance_threshold=None):
         """トラッカーをリセット"""
         if height is not None: self.height = height
         if width is not None: self.width = width
         if initialization_delay is not None: self.initialization_delay = initialization_delay
         if hit_counter_max is not None: self.hit_counter_max = hit_counter_max
+        if distance_threshold is not None: self.distance_threshold = distance_threshold
         self._init_tracker()
         # フォールバックトラッカーもリセット
         self._fb_tracks = {}   # {stable_id: centroid_array}
@@ -226,11 +228,6 @@ class NorfairPersonTracker:
         self._fb_tracks = new_tracks
         return result
 
-    # トラッキング用アンカーキーポイント (HALPE 26pt)
-    # bbox中心は検出器のノイズに弱いため、安定した体幹関節を使用
-    # 肩・腰の4点は姿勢変化に対してもっとも安定的
-    _ANCHOR_INDICES = [5, 6, 11, 12]  # L_Shoulder, R_Shoulder, L_Hip, R_Hip
-
     def track(self, frame_data: Dict[str, Any]) -> Dict[str, np.ndarray]:
         """
         フレームのデータを追跡して安定したIDを割り当てる
@@ -253,42 +250,39 @@ class NorfairPersonTracker:
             return {}
 
         # --- 検出を Norfair Detection に変換 ---
+        # YOLO bbox の中心点でトラッキングする（キーポイントより安定）。
+        # bbox は RTMPose の推定精度に依存せず、YOLO が検出できていれば常に有効。
+        # Norfair は全 update で同じポイント数を要求するため 1点固定 (bbox中心) で統一。
         detections = []
         det_to_orig = {}  # det_index → orig_id
 
         for orig_id, data in frame_data.items():
-            if isinstance(data, dict) and 'keypoints' in data:
-                kpts = data['keypoints']
+            bbox = None
+            kpts = None
+            if isinstance(data, dict):
+                bbox = data.get('bbox')
+                kpts = data.get('keypoints')
             else:
                 kpts = data
 
-            valid_mask = kpts[:, 2] > 0.3
-            if np.sum(valid_mask) < 3:
+            # --- bbox 中心でトラッキング（最優先） ---
+            if bbox is not None and len(bbox) >= 4:
+                cx = float((bbox[0] + bbox[2]) / 2)
+                cy = float((bbox[1] + bbox[3]) / 2)
+                conf = float(bbox[4]) if len(bbox) > 4 else 0.9
+                points = np.array([[cx, cy]], dtype=np.float32)
+                scores = np.array([conf], dtype=np.float32)
+            elif kpts is not None:
+                # bbox なし（画像1枚検出など）: キーポイント重心で代替
+                kpts_arr = np.asarray(kpts)
+                valid_mask = kpts_arr[:, 2] > 0.3
+                if np.sum(valid_mask) < 3:
+                    continue
+                centroid = np.mean(kpts_arr[valid_mask, :2], axis=0)
+                points = centroid.reshape(1, 2).astype(np.float32)
+                scores = np.array([float(np.mean(kpts_arr[valid_mask, 2]))], dtype=np.float32)
+            else:
                 continue
-
-            # アンカーキーポイント（肩・腰）でトラッキング
-            # bbox中心よりも安定: 検出bboxの揺らぎに影響されない
-            #
-            # Norfair は TrackedObject 生成後、全ての update で同じポイント数を要求する
-            # (内部の point_hit_counter が初回サイズで固定されるため)。
-            # そのため常に 4 スロット固定で Detection を作成し、信頼度の低いスロットは
-            # 重心座標で埋めて Norfair の score しきい値で無効化させる。
-            valid_points = kpts[valid_mask, :2]
-            centroid = np.mean(valid_points, axis=0)
-
-            points = np.tile(centroid, (len(self._ANCHOR_INDICES), 1)).astype(np.float32)
-            scores = np.zeros(len(self._ANCHOR_INDICES), dtype=np.float32)
-            num_valid_anchors = 0
-            for slot_idx, kpt_idx in enumerate(self._ANCHOR_INDICES):
-                if kpt_idx < len(kpts) and kpts[kpt_idx, 2] > 0.3:
-                    points[slot_idx] = kpts[kpt_idx, :2]
-                    scores[slot_idx] = float(kpts[kpt_idx, 2])
-                    num_valid_anchors += 1
-
-            # 肩・腰がほぼ検出できていない場合は重心1点相当の低信頼度で代用
-            if num_valid_anchors == 0:
-                avg_score = float(np.mean(kpts[valid_mask, 2]))
-                scores[:] = max(0.31, min(avg_score, 0.9))
 
             det_idx = len(detections)
             detections.append(Detection(points=points, scores=scores))

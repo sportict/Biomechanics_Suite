@@ -264,10 +264,12 @@ class RTMPoseEstimator:
                  yolo_size: int = 640,
                  conf_threshold: float = 0.3,
                  iou_threshold: float = 0.45,
-                 log_func=None):
+                 log_func=None,
+                 progress_callback=None):
 
         self._log = log_func or print
         self.device = device
+        _progress = progress_callback or (lambda p, msg: None)
 
         from rtmlib.tools.pose_estimation.rtmpose import RTMPose
         from onnx_vitpose_integration import ONNXYoloDetector
@@ -293,6 +295,7 @@ class RTMPoseEstimator:
         # mps デバイスでも YOLO は CPU 実行が最適
         yolo_device_override = 'cpu' if device == 'mps' else device
         self._log(f"[RTMPose] Loading YOLO: {yolo_onnx_path} (device={yolo_device_override})")
+        _progress(25, f"YOLO検出器をロード中... ({yolo_device_override})")
         is_yolox = 'yolox' in Path(yolo_onnx_path).name.lower()
         if is_yolox:
             # rtmlib 純正 YOLOX クラスを使用
@@ -322,6 +325,7 @@ class RTMPoseEstimator:
             )
 
         # ----- rtmlib RTMPose (体幹) -----
+        _progress(50, f"RTMPoseモデルをロード中... ({device})")
         self._log(f"[RTMPose] Loading body: {body_onnx_path}")
         body_input_size = _detect_input_size(body_onnx_path)
         self._log(f"[RTMPose] Body input size: {body_input_size}")
@@ -378,6 +382,7 @@ class RTMPoseEstimator:
             self._with_hand = False
             self._log("[RTMPose] Hand model not found, using forearm extension fallback")
 
+        _progress(82, "RTMPoseモデルロード完了")
         self._log(f"[RTMPose] Ready (device={self.device})")
         # 実際に使用されているプロバイダーをログ出力（CoreML/CPU フォールバック確認用）
         try:
@@ -547,7 +552,8 @@ def load_rtmpose_estimator(models_dir: Path,
                            body_model: str = 'rtmpose-x.onnx',
                            yolo_size: int = 640,
                            conf_threshold: float = 0.3,
-                           log_func=None) -> Tuple['RTMPoseEstimator', str, str]:
+                           log_func=None,
+                           progress_callback=None) -> Tuple['RTMPoseEstimator', str, str]:
     _log = log_func or print
 
     # YOLO パス
@@ -571,6 +577,7 @@ def load_rtmpose_estimator(models_dir: Path,
         yolo_size=yolo_size,
         conf_threshold=conf_threshold,
         log_func=_log,
+        progress_callback=progress_callback,
     )
 
     model_tag = body_path.stem.upper().replace('RTMPOSE-', 'RTMPose-')

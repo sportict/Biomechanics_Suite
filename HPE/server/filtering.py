@@ -2052,3 +2052,96 @@ def consolidate_person_ids(
     print(f"[ID Consolidation] Merged {len(id_mapping)} IDs")
     return consolidated_frames, id_mapping
 
+
+# ===================================
+# 検出ギャップ補間
+# ===================================
+
+def fill_detection_gaps(
+    frames_data: List[Dict],
+    max_gap_frames: int = 30,
+    interp_confidence: float = 0.4,
+) -> List[Dict]:
+    """
+    YOLO検出が失敗したフレームのキーポイントを前後フレームから線形補間して埋める。
+
+    Parameters:
+    - frames_data: [{'frame': int, 'keypoints': {person_id: [[x,y,c], ...]}}]
+    - max_gap_frames: 補間対象とする最大ギャップ（フレーム数）。それ以上は補間しない。
+    - interp_confidence: 補間フレームに付与する信頼度（元データより低く設定）
+
+    Returns:
+    - 補間後の frames_data（元と同じ構造）
+    """
+    if not frames_data:
+        return frames_data
+
+    # キーポイント数を推定
+    kpt_count = None
+    for fd in frames_data:
+        for kpts in fd.get('keypoints', {}).values():
+            kpt_arr = np.array(kpts, dtype=np.float32)
+            if kpt_arr.ndim == 2 and kpt_arr.shape[1] == 3:
+                kpt_count = kpt_arr.shape[0]
+                break
+        if kpt_count is not None:
+            break
+    if kpt_count is None:
+        return frames_data
+
+    # 全人物IDを収集
+    all_person_ids: set = set()
+    for fd in frames_data:
+        all_person_ids.update(fd.get('keypoints', {}).keys())
+
+    # 結果を shallow copy（keypoints dict は個別に複製）
+    result = []
+    for fd in frames_data:
+        result.append({'frame': fd.get('frame', 0),
+                       'keypoints': dict(fd.get('keypoints', {}))})
+
+    filled_total = 0
+
+    for person_id in all_person_ids:
+        # 各フレームで人物が存在するかマップを作る
+        present = {}  # frame_index -> np.ndarray(kpt_count, 3)
+        for fi, fd in enumerate(frames_data):
+            kpts = fd.get('keypoints', {}).get(person_id)
+            if kpts is not None:
+                kpt_arr = np.array(kpts, dtype=np.float32)
+                if kpt_arr.shape == (kpt_count, 3):
+                    present[fi] = kpt_arr
+
+        if len(present) < 2:
+            continue
+
+        present_indices = sorted(present.keys())
+
+        # 連続する「不在区間」を探して補間
+        for i in range(len(present_indices) - 1):
+            a = present_indices[i]
+            b = present_indices[i + 1]
+            gap = b - a - 1  # 間にある不在フレーム数
+            if gap <= 0 or gap > max_gap_frames:
+                continue
+
+            kpts_a = present[a]  # (kpt_count, 3)
+            kpts_b = present[b]  # (kpt_count, 3)
+
+            for fi in range(a + 1, b):
+                t = (fi - a) / (b - a)  # 0 < t < 1
+                interp_kpts = np.zeros((kpt_count, 3), dtype=np.float32)
+                interp_kpts[:, 0] = kpts_a[:, 0] * (1 - t) + kpts_b[:, 0] * t  # x
+                interp_kpts[:, 1] = kpts_a[:, 1] * (1 - t) + kpts_b[:, 1] * t  # y
+                # 補間フレームの信頼度: 端点の信頼度の低い方 × interp_confidence係数
+                # 端点の信頼度が低いキーポイントは補間結果も信頼しない
+                base_conf = np.minimum(kpts_a[:, 2], kpts_b[:, 2])
+                interp_kpts[:, 2] = base_conf * interp_confidence
+                result[fi]['keypoints'][person_id] = interp_kpts.tolist()
+                filled_total += 1
+
+    if filled_total > 0:
+        print(f"[GapFill] Interpolated {filled_total} person-frame slots (max_gap={max_gap_frames}f)")
+
+    return result
+

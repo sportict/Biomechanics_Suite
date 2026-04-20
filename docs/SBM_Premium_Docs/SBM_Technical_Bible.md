@@ -25,7 +25,8 @@ Mathematics
     2.  [YOLO人物検出](#hpe-yolo)
     3.  [rtmlib統合骨格推定（RTMPose / SynthPose）](#hpe-vitpose)
     4.  [Norfairマルチ人物追跡](#hpe-norfair)
-    5.  [5段階フィルタリングパイプライン](#hpe-filter)
+    5.  [検出ギャップ補間](#hpe-gapfill)
+    6.  [5段階フィルタリングパイプライン](#hpe-filter)
 4.  [MotionDigitizer — 空間座標変換](#md)
     1.  [2D-DLT法](#md-dlt2d)
     2.  [3D-DLT法](#md-dlt3d)
@@ -299,48 +300,62 @@ HPEは**Electron（フロントエンド）+ Python IPC（バックエンド）*
 
 **対応プラットフォーム**: Windows (CUDA GPU) / macOS (CoreML/Apple Silicon) / CPU フォールバック
 
-**Python環境**: `.venv` 仮想環境（Win/Mac共通）
+**Python環境**: Windows = `python_embed_gpu/` または `python_embed_cpu/`（組み込み配布用）/ macOS = `.venv` 仮想環境
 
 ### 3.1 サーバーアーキテクチャ
 
 ```
 Electron (main.js)
   UI / ファイル管理
-  spawn + stdin/stdout
-      ⇄
+  app.whenReady() → startPythonProcess()
+      ⇄ spawn + stdin/stdout
   Python (ipc_handler.py)
   JSON-line プロトコル
       →
   YOLO + RTMPose / SynthPose
-  ONNX Runtime (CUDA / CoreML / CPU)
+  ONNX Runtime (CUDA 11 / CoreML / CPU)
       →
-  Norfair Tracking
-  ID永続化
+  Norfair Tracking (YOLO bbox中心)
+  FPS適応型 ID永続化
+      →
+  fill_detection_gaps()
+  検出ギャップ線形補間
 ```
 
-起動シーケンス:
+起動シーケンス（v1.1以降）:
 
 ```
-# Electron main.js から子プロセスとして起動
-.venv/bin/python -u server/ipc_handler.py     # macOS
-.venv\Scripts\python.exe -u server\ipc_handler.py  # Windows
+# Electron main.js から起動 (Windows: GPU優先 → CPU フォールバック)
+python_embed_gpu/python.exe -u server/ipc_handler.py
+python_embed_cpu/python.exe -u server/ipc_handler.py  # GPU不在時
 
 # JSON-line プロトコル (stdin/stdout)
-→ {"type": "load_model", "data": {...}}
+← {"type": "ready", "data": {"device": "cuda", "model_loading": true}}
+  # ↑ ready 送信直後にバックグラウンドスレッドでモデルをプリロード開始
+← {"type": "model_loading_progress", "data": {"progress": 25, "message": "YOLO検出器をロード中..."}}
 ← {"type": "model_loaded", "data": {"success": true, "device": "cuda"}}
-→ {"type": "detect", "data": {"video_path": "...", ...}}
+→ {"type": "detect_video", "data": {"file_path": "...", ...}}
 ← {"type": "progress", "data": {"percent": 50}}
-← {"type": "detection_complete", "data": {...}}
+← {"type": "result", "data": {...}}
 ```
+
+モデルプリロード（v1.1新機能）:
+- `ready` 送信直後にバックグラウンドスレッドでデフォルトモデルをロード開始
+- ユーザーがUIを操作する間（通常5〜30秒）に完了するため、検出ボタン押下時の待機を排除
 
 GPU自動検出:
 - **Windows**: `nvcuda.dll` の存在を高速チェック → `CUDAExecutionProvider` 確認
 - **macOS**: `CoreMLExecutionProvider` / `MPSExecutionProvider` 確認
 - **フォールバック**: CPUExecutionProvider
 
+Windows CUDA環境（ORT 1.18.0固定):
+- ONNX Runtime 1.18.0 は **CUDA 11 ビルド**（`cudart64_110.dll`, `cudnn64_8.dll` 等）
+- ORT 1.19.0以降は cuDNN Frontend API（sm_70+ 専用）を使用するため Pascal GPU (GTX 1070 Ti / sm_61) で動作不可
+- `nvidia-cudnn-cu11==8.9.5.29` の `win_amd64` wheel で `cudnn64_8.dll` を供給
+
 ### 3.2 YOLO人物検出
 
-YOLO（You Only Look Once）は1パスでバウンディングボックスとクラスを同時予測するリアルタイム物体検出モデルである。 本システムでは **YOLOv11x**（最高精度モデル）をONNX形式で利用する。
+YOLO（You Only Look Once）は1パスでバウンディングボックスとクラスを同時予測するリアルタイム物体検出モデルである。 本システムでは **YOLO26M**（精度・速度のバランス最優）をONNX形式で利用する。
 
 設定
 
@@ -350,9 +365,9 @@ YOLO（You Only Look Once）は1パスでバウンディングボックスとク
 
 モデル
 
-`yolo11x.onnx`
+`yolo26m.onnx`（推奨）
 
-Extra Largeモデル（最高精度）
+mAP=53.4, CPU 97ms。`yolo11s.onnx` 等にも対応
 
 入力解像度
 
@@ -368,9 +383,9 @@ COCO 80クラスからpersonのみフィルタ
 
 信頼度閾値
 
-`0.25`
+`0.25`（デフォルト）
 
-低めに設定（追跡で補完）
+UI設定で変更可能
 
 NMS IoU
 
@@ -380,11 +395,13 @@ NMS IoU
 
 推論バックエンド
 
-`CUDA / CPU`
+`CUDA / CPU`（自動判定）
 
-自動判定
+mps時はYOLOをCPUで実行（CoreMLよりCPUが高速）
 
-検出結果は各人物の bounding box `[x1, y1, x2, y2, confidence]` として次段の骨格推定モデルに渡される。
+**重要**: YOLOはフレーム間のID一貫性を持たない。`inference()` の戻り値は当該フレーム内の連番インデックス（0, 1, 2...）であり、次フレームでリセットされる。フレーム間のID追跡は次段のNorfairトラッカーのみが担う。
+
+検出結果は各人物の bounding box `[x1, y1, x2, y2, confidence]` として骨格推定モデルとNorfairトラッカーに渡される。
 
 ### 3.3 rtmlib統合骨格推定（RTMPose / SynthPose）
 
@@ -533,9 +550,23 @@ mid-finger tip
 
 ### 3.4 Norfairマルチ人物追跡
 
-HPE/server/main.py — Norfair Tracker
+HPE/server/utils.py — NorfairPersonTracker
 
 複数人物が交差する場面でのID入れ替わりを防止するため、 **Norfair**ライブラリのカルマンフィルタ + ハンガリアンアルゴリズムによる追跡を実装。
+
+#### v1.1の重要設計変更
+
+**トラッキング入力: キーポイント → YOLO bbox 中心点**
+
+旧実装ではRTMPoseの肩・腰キーポイント（HALPE 26pt インデックス 5,6,11,12）をアンカーとしていた。しかし出力フォーマット（23pt等）変換後はインデックスが別の関節（手首・肘・足首・膝）を指し、姿勢変化でマッチングが外れてID断片化が発生していた。v1.1では **YOLO bbox 中心点 `(cx, cy)`** をトラッキング入力とし、RTMPoseの推定精度に依存しない安定したID追跡を実現している。
+
+```python
+# Detection作成（1点 = bbox中心）
+cx = (bbox[0] + bbox[2]) / 2
+cy = (bbox[1] + bbox[3]) / 2
+points = np.array([[cx, cy]])
+scores = np.array([bbox[4]])  # YOLO confidence
+```
 
 #### カルマンフィルタ
 
@@ -545,9 +576,22 @@ HPE/server/main.py — Norfair Tracker
 
 予測ステップで次フレームの位置を推定し、観測ステップで実際の検出結果と照合する。
 
-#### ハンガリアンアルゴリズム
+#### FPS適応型距離閾値
 
-予測位置と検出結果のコスト行列（ユークリッド距離）を構築し、 ハンガリアン法で最小コストの割り当てを求める。 閾値を超えた場合は新規IDを発行する。
+1フレームあたりの最大許容移動量をFPSから動的に算出する。人間の最大移動速度を **3000 px/秒**（走行時の四肢末端を想定）として正規化:
+
+\\\[ d\_{threshold} = \\text{clip}\\left(\\frac{3000 \\; \\text{[px/s]}}{fps \\times \\max(width, height)},\\; 0.005,\\; 0.4\\right) \\\]
+
+| FPS | 最大許容移動量 | 正規化閾値（1920px幅） |
+|---|---|---|
+| 30fps | 100 px/frame | 0.052 |
+| 60fps | 50 px/frame | 0.026 |
+| 120fps | 25 px/frame | 0.013 |
+| 240fps | 12.5 px/frame | 0.0065 |
+
+この閾値を超えたbbox移動は同一人物として認識せず、新規IDを発行する。通常カメラ・ハイスピードカメラを自動的に区別できる。
+
+#### パラメータ（動画検出時に自動設定）
 
 パラメータ
 
@@ -557,29 +601,73 @@ HPE/server/main.py — Norfair Tracker
 
 `distance_function`
 
-Euclidean (keypoints)
+Normalized Euclidean (bbox center)
 
-キーポイント間の距離で類似度評価
+bbox中心間の正規化ユークリッド距離
 
 `distance_threshold`
 
-`100`px
+FPS適応型（上表参照）
 
-この距離を超えると別人物と判定
+これを超えると別人物と判定
 
 `hit_counter_max`
 
-`15`
+`max(60, fps × 2)` フレーム
 
-検出消失後も15フレーム保持
+検出消失後もこのフレーム数IDを保持
 
 `initialization_delay`
 
-`3`
+`0`
 
-3フレーム連続検出でID確定
+即座にIDを確定（Raw IDとの入れ替わり防止）
 
-### 3.5 5段階フィルタリングパイプライン
+`pointwise_hit_counter_max`
+
+`1`
+
+1点トラッキングに最適化
+
+### 3.5 検出ギャップ補間
+
+HPE/server/filtering.py — fill_detection_gaps()
+
+YOLO検出が失敗したフレーム（オクルージョン、急激な動き、照明変化等）では `frame_data["keypoints"]` にその人物のエントリが存在しない。`fill_detection_gaps()` は動画全フレーム検出完了後のポストプロセスとして、人物ごとに不在フレームを前後から**線形補間**で埋める。
+
+```
+Frame N-2: Person 1 detected  → kpts_a (confidence: 0.85)
+Frame N-1: 未検出              → 線形補間: t=0.5, conf=0.34  ← 自動補完
+Frame N:   Person 1 detected  → kpts_b (confidence: 0.82)
+```
+
+\\\[ \\mathbf{k}(t) = \\mathbf{k}\_a \\cdot (1 - t) + \\mathbf{k}\_b \\cdot t, \\quad t = \\frac{f - f\_a}{f\_b - f\_a} \\\]
+
+補間フレームの信頼度は端点の低い方 × `interp_confidence`（デフォルト 0.4）を付与し、元データより弱い値としてマークする。これにより後段のフィルタリング（外れ値除去・Butterworth等）で「補間由来データ」として適切に扱われる。
+
+パラメータ
+
+値
+
+説明
+
+`max_gap_frames`
+
+`int(fps × 0.5)`
+
+補間対象の最大ギャップ（0.5秒超は補間しない）
+
+`interp_confidence`
+
+`0.4`
+
+補間フレームに付与する信頼度係数
+
+適用順序（detect_video ポストプロセス）:
+1. `consolidate_person_ids()` — ID統合（断片化ID同士のマージ）
+2. `fill_detection_gaps()` ← ここで補間（統合後のIDに対して適用）
+
+### 3.6 5段階フィルタリングパイプライン
 
 HPE/renderer/app.js — filterPipeline()
 
