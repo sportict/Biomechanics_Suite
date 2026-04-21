@@ -2392,84 +2392,78 @@
                     </tbody>
                 </table>
             </div>
-        </div>
 
-    </div>
-
-    <!-- バージョン変遷 -->
-    <div class="content-section" id="changelog">
-        <h2><i class="fa-solid fa-clock-rotate-left"></i> バージョン変遷</h2>
-
-        <div class="sub-section">
-            <h4><i class="fa-solid fa-brain"></i> HPE</h4>
-
-            <div class="version-block" style="margin-bottom: 2rem;">
-                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 0.8rem;">
-                    <span style="background: rgba(6,182,212,0.15); color: var(--accent-cyan); border: 1px solid rgba(6,182,212,0.4); border-radius: 6px; padding: 2px 12px; font-weight: 700; font-size: 1em; font-family: 'Fira Code', monospace;">v1.1.0</span>
-                    <span style="color: #94a3b8; font-size: 0.9em;">2026-03</span>
+            <!-- MotionDigitizer Windows Installer -->
+            <div class="sub-section">
+                <h3><i class="fa-brands fa-windows"></i> MotionDigitizer（Windows インストーラ版）</h3>
+                <table class="trouble-table">
+                    <thead>
+                        <tr>
+                            <th>症状</th>
+                            <th>対処法</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>起動直後に「OpenCVモジュールをロードできません」等のエラーダイアログが出る</td>
+                            <td><code>%APPDATA%\MotionDigitizer\opencv-diag.log</code> を確認してください。
+                                このログには <code>resources/opencv/</code> 配下の全 DLL 一覧、必須 17 DLL の存在チェック結果、
+                                起動時 <code>PATH</code> のスナップショットが書き込まれます。
+                                DLL 欠落が記録されている場合は<strong>再インストール</strong>、
+                                <code>PATH</code> 未挿入の場合はインストール先パスに全角文字や特殊記号が含まれていないかを確認してください。</td>
+                        </tr>
+                        <tr>
+                            <td>起動時に <code>ERR_DLOPEN_FAILED: libnode.dll could not be found</code> が表示される</td>
+                            <td><strong>v1.1.0 以降で解消済み</strong>です。旧ビルドを使用している場合は最新 NSIS インストーラに入れ替えてください
+                                （カスタム delay-load hook により <code>libnode.dll</code> / <code>node.exe</code> / <code>iojs.exe</code>
+                                は起動時にホストプロセスへリダイレクトされます）。</td>
+                        </tr>
+                        <tr>
+                            <td>インストール先を変更したら OpenCV が読み込めなくなった</td>
+                            <td>日本語・スペース・記号を含むパス（例: <code>C:\マイ ファイル\MD</code>）ではまれに DLL 解決に失敗します。
+                                <code>C:\Program Files\MotionDigitizer</code> などの ASCII のみのパスへ再インストールしてください。</td>
+                        </tr>
+                        <tr>
+                            <td><code>C:\vcpkg\installed\...</code> のような開発用パスが参照されエラーになる</td>
+                            <td>開発環境と配布環境で同じマシンを使用している場合、ユーザ環境変数 <code>PATH</code> に
+                                <code>C:\vcpkg</code> が残っていて優先解決される場合があります。
+                                配布版は <code>resources/opencv/</code> を先頭に挿入しますが、意図せず旧 DLL が解決されるケースでは
+                                <code>C:\vcpkg\installed\x64-windows\bin</code> を <code>PATH</code> から外してください。</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <div class="note-box">
+                    <strong>サポート依頼時に添付すべきファイル:</strong>
+                    <ol>
+                        <li><code>%APPDATA%\MotionDigitizer\opencv-diag.log</code></li>
+                        <li>Windows イベントビューア → アプリケーションログの該当エラー</li>
+                        <li>インストール先パス（<code>C:\Program Files\MotionDigitizer\...</code>）のスクリーンショット</li>
+                    </ol>
                 </div>
-                <ul>
-                    <li><strong>スワップ検出アルゴリズム強化</strong> — <code>global_optimization</code>（動的計画法・デフォルト）、<code>trajectory_prediction</code>、<code>temporal_window</code>、<code>legacy</code> の4アルゴリズムを選択可能</li>
-                    <li><strong>FPS適応型速度閾値</strong> — 閾値 = 1500.0 / fps (px/frame) で自動調整（60fps → 25.0、120fps → 12.5）</li>
-                    <li><strong>加速度ベース外れ値検出</strong> — max_acceleration = 50,000 px/s² で瞬間ジャンプを検出</li>
-                    <li><strong>交差フェーズ検出</strong> — 股関節・膝の水平距離から脚交差を判定し、ランニング時の誤検出を抑制</li>
-                    <li><strong>フィルタ処理順序を最適化</strong> — スワップ修正 → 外れ値除去 → 補間 → Butterworth（旧順序では有効データが誤削除される問題を修正）</li>
-                    <li>Zスコア閾値デフォルト変更: 5.0 → 3.5 / 最大速度デフォルト変更: 5000 → 3000 px/s</li>
-                </ul>
             </div>
 
-            <div class="version-block">
-                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 0.8rem;">
-                    <span style="background: rgba(255,255,255,0.06); color: #94a3b8; border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; padding: 2px 12px; font-weight: 700; font-size: 1em; font-family: 'Fira Code', monospace;">v1.0.0</span>
-                    <span style="color: #94a3b8; font-size: 0.9em;">初期リリース</span>
-                </div>
-                <ul>
-                    <li>RTMLib による AI 骨格推定（ONNX Runtime 直接推論）</li>
-                    <li>Butterworth フィルタ、Zスコア外れ値除去、スプライン補間</li>
-                    <li>左右スワップ検出（legacy アルゴリズム）</li>
-                    <li>CSV / JSON エクスポート、バッチ処理</li>
-                    <li>グラフモードでの手動編集</li>
-                </ul>
-            </div>
-        </div>
-
-        <div class="sub-section">
-            <h4><i class="fa-solid fa-crosshairs"></i> MotionDigitizer</h4>
-
-            <div class="version-block" style="margin-bottom: 2rem;">
-                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 0.8rem;">
-                    <span style="background: rgba(6,182,212,0.15); color: var(--accent-cyan); border: 1px solid rgba(6,182,212,0.4); border-radius: 6px; padding: 2px 12px; font-weight: 700; font-size: 1em; font-family: 'Fira Code', monospace;">v1.1.0</span>
-                    <span style="color: #94a3b8; font-size: 0.9em;">2026-03</span>
-                </div>
-                <ul>
-                    <li><strong>OpenSim TRC エクスポート</strong> — OpenSim 公式仕様準拠（PathFileType 4、空行、メートル単位）</li>
-                    <li><strong>座標軸変換の自動適用</strong> — カメラ座標（X=左右, Y=奥行, Z=高さ）→ OpenSim Y-up（X=前後, Y=上下, Z=左右）を常時適用</li>
-                    <li><strong>CSVインポート改善</strong> — ポイント名を列ヘッダーから自動取得。既存ポイント1〜23もCSV名に自動リネーム。列数超過分は自動追加</li>
-                    <li><strong>opensim_toolkit.py 強化</strong> — MeasurementSet（16部位）を Scale Tool Setup XML に自動生成し「Run」ボタン有効化</li>
-                    <li>テーブルクリック後の <code>savedRow is not defined</code> エラーを修正</li>
-                </ul>
-            </div>
-
-            <div class="version-block">
-                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 0.8rem;">
-                    <span style="background: rgba(255,255,255,0.06); color: #94a3b8; border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; padding: 2px 12px; font-weight: 700; font-size: 1em; font-family: 'Fira Code', monospace;">v1.0.0</span>
-                    <span style="color: #94a3b8; font-size: 0.9em;">初期リリース</span>
-                </div>
-                <ul>
-                    <li>3Dデジタイズ（手動・HPE データインポート）</li>
-                    <li>DLT キャリブレーション / ChArUco ボードによる自動キャリブレーション</li>
-                    <li>実長換算（メートル変換）</li>
-                    <li>C3D / CSV エクスポート</li>
-                    <li>テーブル操作・スプライン補間・外れ値除去</li>
-                </ul>
-            </div>
-        </div>
-    </div>
-
-    <footer>
-        <p>&copy; 2026 Electoron Biomechanics Suite. All Rights Reserved.</p>
-    </footer>
-
-</body>
-
-</html>
+            <!-- HPE Windows / CUDA -->
+            <div class="sub-section">
+                <h3><i class="fa-solid fa-microchip"></i> HPE（Windows インストーラ版 / CUDA 推論）</h3>
+                <table class="trouble-table">
+                    <thead>
+                        <tr>
+                            <th>症状</th>
+                            <th>対処法</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>GPU が検出されず CPU で推論される</td>
+                            <td><code>python_embed_gpu/</code> が正しく配置されているか確認。
+                                配布版では <code>nvcuda.dll</code> の存在を高速チェックして GPU プロセスを優先起動します。
+                                <code>nvidia-smi</code> でドライバが認識されているかも確認してください。</td>
+                        </tr>
+                        <tr>
+                            <td>CUDA 初期化時に <code>Error 126</code> が発生する</td>
+                            <td>ONNX Runtime 1.18.0 (CUDA 11 ビルド) は
+                                <code>cusparse64_11.dll</code> / <code>cusolver64_11.dll</code> / <code>nvJitLink_120_0.dll</code>
+                                を遅延ロードしますが、ORT 1.24 相当の extras では不足するため追加の pip install が必要です。
+                                配布版では既にパックされていますが、自前で環境を組む場合は
+                                <code>python_embed_gpu/Lib/site-packages/nvidia/*/bin</code> のディレクトリ構造を
+                                <strong>削除・整理しないでください</str

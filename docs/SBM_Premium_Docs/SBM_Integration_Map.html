@@ -379,7 +379,7 @@
                         </div>
                         <div>
                             <div class="node-title">Phase 2: HPE (AI骨格推定)</div>
-                            <div class="node-subtitle">YOLO + ViTPose による23点の身体座標値推定</div>
+                            <div class="node-subtitle">YOLO + RTMPose/SynthPose による 23点 または 52点 のキーポイント推定</div>
                         </div>
                         <div style="margin-left: auto;">
                             <span class="ext-badge ext-mp4">.mp4 入力</span>
@@ -546,7 +546,7 @@
 
             <div class="sub-section">
                 <h3><i class="fa-solid fa-bone"></i> 23キーポイントの定義</h3>
-                <p>ViTPoseの133点出力から、バイオメカニクス分析に必要な23点を選択・マッピングしている。</p>
+                <p>RTMPose-M/X (HALPE 26点) または SynthPose-Huge (52点 / OpenCapBench) の出力から、バイオメカニクス分析に必要な23点を選択・マッピングしている（rtmlib 経由・ONNX Runtime 推論）。52点プリセットではさらに肩峰・骨盤・大転子・足関節軸など解剖学ランドマークを保持する。</p>
 
                 <div class="kp-grid">
                     <div class="kp-item"><span class="kp-id">1</span><span class="kp-name">右手指先</span></div>
@@ -1041,8 +1041,9 @@
                 <h3>Step 2: HPE でAI骨格推定</h3>
                 <div class="data-sample">
                     <span class="comment"># HPE 設定</span>
-                    検出モデル: YOLO11x
-                    推定モデル: ViTPose-H (WholeBody)
+                    検出モデル: yolo11x.onnx (rtmlib / ONNX Runtime)
+                    推定モデル: RTMPose-X (23点 / HALPE 26pt) または SynthPose-Huge (52点)
+                    Execution Provider: CUDA 11 (GTX 1070 Ti 以降) / CPU
                     カメラ種別: ハイスピード (240fps)
 
                     <span class="comment"># フィルタリング</span>
@@ -1155,17 +1156,4 @@
             <div class="highlight-box" style="margin-top: 1.5rem;">
                 <strong>座標単位の変化に注目:</strong><br>
                 HPEの出力は<strong>ピクセル座標</strong>（画像上の位置）。
-                MotionDigitizerのキャリブレーションを経て初めて<strong>メートル座標</strong>（実世界の位置）に変換される。
-                MotionViewerが扱うのは常にメートル座標。
-            </div>
-        </div>
-
-    </div>
-
-    <footer>
-        <p>&copy; 2026 Electoron Biomechanics Suite | Data Flow &amp; Integration Documentation</p>
-    </footer>
-
-</body>
-
-</html>
+                MotionDigit

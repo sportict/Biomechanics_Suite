@@ -299,6 +299,7 @@
                         <li><a href="#md-reallength">実長換算</a></li>
                         <li><a href="#md-c3d">C3Dフォーマット</a></li>
                         <li><a href="#md-trc">TRCフォーマット（OpenSim連携）</a></li>
+                        <li><a href="#md-winbuild">Windows 配布ビルド（OpenCV DLL 同梱 + delay-load hook）</a></li>
                     </ol>
                 </li>
                 <li><a href="#mv">MotionViewer — 運動学解析エンジン</a>
@@ -602,39 +603,71 @@
             <!-- 3.1 Architecture -->
             <div class="sub-section" id="hpe-arch">
                 <h3><i class="fa-solid fa-server"></i> 3.1 サーバーアーキテクチャ</h3>
-                <span class="file-ref"><i class="fa-regular fa-file-code"></i> HPE/server/main.py</span>
+                <span class="file-ref"><i class="fa-regular fa-file-code"></i> HPE/server/ipc_handler.py</span>
 
                 <div class="algo-pipeline">
                     <div class="algo-stage">
-                        <div class="stage-name">Electron</div>
-                        <div class="stage-detail">UI / ファイル管理<br>HTTP API呼び出し</div>
+                        <div class="stage-name">Electron (main.js)</div>
+                        <div class="stage-detail">UI / ファイル管理<br>spawn + stdin/stdout</div>
                     </div>
                     <span class="algo-arrow">⇄</span>
                     <div class="algo-stage">
-                        <div class="stage-name">FastAPI</div>
-                        <div class="stage-detail">REST API<br>localhost:8000</div>
+                        <div class="stage-name">Python (ipc_handler.py)</div>
+                        <div class="stage-detail">JSON-line プロトコル</div>
                     </div>
                     <span class="algo-arrow">→</span>
                     <div class="algo-stage">
                         <div class="stage-name">YOLO + RTMPose<br>or SynthPose</div>
-                        <div class="stage-detail">ONNX Runtime<br>CUDA / CPU</div>
+                        <div class="stage-detail">ONNX Runtime<br>CUDA 11 / CoreML / CPU</div>
                     </div>
                     <span class="algo-arrow">→</span>
                     <div class="algo-stage">
                         <div class="stage-name">Norfair</div>
-                        <div class="stage-detail">Tracking<br>ID永続化</div>
+                        <div class="stage-detail">YOLO bbox 中心<br>FPS適応型 ID 永続化</div>
+                    </div>
+                    <span class="algo-arrow">→</span>
+                    <div class="algo-stage">
+                        <div class="stage-name">fill_detection_gaps()</div>
+                        <div class="stage-detail">検出ギャップ<br>線形補間</div>
                     </div>
                 </div>
 
-                <p>起動シーケンス:</p>
-                <pre><span class="comment"># Electron main.js から子プロセスとして起動</span>
-python server/main.py --port <span class="number">8000</span>
+                <p><strong>Python 環境:</strong> Windows = <code>python_embed_gpu/</code> または <code>python_embed_cpu/</code>（組み込み配布用） / macOS = <code>.venv</code> 仮想環境</p>
 
-<span class="comment"># FastAPI エンドポイント</span>
-POST /detect          <span class="comment"># 単一フレーム推論</span>
-POST /process-video   <span class="comment"># 動画全フレーム一括処理</span>
-GET  /model-status    <span class="comment"># モデルロード状態確認</span>
-POST /load-model      <span class="comment"># モデルの明示的ロード</span></pre>
+                <p>起動シーケンス（v1.1 以降）:</p>
+                <pre><span class="comment"># Electron main.js から起動 (Windows: GPU 優先 → CPU フォールバック)</span>
+python_embed_gpu/python.exe -u server/ipc_handler.py
+python_embed_cpu/python.exe -u server/ipc_handler.py  <span class="comment"># GPU 不在時</span>
+
+<span class="comment"># JSON-line プロトコル (stdin/stdout)</span>
+← {<span class="string">"type"</span>: <span class="string">"ready"</span>, <span class="string">"data"</span>: {<span class="string">"device"</span>: <span class="string">"cuda"</span>, <span class="string">"model_loading"</span>: <span class="keyword">true</span>}}
+  <span class="comment"># ↑ ready 送信直後にバックグラウンドスレッドでモデルをプリロード開始</span>
+← {<span class="string">"type"</span>: <span class="string">"model_loading_progress"</span>, <span class="string">"data"</span>: {<span class="string">"progress"</span>: <span class="number">25</span>, <span class="string">"message"</span>: <span class="string">"YOLO検出器をロード中..."</span>}}
+← {<span class="string">"type"</span>: <span class="string">"model_loaded"</span>, <span class="string">"data"</span>: {<span class="string">"success"</span>: <span class="keyword">true</span>, <span class="string">"device"</span>: <span class="string">"cuda"</span>}}
+→ {<span class="string">"type"</span>: <span class="string">"detect_video"</span>, <span class="string">"data"</span>: {<span class="string">"file_path"</span>: <span class="string">"..."</span>, ...}}
+← {<span class="string">"type"</span>: <span class="string">"progress"</span>, <span class="string">"data"</span>: {<span class="string">"percent"</span>: <span class="number">50</span>}}
+← {<span class="string">"type"</span>: <span class="string">"result"</span>, <span class="string">"data"</span>: {...}}</pre>
+
+                <h4>モデルプリロード（v1.1 新機能）</h4>
+                <ul>
+                    <li><code>ready</code> 送信直後にバックグラウンドスレッドでデフォルトモデルをロード開始</li>
+                    <li>ユーザーが UI を操作する間（通常 5〜30 秒）に完了するため、検出ボタン押下時の待機を排除</li>
+                </ul>
+
+                <h4>GPU 自動検出</h4>
+                <ul>
+                    <li><strong>Windows</strong>: <code>nvcuda.dll</code> の存在を高速チェック → <code>CUDAExecutionProvider</code> 確認</li>
+                    <li><strong>macOS</strong>: <code>CoreMLExecutionProvider</code> / <code>MPSExecutionProvider</code> 確認</li>
+                    <li><strong>フォールバック</strong>: <code>CPUExecutionProvider</code></li>
+                </ul>
+
+                <h4>Windows CUDA 環境（ORT 1.18.0 固定）</h4>
+                <ul>
+                    <li>ONNX Runtime 1.18.0 は <strong>CUDA 11 ビルド</strong>（<code>cudart64_110.dll</code>, <code>cudnn64_8.dll</code> 等）</li>
+                    <li>ORT 1.19.0 以降は cuDNN Frontend API（sm_70+ 専用）を使用するため <strong>Pascal GPU (GTX 1070 Ti / sm_61) で動作不可</strong></li>
+                    <li><code>nvidia-cudnn-cu11==8.9.5.29</code> の <code>win_amd64</code> wheel で <code>cudnn64_8.dll</code> を供給</li>
+                    <li><code>onnxruntime-gpu</code> は <code>python_embed_gpu/Lib/site-packages/nvidia/*/bin</code> を DLL 検索パスに自動登録するため、このディレクトリ構造は<strong>削除・整理しない</strong>こと</li>
+                </ul>
             </div>
 
             <!-- 3.2 YOLO -->
@@ -1605,6 +1638,123 @@ A = [
                     OpenSim側のSetup XMLでマーカーをマッピングすること。
                 </div>
             </div>
+
+            <!-- 4.9 Windows 配布ビルド -->
+            <div class="sub-section" id="md-winbuild">
+                <h3><i class="fa-brands fa-windows"></i> 4.9 Windows 配布ビルド — OpenCV DLL 同梱と delay-load hook</h3>
+                <span class="file-ref"><i class="fa-regular fa-file-code"></i>
+                    MotionDigitizer/native/binding.gyp,
+                    MotionDigitizer/native/win_delay_load_hook_electron.cc,
+                    MotionDigitizer/REBUILD_OPENCV_WINDOWS.ps1</span>
+                <p>
+                    MotionDigitizer v1.1.0 以降、Windows インストーラは<strong>自己完結型 (self-contained)</strong> とし、
+                    OpenCV / FFmpeg / VC++ Redist の全依存 DLL を <code>resources/opencv/</code> に同梱する。
+                    ユーザ側の <code>vcpkg</code> 環境や <code>%PATH%</code> 設定に依存せず、クリーン環境でも起動できることを要件とする。
+                </p>
+
+                <h4>アーキテクチャ</h4>
+                <p>
+                    ネイティブアドオン <code>opencv_module.node</code> は <code>node-addon-api</code> ベースで、OpenCV 4.x を静的にリンクせず
+                    <strong>動的 DLL 参照</strong>としている（ビルド時間短縮と再配布ライセンス対応のため）。実行時は以下の経路で解決される:
+                </p>
+                <ol>
+                    <li>Electron プロセス起動時に <code>electron-main.js</code> が <code>process.env.PATH</code> の先頭に <code>&lt;resourcesPath&gt;/opencv</code> を挿入する。</li>
+                    <li><code>require('opencv_module')</code> 実行時、Windows ローダが <code>opencv_core4.dll</code>、<code>opencv_imgproc4.dll</code> 等を <code>PATH</code> から解決する。</li>
+                    <li>同フォルダに同梱した <code>avformat-61.dll</code>、<code>avcodec-61.dll</code> 等の FFmpeg ランタイム、
+                        <code>MSVCP140.dll</code>、<code>VCRUNTIME140.dll</code>、<code>VCRUNTIME140_1.dll</code> も同様に解決される。</li>
+                </ol>
+
+                <h4>delay-load hook（Electron v32+ 対応）</h4>
+                <p>
+                    Electron v32 以降、Node.js API は <code>electron.exe</code> に内部統合されており、配布物には
+                    <code>libnode.dll</code> / <code>node.exe</code> / <code>iojs.exe</code> のいずれも存在しない。
+                    <code>node-addon-api</code> を使ったネイティブアドオンは既定でこれらをインポートテーブルに含むため、
+                    ロード時に <code>ERR_DLOPEN_FAILED: libnode.dll could not be found</code> が発生する。
+                </p>
+                <p>
+                    本プロジェクトではカスタム delay-load hook <code>native/win_delay_load_hook_electron.cc</code> を用意し、
+                    上記 3 DLL のシンボルを <code>GetModuleHandle(NULL)</code> 経由で
+                    <strong>ホストプロセス (electron.exe)</strong> にリダイレクトする。<code>binding.gyp</code> で以下を指定することで、
+                    <code>node-gyp</code> のデフォルトフックを無効化してカスタムフックを優先させる:
+                </p>
+                <pre><span class="string">"win_delay_load_hook"</span>: <span class="string">"false"</span>,
+<span class="string">"conditions"</span>: [[<span class="string">"OS=='win'"</span>, {
+  <span class="string">"sources"</span>: [ <span class="string">"win_delay_load_hook_electron.cc"</span> ],
+  <span class="string">"msvs_settings"</span>: {
+    <span class="string">"VCLinkerTool"</span>: {
+      <span class="string">"DelayLoadDLLs"</span>: [ <span class="string">"libnode.dll"</span>, <span class="string">"node.exe"</span>, <span class="string">"iojs.exe"</span> ],
+      <span class="string">"AdditionalOptions"</span>: [ <span class="string">"/ignore:4199"</span> ]
+    }
+  }
+}]]</pre>
+                <p>
+                    ビルド後は <code>dumpbin /imports opencv_module.node</code> で
+                    <strong>"Section contains the following delay load imports: node.exe"</strong> と表示されることを確認する。
+                    これら 3 DLL が <code>static imports</code> 側に残っている場合、配布環境で起動失敗する。
+                </p>
+
+                <h4>同梱 DLL レイアウト（resources/opencv/）</h4>
+                <table class="param-table">
+                    <tr>
+                        <th>カテゴリ</th>
+                        <th>DLL 例</th>
+                        <th>由来</th>
+                    </tr>
+                    <tr>
+                        <td>OpenCV 4.x core</td>
+                        <td><code>opencv_core4.dll</code>, <code>opencv_imgproc4.dll</code>, <code>opencv_videoio4.dll</code>,
+                            <code>opencv_calib3d4.dll</code>, <code>opencv_aruco4.dll</code> ほか 9 個</td>
+                        <td>vcpkg x64-windows</td>
+                    </tr>
+                    <tr>
+                        <td>FFmpeg</td>
+                        <td><code>avformat-61.dll</code>, <code>avcodec-61.dll</code>, <code>avutil-59.dll</code>, <code>swscale-8.dll</code> 等</td>
+                        <td>vcpkg x64-windows</td>
+                    </tr>
+                    <tr>
+                        <td>画像コーデック</td>
+                        <td><code>libpng16.dll</code>, <code>libjpeg*.dll</code>, <code>libwebp*.dll</code>, <code>tiff.dll</code>, <code>openjp2.dll</code></td>
+                        <td>vcpkg x64-windows（OpenCV 間接依存）</td>
+                    </tr>
+                    <tr>
+                        <td>VC++ Redistributable</td>
+                        <td><code>MSVCP140.dll</code>, <code>VCRUNTIME140.dll</code>, <code>VCRUNTIME140_1.dll</code></td>
+                        <td>Microsoft VC++ Runtime（再配布ライセンス対応）</td>
+                    </tr>
+                </table>
+                <p>
+                    DLL 総数は約 <strong>75 個</strong>、サイズは約 <strong>120 MB</strong>。
+                    <code>REBUILD_OPENCV_WINDOWS.ps1</code> が <code>vcpkg</code> インストールディレクトリから
+                    必要 DLL を再帰的に抽出して配置する。
+                </p>
+
+                <h4>electron-builder 設定のポイント</h4>
+                <ul>
+                    <li><code>package.json</code> の <code>build.extraResources</code> に
+                        <code>{"from": "vendor/opencv/bin", "to": "opencv"}</code> を指定し、<code>resources/opencv/</code> 配下に展開する。</li>
+                    <li><code>asarUnpack</code> に <code>"**/*.node"</code>, <code>"**/ffmpeg*"</code>, <code>"**/ffprobe*"</code> を含め、ASAR 外に展開して動的ロード可能にする。</li>
+                    <li><code>nsis.oneClick: false</code>、<code>nsis.allowElevation: true</code> でユーザ選択インストーラに切り替え、
+                        インストール先を <code>C:\Program Files\MotionDigitizer</code> 既定とする。</li>
+                </ul>
+
+                <h4>起動時診断ログ</h4>
+                <p>
+                    <code>electron-main.js</code> の <code>writeOpenCVDiagLog()</code> が起動時に
+                    <code>%APPDATA%\MotionDigitizer\opencv-diag.log</code> へ以下を書き出し、
+                    配布環境でのロード失敗を事後診断できるようにしている:
+                </p>
+                <ul>
+                    <li><code>app.getAppPath()</code> / <code>process.resourcesPath</code> の実パス</li>
+                    <li><code>resources/opencv/</code> の全エントリ列挙（ファイル名・サイズ）</li>
+                    <li>17 個の必須 DLL（OpenCV 9 + FFmpeg 4 + 画像コーデック 1 + VC++ Redist 3）の個別存在チェック結果</li>
+                    <li><code>process.env.PATH</code> のスナップショット（挿入後）</li>
+                </ul>
+                <div class="note-box">
+                    <strong>トラブルシュート:</strong> ユーザがサポート依頼時に
+                    <code>%APPDATA%\MotionDigitizer\opencv-diag.log</code> を添付すれば、
+                    DLL 欠落なのかローダパスの問題なのかを即座に判別できる。
+                </div>
+            </div>
         </div>
 
         <!-- ========================================== -->
@@ -2037,247 +2187,4 @@ A = [
             <div class="sub-section" id="mv-segment">
                 <h3><i class="fa-solid fa-rotate"></i> 5.7 セグメント角度</h3>
                 <p>
-                    座標軸に対するセグメントの絶対角度を <code>atan2</code> で算出する。
-                    これは重力方向に対する体幹傾斜などの評価に用いる。
-                </p>
-
-                <div class="math-block">
-                    \[
-                    \theta_{XY} = \text{atan2}(Y_{distal} - Y_{proximal}, \; X_{distal} - X_{proximal})
-                    \]
-                    \[
-                    \theta_{XZ} = \text{atan2}(Z_{distal} - Z_{proximal}, \; X_{distal} - X_{proximal})
-                    \]
-                </div>
-                <p>各座標平面（XY, XZ, YZ）への投影角度を独立に算出可能。</p>
-            </div>
-
-            <!-- 5.8 Three.js -->
-            <div class="sub-section" id="mv-3d">
-                <h3><i class="fa-solid fa-cubes"></i> 5.8 Three.js 3Dレンダリング</h3>
-                <span class="file-ref"><i class="fa-regular fa-file-code"></i> MotionViewer/src/renderer/app.js —
-                    init3DScene()</span>
-                <p>
-                    WebGL ベースの <strong>Three.js</strong> ライブラリで3Dスティックピクチャーをリアルタイム描画する。
-                </p>
-
-                <table class="param-table">
-                    <tr>
-                        <th>コンポーネント</th>
-                        <th>実装</th>
-                        <th>用途</th>
-                    </tr>
-                    <tr>
-                        <td>レンダラー</td>
-                        <td><code>THREE.WebGLRenderer</code></td>
-                        <td>GPU描画エンジン</td>
-                    </tr>
-                    <tr>
-                        <td>カメラ</td>
-                        <td><code>THREE.PerspectiveCamera</code></td>
-                        <td>透視投影（FOV 75°）</td>
-                    </tr>
-                    <tr>
-                        <td>コントロール</td>
-                        <td><code>OrbitControls</code></td>
-                        <td>マウスドラッグで回転・ズーム</td>
-                    </tr>
-                    <tr>
-                        <td>骨格線</td>
-                        <td><code>THREE.LineSegments</code></td>
-                        <td>関節間を線分で接続</td>
-                    </tr>
-                    <tr>
-                        <td>関節点</td>
-                        <td><code>THREE.Points / Mesh</code></td>
-                        <td>球体で関節位置を表示</td>
-                    </tr>
-                    <tr>
-                        <td>軌跡</td>
-                        <td><code>THREE.Line</code></td>
-                        <td>選択キーポイントの移動軌跡</td>
-                    </tr>
-                    <tr>
-                        <td>床面</td>
-                        <td><code>THREE.GridHelper</code></td>
-                        <td>空間参照用グリッド</td>
-                    </tr>
-                </table>
-
-                <p>
-                    アニメーション再生は <code>requestAnimationFrame</code> ループで制御され、
-                    タイムラインスライダーと同期する。FFmpeg経由でMP4動画としてエクスポートも可能。
-                </p>
-            </div>
-        </div>
-
-        <!-- ========================================== -->
-        <!-- 6. FILE FORMATS                            -->
-        <!-- ========================================== -->
-        <div class="card" id="formats">
-            <h2><i class="fa-solid fa-file-code"></i> 6. ファイルフォーマット仕様</h2>
-
-            <table class="param-table">
-                <tr>
-                    <th>拡張子</th>
-                    <th>アプリ</th>
-                    <th>形式</th>
-                    <th>内容</th>
-                </tr>
-                <tr>
-                    <td><code>.vsl</code></td>
-                    <td>VideoSyncLab</td>
-                    <td>JSON</td>
-                    <td>同期ポイント、トリム範囲、ファイルパス、再生速度</td>
-                </tr>
-                <tr>
-                    <td><code>.hpe</code></td>
-                    <td>HPE</td>
-                    <td>JSON</td>
-                    <td>フレームごとの全キーポイント座標・信頼度、人物ID、メタデータ</td>
-                </tr>
-                <tr>
-                    <td><code>.csv</code></td>
-                    <td>HPE</td>
-                    <td>CSV</td>
-                    <td>タブ区切り。frame, person_id, kp0_x, kp0_y, kp0_conf, ... の列構成</td>
-                </tr>
-                <tr>
-                    <td><code>.mdp</code></td>
-                    <td>MotionDigitizer</td>
-                    <td>JSON</td>
-                    <td>キャリブレーション定数、デジタイズ座標、スケール情報、プロジェクト設定</td>
-                </tr>
-                <tr>
-                    <td><code>.rd</code></td>
-                    <td>MotionDigitizer</td>
-                    <td>CSV</td>
-                    <td>実長換算済み2D/3D座標データ（旧形式互換）</td>
-                </tr>
-                <tr>
-                    <td><code>.3d</code></td>
-                    <td>MotionDigitizer</td>
-                    <td>CSV</td>
-                    <td>3D座標データ（DLT復元後）</td>
-                </tr>
-                <tr>
-                    <td><code>.c3d</code></td>
-                    <td>MotionDigitizer</td>
-                    <td>Binary</td>
-                    <td>国際標準バイオメカニクス交換フォーマット</td>
-                </tr>
-                <tr>
-                    <td><code>.trc</code></td>
-                    <td>MotionDigitizer</td>
-                    <td>TSV（タブ区切りテキスト）</td>
-                    <td>OpenSim用マーカー軌跡。PathFileType4形式、単位: メートル、座標系: Y-up</td>
-                </tr>
-                <tr>
-                    <td><code>.mvp</code></td>
-                    <td>MotionViewer</td>
-                    <td>JSON</td>
-                    <td>解析設定、フィルタパラメータ、BSPモデル選択、表示設定</td>
-                </tr>
-            </table>
-        </div>
-
-        <!-- ========================================== -->
-        <!-- 7. REFERENCES                              -->
-        <!-- ========================================== -->
-        <div class="card" id="refs">
-            <h2><i class="fa-solid fa-book"></i> 7. 参考文献</h2>
-
-            <h3>座標変換・キャリブレーション</h3>
-            <ul>
-                <li>Abdel-Aziz, Y.I. &amp; Karara, H.M. (1971). Direct linear transformation from comparator coordinates
-                    into object space coordinates in close-range photogrammetry. <em>Proc. ASP/UI Symposium on
-                        Close-Range Photogrammetry</em>.</li>
-                <li>Walton, J.S. (1981). Close-range cine-photogrammetry: A generalized technique for quantifying gross
-                    human motion. <em>Ph.D. Dissertation, Penn State University</em>.</li>
-                <li>池上康男, 桜井伸二, 矢部京之助 (1991). DLT法. <em>Jpn J Sports Sci</em>, 10, 191-195.</li>
-                <li>鈴木雄太, 竹中俊輔, 榎本靖士, 田内健二 (2016). 競技場の特徴点を利用したカメラパラメータ算出法に関する研究. <em>バイオメカニクス研究</em>, 20(1), 2-9.</li>
-            </ul>
-
-            <h3>フィルタリング</h3>
-            <ul>
-                <li>Butterworth, S. (1930). On the theory of filter amplifiers. <em>Experimental Wireless and the
-                        Wireless Engineer</em>, 7, 536-541.</li>
-                <li>Winter, D.A. (2009). <em>Biomechanics and Motor Control of Human Movement</em> (4th ed.). Wiley.
-                </li>
-                <li>Wells, R.P. &amp; Winter, D.A. (1980). Assessment of signal and noise in the kinematics of normal,
-                    pathological and sporting gaits. <em>Human Locomotion I</em>, 92-93.</li>
-            </ul>
-
-            <h3>身体部分慣性係数</h3>
-            <ul>
-                <li>阿江通良, 湯海鵬, 横井孝志 (1992). 日本人アスリートの身体部分慣性特性の推定. <em>バイオメカニズム</em>, 11, 23-33.</li>
-                <li>横井孝志, 渋川侃二, 阿江通良 (1986). 日本人幼少年の身体部分係数. <em>体育学研究</em>, 31(1), 53-66.</li>
-                <li>岡田英孝, 阿江通良, 藤井範久, 森丘保典 (1996). 日本人高齢者の身体部分慣性特性. <em>バイオメカニズム</em>, 13, 125-139.</li>
-            </ul>
-
-            <h3>AI・姿勢推定</h3>
-            <ul>
-                <li>Xu, Y. et al. (2022). ViTPose: Simple Vision Transformer Baselines for Human Pose Estimation.
-                    <em>NeurIPS 2022</em>.
-                </li>
-                <li>Jiang, T. et al. (2023). RTMPose: Real-Time Multi-Person Pose Estimation based on MMPose.
-                    <em>arXiv:2303.07399</em>.
-                </li>
-                <li>Uhlrich, S.D. et al. (2023). OpenCap: Human movement dynamics from smartphone videos.
-                    <em>PLOS Computational Biology</em>, 19(10).
-                </li>
-                <li>rtmlib — Lightweight ONNX inference wrapper for RTMPose/ViTPose. https://github.com/Tau-J/rtmlib</li>
-                <li>Ultralytics. YOLOv11 — Real-Time Object Detection.</li>
-                <li>Xie, J. et al. Norfair: Customizable Lightweight Python Library for Real-Time Multi-Object Tracking.
-                </li>
-            </ul>
-
-            <h3>ARマーカー・画像処理</h3>
-            <ul>
-                <li>Garrido-Jurado, S., Muñoz-Salinas, R., Madrid-Cuevas, F.J., & Medina-Carnicer, R. (2014). Automatic
-                    generation and detection of highly reliable fiducial markers under occlusion. <em>Pattern
-                        Recognition</em>, 47(6), 2280-2292.</li>
-                <li>Garrido-Jurado, S. et al. (2016). Generation of fiducial marker dictionaries using Mixed Integer
-                    Linear Programming. <em>Pattern Recognition</em>, 51, 481-491.</li>
-            </ul>
-
-            <h3>データフォーマット・筋骨格シミュレーション</h3>
-            <ul>
-                <li>C3D.org. The C3D File Format — A Standard for Biomechanics Data Exchange.</li>
-                <li>Delp, S.L. et al. (2007). OpenSim: Open-Source Software to Create and Analyze Dynamic Simulations of
-                    Movement. <em>IEEE Transactions on Biomedical Engineering</em>, 54(11), 1940-1950.</li>
-                <li>Seth, A. et al. (2018). OpenSim: Simulating musculoskeletal dynamics and neuromuscular control to
-                    study human and animal movement. <em>PLOS Computational Biology</em>, 14(7), e1006223.</li>
-                <li>Simtk.org. OpenSim Documentation — TRC File Format Specification.</li>
-            </ul>
-        </div>
-
-        <!-- ========================================== -->
-        <!-- 8. AUTHOR / CONTACT                        -->
-        <!-- ========================================== -->
-        <div class="card" id="author">
-            <h2><i class="fa-solid fa-address-card"></i> 8. 開発者・連絡先</h2>
-            <div class="two-col">
-                <div class="highlight-box">
-                    <h4><i class="fa-solid fa-user-tie"></i> 開発・監修</h4>
-                    <p><strong>村田 和隆</strong> (Kazutaka Murata)</p>
-                    <p>桃山学院大学 人間教育学部</p>
-                </div>
-                <div class="highlight-box">
-                    <h4><i class="fa-solid fa-envelope"></i> Contact</h4>
-                    <p>研究・開発に関するお問い合わせ:</p>
-                    <p><code>k-murata[at]andrew.ac.jp</code></p>
-                </div>
-            </div>
-        </div>
-
-    </div>
-
-    <footer>
-        <p>&copy; 2026 Electoron Biomechanics Suite | Algorithm &amp; Mathematics Documentation | Generated from Source
-            Code Analysis</p>
-    </footer>
-
-</body>
-
-</html>
+                    座標軸に対するセグメントの絶対角度

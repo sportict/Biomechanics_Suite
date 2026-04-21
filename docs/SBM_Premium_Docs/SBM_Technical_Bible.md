@@ -35,6 +35,8 @@ Mathematics
     5.  [ChArUco自動キャリブレーション](#md-charuco)
     6.  [実長換算](#md-reallength)
     7.  [C3Dフォーマット](#md-c3d)
+    8.  [TRCフォーマット（OpenSim連携）](#md-trc)
+    9.  [Windows 配布ビルド（OpenCV DLL 同梱 + delay-load hook）](#md-winbuild)
 5.  [MotionViewer — 運動学解析エンジン](#mv)
     1.  [Butterworthフィルタ](#mv-butter)
     2.  [Wells & Winter自動カットオフ決定](#mv-cutoff)
@@ -969,6 +971,100 @@ MotionDigitizer/src/c3d-exporter.js
 
 **エンディアン:** C3Dはリトルエンディアン（Intel形式）とビッグエンディアン（SGI形式）の両方をサポート。 本システムはリトルエンディアンで出力する。
 
+### 4.8 TRCフォーマット（OpenSim連携）
+
+MotionDigitizer/src/trc-handler.js
+
+**TRC**（Track Row Column）は OpenSim が採用するマーカー軌跡の標準テキストフォーマットである。DLT法または実長換算で得た 3D 座標を、Inverse Kinematics / Scale Tool の入力として使用する。
+
+ファイル構造（タブ区切り）は以下のとおり:
+
+- Line 1: `PathFileType  4  (X/Y/Z)  motion.trc`
+- Line 2: パラメータ列名（`DataRate  CameraRate  NumFrames  NumMarkers  Units ...`）
+- Line 3: パラメータ値（例 `30.00  30.00  300  23  m ...`）
+- Line 4: マーカー名ヘッダー（`Frame#  Time  R.Ankle      L.Ankle ...`）
+- Line 5: サブ列ラベル（`X1  Y1  Z1  X2  Y2  Z2 ...`）
+- Line 6: **必須空行**（OpenSim 仕様）
+- Line 7+: データ行
+
+**重要:** Line 6 の空行は OpenSim 公式仕様で必須。この行がないと一部の OpenSim バージョンでデータが正しく読み込まれない。
+
+**座標系変換:** カメラ座標系（Z-up）から OpenSim 座標系（Y-up）への変換を実装する。`X_new = Y_cam`（奥行き→前後）、`Y_new = Z_cam`（高さ→上下）、`Z_new = X_cam`（横→左右）。
+
+```js
+/**
+ * カメラ座標系 → OpenSim 座標系への変換
+ * カメラ: X=左右, Y=奥行, Z=高さ
+ * OpenSim: X=前後, Y=上下, Z=左右
+ */
+function toOpenSimAxes(x, y, z) {
+    return { x: y, y: z, z: x };
+}
+```
+
+**マーカー名:** ポイント名は CSV/プロジェクトの名前がそのまま TRC に出力される。OpenSim モデル側のマーカー名と一致させる必要があるため、OpenSim モデルのマーカー名にプロジェクトのポイント名を合わせるか、OpenSim 側の Setup XML でマーカーをマッピングすること。
+
+### 4.9 Windows 配布ビルド — OpenCV DLL 同梱と delay-load hook
+
+MotionDigitizer v1.1.0 以降、Windows インストーラは **自己完結型 (self-contained)** とし、OpenCV / FFmpeg / VC++ Redist の全依存 DLL を `resources/opencv/` に同梱する。ユーザ側の `vcpkg` 環境や `%PATH%` 設定に依存せず、クリーン環境でも起動できることを要件とする。
+
+#### アーキテクチャ
+
+ネイティブアドオン `opencv_module.node` は node-addon-api ベースで、OpenCV 4.x を静的にリンクせず **動的 DLL 参照** としている（ビルド時間短縮と再配布ライセンス対応のため）。実行時は以下の経路で解決される:
+
+1. Electron プロセス起動時に `electron-main.js` が `process.env.PATH` の先頭に `<resourcesPath>/opencv` を挿入する。
+2. `require('opencv_module')` 実行時、Windows ローダが `opencv_core4.dll`、`opencv_imgproc4.dll` 等を `PATH` から解決する。
+3. 同フォルダに同梱した `avformat-61.dll`、`avcodec-61.dll` 等の FFmpeg ランタイム、`MSVCP140.dll`、`VCRUNTIME140.dll`、`VCRUNTIME140_1.dll` も同様に解決される。
+
+#### delay-load hook（Electron v32+ 対応）
+
+Electron v32 以降、Node.js API は `electron.exe` に内部統合されており、配布物には `libnode.dll` / `node.exe` / `iojs.exe` のいずれも存在しない。node-addon-api を使ったネイティブアドオンは既定でこれらをインポートテーブルに含むため、ロード時に `ERR_DLOPEN_FAILED: libnode.dll could not be found` が発生する。
+
+本プロジェクトではカスタム delay-load hook `native/win_delay_load_hook_electron.cc` を用意し、上記 3 DLL のシンボルを `GetModuleHandle(NULL)` 経由で **ホストプロセス (electron.exe)** にリダイレクトする。`binding.gyp` で以下を指定することで、node-gyp のデフォルトフックを無効化してカスタムフックを優先させる:
+
+```python
+"win_delay_load_hook": "false",
+"conditions": [["OS=='win'", {
+  "sources": [ "win_delay_load_hook_electron.cc" ],
+  "msvs_settings": {
+    "VCLinkerTool": {
+      "DelayLoadDLLs": [ "libnode.dll", "node.exe", "iojs.exe" ],
+      "AdditionalOptions": [ "/ignore:4199" ]
+    }
+  }
+}]]
+```
+
+ビルド後は `dumpbin /imports opencv_module.node` で **"Section contains the following delay load imports: node.exe"** と表示されることを確認する。これら 3 DLL が `static imports` 側に残っている場合、配布環境で起動失敗する。
+
+#### 同梱 DLL レイアウト（resources/opencv/）
+
+| カテゴリ | DLL 例 | 由来 |
+| --- | --- | --- |
+| OpenCV 4.x core | `opencv_core4.dll`, `opencv_imgproc4.dll`, `opencv_videoio4.dll`, `opencv_calib3d4.dll`, `opencv_aruco4.dll` 等 9 個 | vcpkg x64-windows |
+| FFmpeg | `avformat-61.dll`, `avcodec-61.dll`, `avutil-59.dll`, `swscale-8.dll` ほか | vcpkg x64-windows |
+| 画像コーデック | `libpng16.dll`, `libjpeg*.dll`, `libwebp*.dll`, `tiff.dll`, `openjp2.dll` 等 | vcpkg x64-windows（OpenCV 間接依存） |
+| VC++ Redistributable | `MSVCP140.dll`, `VCRUNTIME140.dll`, `VCRUNTIME140_1.dll` | Microsoft VC++ Runtime（再配布ライセンス対応） |
+
+DLL 総数は約 75 個、サイズは約 120 MB。`REBUILD_OPENCV_WINDOWS.ps1` が `vcpkg` インストールディレクトリから必要 DLL を再帰的に抽出して配置する。
+
+#### electron-builder 設定のポイント
+
+- `package.json` の `build.extraResources` に `{"from": "vendor/opencv/bin", "to": "opencv"}` を指定し、`resources/opencv/` 配下に展開する。
+- `asarUnpack` に `"**/*.node"`, `"**/ffmpeg*"`, `"**/ffprobe*"` を含め、ASAR 外に展開して動的ロード可能にする。
+- `nsis.oneClick: false`、`nsis.allowElevation: true` でユーザ選択インストーラに切り替え、インストール先を `C:\Program Files\MotionDigitizer` 既定とする。
+
+#### 起動時診断ログ
+
+`electron-main.js` の `writeOpenCVDiagLog()` が起動時に `%APPDATA%\MotionDigitizer\opencv-diag.log` へ以下を書き出し、配布環境でのロード失敗を事後診断できるようにしている:
+
+- `app.getAppPath()` / `process.resourcesPath` の実パス
+- `resources/opencv/` の全エントリ列挙（ファイル名・サイズ）
+- 17 個の必須 DLL（OpenCV 9 + FFmpeg 4 + 画像コーデック 1 + VC++ Redist 3）の個別存在チェック結果
+- `process.env.PATH` のスナップショット（挿入後）
+
+ユーザがトラブルシュートで該当ログを添付すれば、DLL 欠落なのかローダパスの問題なのかを即座に判別できる。
+
 ## 5\. MotionViewer — 運動学解析エンジン
 
 3D座標データから運動学的パラメータ（速度、角度、重心等）を算出し、 3D可視化と時系列グラフで表示するエンジン。
@@ -1250,323 +1346,4 @@ Smooth Velocity
 
 ### 5.6 関節角度の算出
 
-MotionViewer/src/renderer/app.js — calculateJointAngles()
-
-3点で定義される関節角度を、ベクトルの内積とアークコサインで算出する。
-
-\\\[ \\mathbf{a} = \\mathbf{P}\_1 - \\mathbf{P}\_2, \\quad \\mathbf{b} = \\mathbf{P}\_3 - \\mathbf{P}\_2 \\\] \\\[ \\theta = \\arccos\\left(\\frac{\\mathbf{a} \\cdot \\mathbf{b}}{|\\mathbf{a}| \\cdot |\\mathbf{b}|}\\right) \\\]
-
-#### 14関節角度の定義
-
-関節
-
-P₁（近位）
-
-P₂（関節中心）
-
-P₃（遠位）
-
-左肘
-
-左肩
-
-左肘
-
-左手首
-
-右肘
-
-右肩
-
-右肘
-
-右手首
-
-左肩
-
-体幹上
-
-左肩
-
-左肘
-
-右肩
-
-体幹上
-
-右肩
-
-右肘
-
-左股関節
-
-体幹下
-
-左股関節
-
-左膝
-
-右股関節
-
-体幹下
-
-右股関節
-
-右膝
-
-左膝
-
-左股関節
-
-左膝
-
-左足首
-
-右膝
-
-右股関節
-
-右膝
-
-右足首
-
-左足首
-
-左膝
-
-左足首
-
-左つま先
-
-右足首
-
-右膝
-
-右足首
-
-右つま先
-
-左手首
-
-左肘
-
-左手首
-
-左手指先
-
-右手首
-
-右肘
-
-右手首
-
-右手指先
-
-体幹前傾
-
-頭頂
-
-肩中点
-
-股関節中点
-
-骨盤傾斜
-
-肩中点
-
-股関節中点
-
-膝中点
-
-### 5.7 セグメント角度
-
-座標軸に対するセグメントの絶対角度を `atan2` で算出する。 これは重力方向に対する体幹傾斜などの評価に用いる。
-
-\\\[ \\theta\_{XY} = \\text{atan2}(Y\_{distal} - Y\_{proximal}, \\; X\_{distal} - X\_{proximal}) \\\] \\\[ \\theta\_{XZ} = \\text{atan2}(Z\_{distal} - Z\_{proximal}, \\; X\_{distal} - X\_{proximal}) \\\]
-
-各座標平面（XY, XZ, YZ）への投影角度を独立に算出可能。
-
-### 5.8 Three.js 3Dレンダリング
-
-MotionViewer/src/renderer/app.js — init3DScene()
-
-WebGL ベースの **Three.js** ライブラリで3Dスティックピクチャーをリアルタイム描画する。
-
-コンポーネント
-
-実装
-
-用途
-
-レンダラー
-
-`THREE.WebGLRenderer`
-
-GPU描画エンジン
-
-カメラ
-
-`THREE.PerspectiveCamera`
-
-透視投影（FOV 75°）
-
-コントロール
-
-`OrbitControls`
-
-マウスドラッグで回転・ズーム
-
-骨格線
-
-`THREE.LineSegments`
-
-関節間を線分で接続
-
-関節点
-
-`THREE.Points / Mesh`
-
-球体で関節位置を表示
-
-軌跡
-
-`THREE.Line`
-
-選択キーポイントの移動軌跡
-
-床面
-
-`THREE.GridHelper`
-
-空間参照用グリッド
-
-アニメーション再生は `requestAnimationFrame` ループで制御され、 タイムラインスライダーと同期する。FFmpeg経由でMP4動画としてエクスポートも可能。
-
-## 6\. ファイルフォーマット仕様
-
-拡張子
-
-アプリ
-
-形式
-
-内容
-
-`.vsl`
-
-VideoSyncLab
-
-JSON
-
-同期ポイント、トリム範囲、ファイルパス、再生速度
-
-`.hpe`
-
-HPE
-
-JSON
-
-フレームごとの全キーポイント座標・信頼度、人物ID、メタデータ
-
-`.csv`
-
-HPE
-
-CSV
-
-タブ区切り。frame, person\_id, kp0\_x, kp0\_y, kp0\_conf, ... の列構成
-
-`.mdp`
-
-MotionDigitizer
-
-JSON
-
-キャリブレーション定数、デジタイズ座標、スケール情報、プロジェクト設定
-
-`.rd`
-
-MotionDigitizer
-
-CSV
-
-実長換算済み2D/3D座標データ（旧形式互換）
-
-`.3d`
-
-MotionDigitizer
-
-CSV
-
-3D座標データ（DLT復元後）
-
-`.c3d`
-
-MotionDigitizer
-
-Binary
-
-国際標準バイオメカニクス交換フォーマット
-
-`.mvp`
-
-MotionViewer
-
-JSON
-
-解析設定、フィルタパラメータ、BSPモデル選択、表示設定
-
-## 7\. 参考文献
-
-### 座標変換・キャリブレーション
-
-*   Abdel-Aziz, Y.I. & Karara, H.M. (1971). Direct linear transformation from comparator coordinates into object space coordinates in close-range photogrammetry. _Proc. ASP/UI Symposium on Close-Range Photogrammetry_.
-*   Walton, J.S. (1981). Close-range cine-photogrammetry: A generalized technique for quantifying gross human motion. _Ph.D. Dissertation, Penn State University_.
-*   池上康男, 桜井伸二, 矢部京之助 (1991). DLT法. _Jpn J Sports Sci_, 10, 191-195.
-*   鈴木雄太, 竹中俊輔, 榎本靖士, 田内健二 (2016). 競技場の特徴点を利用したカメラパラメータ算出法に関する研究. _バイオメカニクス研究_, 20(1), 2-9.
-
-### フィルタリング
-
-*   Butterworth, S. (1930). On the theory of filter amplifiers. _Experimental Wireless and the Wireless Engineer_, 7, 536-541.
-*   Winter, D.A. (2009). _Biomechanics and Motor Control of Human Movement_ (4th ed.). Wiley.
-*   Wells, R.P. & Winter, D.A. (1980). Assessment of signal and noise in the kinematics of normal, pathological and sporting gaits. _Human Locomotion I_, 92-93.
-
-### 身体部分慣性係数
-
-*   阿江通良, 湯海鵬, 横井孝志 (1992). 日本人アスリートの身体部分慣性特性の推定. _バイオメカニズム_, 11, 23-33.
-*   横井孝志, 渋川侃二, 阿江通良 (1986). 日本人幼少年の身体部分係数. _体育学研究_, 31(1), 53-66.
-*   岡田英孝, 阿江通良, 藤井範久, 森丘保典 (1996). 日本人高齢者の身体部分慣性特性. _バイオメカニズム_, 13, 125-139.
-
-### AI・姿勢推定
-
-*   Xu, Y. et al. (2022). ViTPose: Simple Vision Transformer Baselines for Human Pose Estimation. _NeurIPS 2022_.
-*   Jiang, T. et al. (2023). RTMPose: Real-Time Multi-Person Pose Estimation based on MMPose. _arXiv:2303.07399_.
-*   Uhlrich, S.D. et al. (2023). OpenCap: Human movement dynamics from smartphone videos. _PLOS Computational Biology_, 19(10).
-*   rtmlib — Lightweight ONNX inference wrapper for RTMPose/ViTPose. https://github.com/Tau-J/rtmlib
-*   Ultralytics. YOLOv11 — Real-Time Object Detection.
-*   Xie, J. et al. Norfair: Customizable Lightweight Python Library for Real-Time Multi-Object Tracking.
-
-### ARマーカー・画像処理
-
-*   Garrido-Jurado, S., Muñoz-Salinas, R., Madrid-Cuevas, F.J., & Medina-Carnicer, R. (2014). Automatic generation and detection of highly reliable fiducial markers under occlusion. _Pattern Recognition_, 47(6), 2280-2292.
-*   Garrido-Jurado, S. et al. (2016). Generation of fiducial marker dictionaries using Mixed Integer Linear Programming. _Pattern Recognition_, 51, 481-491.
-
-### データフォーマット
-
-*   C3D.org. The C3D File Format — A Standard for Biomechanics Data Exchange.
-
-## 8\. 開発者・連絡先
-
-#### 開発・監修
-
-**村田 和隆** (Kazutaka Murata)
-
-桃山学院大学 人間教育学部
-
-#### Contact
-
-研究・開発に関するお問い合わせ:
-
-`k-murata[at]andrew.ac.jp`
-
-© 2026 Electoron Biomechanics Suite | Algorithm & Mathematics Documentation | Generated from Source Code Analysis
+MotionViewer/src/renderer/app.js — calculateJoi
